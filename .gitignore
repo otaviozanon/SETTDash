@@ -1,0 +1,6 @@
+# Build artifacts
+/SETTDash.exe
+
+# Temp
+*.tmp
+*.log
