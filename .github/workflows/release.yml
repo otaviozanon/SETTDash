@@ -1,0 +1,80 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    if: github.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Bump patch and tag if source changed
+        run: |
+          changed=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || true)
+          if echo "$changed" | grep -Eq '^(SETTDash\.ps1|icon_lightning\.ico)$'; then
+            git fetch --tags
+            last=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+            if [ -z "$last" ]; then
+              new="3.2.1"
+            else
+              base="${last#v}"
+              IFS=. read -r a b c <<< "$base"
+              new="$a.$b.$((c+1))"
+            fi
+            git config user.name github-actions
+            git config user.email github-actions@github.com
+            if ! git tag -l "v$new" | grep -q .; then
+              git tag "v$new"
+              git push origin "v$new"
+              echo "Tagged v$new"
+            else
+              echo "Tag v$new already exists, skipping"
+            fi
+          else
+            echo "No source change (SETTDash.ps1 / icon), skipping bump"
+          fi
+
+  build-release:
+    if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ps2exe
+        shell: pwsh
+        run: |
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module -Name ps2exe -Scope CurrentUser -Force
+
+      - name: Build exe
+        shell: pwsh
+        run: |
+          Import-Module ps2exe
+          if ($env:GITHUB_REF_TYPE -eq 'tag') { $v = $env:GITHUB_REF_NAME.TrimStart('v') } else { $v = '0.0.0' }
+          Invoke-ps2exe -inputFile SETTDash.ps1 -outputFile SETTDash.exe -iconFile icon_lightning.ico -noConsole -requireAdmin -x86 -title "SETTDash" -description "All-in-one Windows optimization & tweaking dashboard" -product "SETTDash" -company "otaviozanon" -version $v
+          if (-not (Test-Path SETTDash.exe)) { throw "Build failed: SETTDash.exe not found" }
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SETTDash
+          path: SETTDash.exe
+
+      - name: Create release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: gh release create "$env:GITHUB_REF_NAME" SETTDash.exe --title "SETTDash $env:GITHUB_REF_NAME" --generate-notes
