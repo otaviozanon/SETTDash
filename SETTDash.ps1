@@ -1,4 +1,4 @@
-#
+﻿#
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Continue"
 Add-Type -AssemblyName System.Windows.Forms
@@ -7,6 +7,26 @@ Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase
 [System.Windows.Forms.Application]::EnableVisualStyles()
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+# ============================================
+# ADMIN ELEVATION CHECK
+# ============================================
+# SETTDash requires Administrator privileges (registry/service/system operations rely on it).
+$Script:IsElevated = $false
+try {
+    $currentPrincipal = New-Object System.Security.Principal.WindowsPrincipal([System.Security.Principal.WindowsIdentity]::GetCurrent())
+    $Script:IsElevated = $currentPrincipal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
+} catch { $Script:IsElevated = $false }
+
+if (-not $Script:IsElevated) {
+    [System.Windows.Forms.MessageBox]::Show(
+        "SETTDash precisa ser executado como Administrador.`nMuitas funcoes (registro, servicos, cache) falharao silenciosamente sem elevacao.`n`nPor favor feche e execute novamente como Administrador.",
+        "SETTDash - Privilegios insuficientes",
+        [System.Windows.Forms.MessageBoxButtons]::OK,
+        [System.Windows.Forms.MessageBoxIcon]::Warning
+    ) | Out-Null
+    exit 1
+}
 
 # ============================================
 # SETTDash v3.2
@@ -68,37 +88,11 @@ if (-not (Test-Path $Script:TempDir)) { New-Item -Path $Script:TempDir -ItemType
         </Style>
 
         <!-- ==================== NAV BUTTON ACTIVE STYLE ==================== -->
-        <Style x:Key="NavButtonActiveStyle" TargetType="Button">
+        <!-- Reuses NavButtonStyle's template; only overrides the colors that differ when a nav item is active. -->
+        <Style x:Key="NavButtonActiveStyle" TargetType="Button" BasedOn="{StaticResource NavButtonStyle}">
             <Setter Property="Background" Value="#1F6FEB"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Height" Value="38"/>
-            <Setter Property="HorizontalContentAlignment" Value="Left"/>
-            <Setter Property="Padding" Value="16,0,0,0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="border" Background="{TemplateBinding Background}"
-                                Padding="{TemplateBinding Padding}"
-                                CornerRadius="0">
-                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                              VerticalAlignment="Center"
-                                              TextBlock.Foreground="{TemplateBinding Foreground}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#388BFD"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#1F6FEB"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
         </Style>
 
         <!-- ==================== NAV HEADER STYLE ==================== -->
@@ -621,10 +615,10 @@ if (-not (Test-Path $Script:TempDir)) { New-Item -Path $Script:TempDir -ItemType
 #endregion
 
 # Initialize script-scope variables for ALL Programs page
-$global:AllAppsData = @{}
-$global:AllSelectedSet = New-Object 'System.Collections.Generic.List[int]'
-$global:AllInstallBtn = $null
-$global:AllWrapPanels = $null
+$Script:AllAppsData = @{}
+$Script:AllSelectedSet = New-Object 'System.Collections.Generic.List[int]'
+$Script:AllInstallBtn = $null
+$Script:AllWrapPanels = $null
 
 function Invoke-AllChecked {
     param($cb, $e)
@@ -635,15 +629,15 @@ function Invoke-AllChecked {
         $bd.Background = "#0D419D"
         $bd.BorderBrush = "#1F6FEB"
     }
-    if ($null -ne $global:AllSelectedSet) {
-        if (-not ($global:AllSelectedSet.Contains($idx))) {
-            $global:AllSelectedSet.Add($idx) | Out-Null
+    if ($null -ne $Script:AllSelectedSet) {
+        if (-not ($Script:AllSelectedSet.Contains($idx))) {
+            $Script:AllSelectedSet.Add($idx) | Out-Null
         }
     }
-    $cnt = $global:AllSelectedSet.Count
-    if ($null -ne $global:AllInstallBtn) {
-        $global:AllInstallBtn.Content = "Install Selected [$cnt]"
-        $global:AllInstallBtn.Background = if ($cnt -gt 0) { "#2EA043" } else { "#238636" }
+    $cnt = $Script:AllSelectedSet.Count
+    if ($null -ne $Script:AllInstallBtn) {
+        $Script:AllInstallBtn.Content = "Install Selected [$cnt]"
+        $Script:AllInstallBtn.Background = if ($cnt -gt 0) { "#2EA043" } else { "#238636" }
     }
 }
 
@@ -656,11 +650,11 @@ function Invoke-AllUnchecked {
         $bd.Background = "#161B22"
         $bd.BorderBrush = "#21262D"
     }
-    if ($null -ne $global:AllSelectedSet) { $global:AllSelectedSet.Remove($idx) }
-    $cnt = $global:AllSelectedSet.Count
-    if ($null -ne $global:AllInstallBtn) {
-        $global:AllInstallBtn.Content = "Install Selected [$cnt]"
-        $global:AllInstallBtn.Background = if ($cnt -gt 0) { "#2EA043" } else { "#238636" }
+    if ($null -ne $Script:AllSelectedSet) { $Script:AllSelectedSet.Remove($idx) }
+    $cnt = $Script:AllSelectedSet.Count
+    if ($null -ne $Script:AllInstallBtn) {
+        $Script:AllInstallBtn.Content = "Install Selected [$cnt]"
+        $Script:AllInstallBtn.Background = if ($cnt -gt 0) { "#2EA043" } else { "#238636" }
     }
 }
 
@@ -668,8 +662,8 @@ function Invoke-AllFilter {
     param($tb)
     if ($null -eq $tb) { return }
     try { $f = $tb.Text.ToLowerInvariant() } catch { return }
-    if ($null -eq $global:AllWrapPanels) { return }
-    foreach ($wpanel in $global:AllWrapPanels) {
+    if ($null -eq $Script:AllWrapPanels) { return }
+    foreach ($wpanel in $Script:AllWrapPanels) {
         if ($null -eq $wpanel) { continue }
         foreach ($child in $wpanel.Children) {
             if ($child -is [System.Windows.Controls.Border] -and $child.Child -is [System.Windows.Controls.CheckBox]) {
@@ -681,12 +675,12 @@ function Invoke-AllFilter {
 }
 
 function Invoke-AllInstallSelected {
-    if ($null -eq $global:AllSelectedSet -or $global:AllSelectedSet.Count -eq 0) { return }
-    $count = $global:AllSelectedSet.Count
-    $ids = $global:AllSelectedSet.ToArray() | Sort-Object
+    if ($null -eq $Script:AllSelectedSet -or $Script:AllSelectedSet.Count -eq 0) { return }
+    $count = $Script:AllSelectedSet.Count
+    $ids = $Script:AllSelectedSet.ToArray() | Sort-Object
     Write-GuiLog "Installing $count selected program(s)..." "STEP"
     foreach ($idx in $ids) {
-        $d2 = $global:AllAppsData[$idx]
+        $d2 = $Script:AllAppsData[$idx]
         if ($d2) { Invoke-InstallWingetApp $d2.Winget $d2.Name -FallbackUrl $d2.Url }
     }
     Write-GuiLog "Done." "OK"
@@ -896,8 +890,42 @@ function Add-GuiBtn {
     $btn.MinWidth = 120
     $btn.Margin = "0,2,6,2"
     $btn.Content = $Text
-    $btn.Add_Click({ Clear-GuiLog; Set-GuiProgress 0; & $Handler }.GetNewClosure())
+    $btn.Add_Click({
+        Clear-GuiLog
+        Set-GuiProgress 0
+        $btn.IsEnabled = $false
+        $Window.Cursor = [System.Windows.Input.Cursors]::Wait
+        # Force a render pass now so the disabled state / wait cursor is visible
+        # to the user before the (synchronous) handler potentially blocks the UI thread.
+        $Window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::Render)
+        try {
+            & $Handler
+        } catch {
+            Write-GuiLog "Unexpected error: $_" "ERR"
+        } finally {
+            $btn.IsEnabled = $true
+            $Window.Cursor = [System.Windows.Input.Cursors]::Arrow
+        }
+    }.GetNewClosure())
     $Panel.AddChild($btn)
+}
+
+# Reusable pattern for the dozens of "install via winget, fallback to website" buttons.
+# Collapses: Add-GuiBtn $p "Label" "ActionButtonStyle" { Invoke-InstallWingetApp "Id" "Name" -Source "x" -FallbackUrl "url" }
+function Add-GuiInstallBtn {
+    param($Panel, [string]$Label, [string]$Id, [string]$Name = $Label, [string]$Source = "winget", [string]$FallbackUrl = "")
+    Add-GuiBtn $Panel $Label "ActionButtonStyle" { Invoke-InstallWingetApp $Id $Name -Source $Source -FallbackUrl $FallbackUrl }.GetNewClosure()
+}
+
+# Reusable pattern for the dozens of "one card with an Apply + Revert tweak pair" pages.
+# Collapses: Add-GuiCard "Title" "Desc" { param($p) Add-GuiBtn $p "Apply X" "ActionButtonStyle" { Invoke-XApply }; Add-GuiBtn $p "Revert X" "RevertButtonStyle" { Invoke-XRevert } }
+function Add-GuiApplyRevertCard {
+    param([string]$Title, [string]$Desc, [string]$ApplyLabel, [scriptblock]$ApplyAction, [string]$RevertLabel, [scriptblock]$RevertAction)
+    Add-GuiCard $Title $Desc {
+        param($p)
+        Add-GuiBtn $p $ApplyLabel "ActionButtonStyle" $ApplyAction
+        if ($RevertLabel -and $RevertAction) { Add-GuiBtn $p $RevertLabel "RevertButtonStyle" $RevertAction }
+    }.GetNewClosure()
 }
 
 #endregion
@@ -1497,55 +1525,39 @@ function Invoke-W11RevertAltTab {
 # ================================================
 #region 11. BROWSER TWEAKS
 # ================================================
-function Invoke-BraveTweaks {
-    Set-GuiProgress 10 "Optimizing Brave..."
-    $reg = @(
+# Data table for the 4 near-identical browser tweak functions (Brave/Chrome/Edge/Firefox):
+# each one just applied a different list of registry settings and logged the browser's name.
+$Script:BrowserTweakSettings = @{
+    "Brave" = @(
         @{Path="HKLM:\SOFTWARE\Policies\BraveSoftware\Brave";Name="BraveRewardsDisabled";Type="DWORD";Value=1}
         @{Path="HKLM:\SOFTWARE\Policies\BraveSoftware\Brave";Name="BraveWalletDisabled";Type="DWORD";Value=1}
         @{Path="HKLM:\SOFTWARE\Policies\BraveSoftware\Brave";Name="BraveVPNDisabled";Type="DWORD";Value=1}
         @{Path="HKLM:\SOFTWARE\Policies\BraveSoftware\Brave";Name="BraveAIChatEnabled";Type="DWORD";Value=0}
     )
-    Invoke-RegistryApply -Settings $reg -Label "Brave Tweaks"
-    Write-GuiLog "Brave optimized" "OK"
-    Set-GuiProgress 0
-}
-
-function Invoke-ChromeTweaks {
-    Set-GuiProgress 10 "Optimizing Chrome..."
-    $reg = @(
+    "Chrome" = @(
         @{Path="HKLM:\SOFTWARE\Policies\Google\Chrome";Name="SearchSuggestEnabled";Type="DWORD";Value=0}
         @{Path="HKLM:\SOFTWARE\Policies\Google\Chrome";Name="PromotionalTabsEnabled";Type="DWORD";Value=0}
         @{Path="HKLM:\SOFTWARE\Policies\Google\Chrome";Name="MetricsReportingEnabled";Type="DWORD";Value=0}
     )
-    Invoke-RegistryApply -Settings $reg -Label "Chrome Tweaks"
-    Write-GuiLog "Chrome optimized" "OK"
-    Set-GuiProgress 0
-}
-
-function Invoke-EdgeTweaks {
-    Set-GuiProgress 10 "Optimizing Edge..."
-    $reg = @(
+    "Edge" = @(
         @{Path="HKLM:\SOFTWARE\Policies\Microsoft\Edge";Name="SyncDisabled";Type="DWORD";Value=1}
         @{Path="HKLM:\SOFTWARE\Policies\Microsoft\Edge";Name="WalletEnabled";Type="DWORD";Value=0}
         @{Path="HKLM:\SOFTWARE\Policies\Microsoft\Edge";Name="HubsSidebarEnabled";Type="DWORD";Value=0}
         @{Path="HKLM:\SOFTWARE\Policies\Microsoft\Edge";Name="WebWidgetEnabled";Type="DWORD";Value=0}
         @{Path="HKLM:\SOFTWARE\Policies\Microsoft\Edge";Name="HideFirstRunExperience";Type="DWORD";Value=1}
     )
-    Invoke-RegistryApply -Settings $reg -Label "Edge Tweaks"
-    Write-GuiLog "Edge optimized" "OK"
-    Set-GuiProgress 0
-}
-
-function Invoke-FirefoxTweaks {
-    Set-GuiProgress 10 "Optimizing Firefox..."
-    $reg = @(
+    "Firefox" = @(
         @{Path="HKLM:\SOFTWARE\Policies\Mozilla\Firefox";Name="DisableTelemetry";Type="DWORD";Value=1}
         @{Path="HKLM:\SOFTWARE\Policies\Mozilla\Firefox";Name="DisablePocket";Type="DWORD";Value=1}
         @{Path="HKLM:\SOFTWARE\Policies\Mozilla\Firefox";Name="DisableFirefoxStudies";Type="DWORD";Value=1}
         @{Path="HKLM:\SOFTWARE\Policies\Mozilla\Firefox";Name="SearchSuggestEnabled";Type="DWORD";Value=0}
     )
-    Invoke-RegistryApply -Settings $reg -Label "Firefox Tweaks"
-    Write-GuiLog "Firefox optimized" "OK"
+}
+function Invoke-BrowserTweaks {
+    param([string]$Browser)
+    Set-GuiProgress 10 "Optimizing $Browser..."
+    Invoke-RegistryApply -Settings $Script:BrowserTweakSettings[$Browser] -Label "$Browser Tweaks"
+    Write-GuiLog "$Browser optimized" "OK"
     Set-GuiProgress 0
 }
 #endregion
@@ -1586,10 +1598,26 @@ function Invoke-ContextRevert {
 # ================================================
 #region 13. CACHE CLEANER (merged from CacheCleaner.ps1)
 # ================================================
+function Format-ByteSize {
+    param([double]$Bytes)
+    if ($Bytes -ge 1GB) { return "{0:N2} GB" -f ($Bytes / 1GB) }
+    elseif ($Bytes -ge 1MB) { return "{0:N2} MB" -f ($Bytes / 1MB) }
+    elseif ($Bytes -ge 1KB) { return "{0:N2} KB" -f ($Bytes / 1KB) }
+    else { return "$Bytes B" }
+}
+
+$Script:TotalFreedBytes = 0
+
 function Remove-DirContent { param([string]$Path, [string]$Desc)
     if (-not (Test-Path $Path)) { Write-GuiLog "$Desc not found" "WARN"; return }
     Write-GuiLog "Cleaning: $Desc" "STEP"
-    try { Remove-Item -Path "$Path\*" -Recurse -Force -ErrorAction SilentlyContinue; Write-GuiLog "$Desc cleaned" "OK" }
+    try {
+        $sizeBefore = (Get-ChildItem -Path $Path -Recurse -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum -ErrorAction SilentlyContinue).Sum
+        if (-not $sizeBefore) { $sizeBefore = 0 }
+        Remove-Item -Path "$Path\*" -Recurse -Force -ErrorAction SilentlyContinue
+        $Script:TotalFreedBytes += $sizeBefore
+        Write-GuiLog "$Desc cleaned - freed $(Format-ByteSize $sizeBefore)" "OK"
+    }
     catch { Write-GuiLog "Error cleaning $Desc" "ERR" }
 }
 
@@ -1608,6 +1636,7 @@ function Invoke-CleanBrowserCache {
     Write-GuiLog "Cleaning browser caches..." "STEP"
     $browsers = @{
         "Chrome" = "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Cache"
+        "Edge" = "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Cache"
         "Brave" = "$env:LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data\Default\Cache"
         "Opera GX" = "$env:APPDATA\Opera Software\Opera GX Stable\Cache"
     }
@@ -1655,40 +1684,96 @@ function Invoke-CleanDeliveryOpt {
 }
 function Invoke-CleanShaderCache { Set-GuiProgress 50; Remove-DirContent -Path (Join-Path $env:LOCALAPPDATA "D3DSCache") -Desc "Shader Cache"; Write-GuiLog "Shader cache cleaned" "OK"; Set-GuiProgress 0 }
 
+function Invoke-CleanRecycleBin {
+    Set-GuiProgress 50 "Emptying Recycle Bin..."
+    Write-GuiLog "Emptying Recycle Bin..." "STEP"
+    try {
+        $sizeBefore = (New-Object -ComObject Shell.Application).NameSpace(0xA).Items() | Measure-Object -Property Size -Sum -ErrorAction SilentlyContinue
+        $bytes = if ($sizeBefore.Sum) { $sizeBefore.Sum } else { 0 }
+        Clear-RecycleBin -Force -ErrorAction SilentlyContinue
+        $Script:TotalFreedBytes += $bytes
+        Write-GuiLog "Recycle Bin emptied - freed $(Format-ByteSize $bytes)" "OK"
+    } catch { Write-GuiLog "Recycle Bin error: $_" "ERR" }
+    Set-GuiProgress 0
+}
+
+function Invoke-CleanThumbnails {
+    Set-GuiProgress 50 "Cleaning Thumbnail Cache..."
+    Write-GuiLog "Cleaning Thumbnail Cache..." "STEP"
+    $thumbPath = Join-Path $env:LOCALAPPDATA "Microsoft\Windows\Explorer"
+    if (-not (Test-Path $thumbPath)) { Write-GuiLog "Thumbnail Cache not found" "WARN"; Set-GuiProgress 0; return }
+    try {
+        $files = Get-ChildItem -Path $thumbPath -Filter "thumbcache_*.db" -Force -ErrorAction SilentlyContinue
+        $bytes = ($files | Measure-Object -Property Length -Sum -ErrorAction SilentlyContinue).Sum
+        if (-not $bytes) { $bytes = 0 }
+        $files | Remove-Item -Force -ErrorAction SilentlyContinue
+        $Script:TotalFreedBytes += $bytes
+        Write-GuiLog "Thumbnail Cache cleaned - freed $(Format-ByteSize $bytes)" "OK"
+    } catch { Write-GuiLog "Thumbnail Cache error: $_" "ERR" }
+    Set-GuiProgress 0
+}
+
+function Invoke-CleanWER {
+    Set-GuiProgress 50 "Cleaning Windows Error Reporting..."
+    Write-GuiLog "Cleaning Windows Error Reporting..." "STEP"
+    Remove-DirContent -Path (Join-Path $env:ProgramData "Microsoft\Windows\WER\ReportArchive") -Desc "WER Report Archive"
+    Remove-DirContent -Path (Join-Path $env:ProgramData "Microsoft\Windows\WER\ReportQueue") -Desc "WER Report Queue"
+    Remove-DirContent -Path (Join-Path $env:LOCALAPPDATA "Microsoft\Windows\WER\ReportArchive") -Desc "WER Report Archive (User)"
+    Remove-DirContent -Path (Join-Path $env:LOCALAPPDATA "Microsoft\Windows\WER\ReportQueue") -Desc "WER Report Queue (User)"
+    Write-GuiLog "Windows Error Reporting cleaned" "OK"
+    Set-GuiProgress 0
+}
+
+function Invoke-CleanFontCache {
+    Set-GuiProgress 30 "Cleaning Font Cache..."
+    Write-GuiLog "Cleaning Font Cache..." "STEP"
+    try {
+        Stop-Service -Name "FontCache" -Force -ErrorAction SilentlyContinue
+        Set-GuiProgress 60 "Removing font cache files..."
+        Remove-DirContent -Path (Join-Path $env:LOCALAPPDATA "FontCache") -Desc "Font Cache"
+        Remove-Item -Path (Join-Path $env:windir "ServiceProfiles\LocalService\AppData\Local\FontCache\*") -Recurse -Force -ErrorAction SilentlyContinue
+        Start-Service -Name "FontCache" -ErrorAction SilentlyContinue
+        Write-GuiLog "Font Cache cleaned" "OK"
+    } catch { Write-GuiLog "Font Cache error: $_" "ERR" }
+    Set-GuiProgress 0
+}
+
 function Invoke-CleanAll {
-    Set-GuiProgress 10 "Running ADVANCED SYSTEM CLEANUP..."
-    Write-GuiLog "Running ADVANCED SYSTEM CLEANUP..." "STEP"
-    $windir = $env:windir
-    $paths = @(
-        (Join-Path $windir "Prefetch"), (Join-Path $windir "Spool\Printers"),
-        (Join-Path $windir "History"), (Join-Path $windir "Cookies"), (Join-Path $windir "Tmp")
-    )
-    $i = 0; $total = $paths.Count + 3
-    foreach ($item in $paths) {
-        $i++; Set-GuiProgress ([math]::Round($i/$total*80)) "Cleaning: $item"
-        if (Test-Path $item) { Remove-Item -Path "$item\*" -Recurse -Force -ErrorAction SilentlyContinue; Write-GuiLog "Cleaned: $item" "OK" }
+    param([switch]$NoConfirm)
+    if (-not $NoConfirm) {
+        $confirm = [System.Windows.MessageBox]::Show(
+            "This will run every cache cleaning routine (TEMP, Browser, Update, Prefetch, Store Cache, Logs, Minidumps, Delivery Optimization, Shader Cache, Recycle Bin, Thumbnails, Windows Error Reporting, Font Cache) and clear Windows Event Logs.`n`nContinue?",
+            "Confirm Full Cleanup", "YesNo", "Warning")
+        if ($confirm -ne "Yes") { Write-GuiLog "Full Cleanup cancelled by user" "WARN"; return }
     }
-    $i++; Set-GuiProgress ([math]::Round($i/$total*80)) "Cleaning TEMP..."
-    Remove-DirContent -Path $env:TEMP -Desc "User TEMP"
-    $i++; Set-GuiProgress ([math]::Round($i/$total*80)) "Cleaning Windows TEMP..."
-    Remove-DirContent -Path (Join-Path $env:windir "Temp") -Desc "Windows TEMP"
-    $i++; Set-GuiProgress 85 "Cleaning event logs..."
+
+    $Script:TotalFreedBytes = 0
+    Set-GuiProgress 5 "Running ADVANCED SYSTEM CLEANUP..."
+    Write-GuiLog "Running ADVANCED SYSTEM CLEANUP..." "STEP"
+
+    $steps = @(
+        { Invoke-CleanTempFiles }, { Invoke-CleanBrowserCache }, { Invoke-CleanUpdateCache },
+        { Invoke-CleanPrefetch }, { Invoke-CleanStoreCache }, { Invoke-CleanLogFiles }, { Invoke-CleanMemoryDumps },
+        { Invoke-CleanDeliveryOpt }, { Invoke-CleanShaderCache }, { Invoke-CleanRecycleBin },
+        { Invoke-CleanThumbnails }, { Invoke-CleanWER }, { Invoke-CleanFontCache }
+    )
+    $i = 0; $total = $steps.Count + 1
+    foreach ($step in $steps) {
+        $i++; Set-GuiProgress ([math]::Round($i/$total*85)) "Step $i/$total"
+        & $step
+    }
+
+    $i++; Set-GuiProgress 90 "Cleaning event logs..."
     try {
         $logs = wevtutil el 2>$null
         if ($logs) { foreach ($log in $logs) { wevtutil cl "$log" 2>$null }; Write-GuiLog "Event logs cleaned" "OK" }
     } catch { }
-    Write-GuiLog "Advanced cleanup completed!" "OK"
+
+    Write-GuiLog "Advanced cleanup completed! Total freed: $(Format-ByteSize $Script:TotalFreedBytes)" "OK"
     Set-GuiProgress 0
 }
 
-function Invoke-CleanDeviceCleanup {
-    Set-GuiProgress 50 "Launching DeviceCleanup..."
-    $dc = Join-Path $Script:TempDir "Programs\DeviceCleanup.exe"
-    if (-not (Test-Path $dc)) { Extract-EmbeddedPrograms }
-    if (Test-Path $dc) { Start-Process $dc; Write-GuiLog "DeviceCleanup launched" "OK" }
-    else { Write-GuiLog "DeviceCleanup.exe not found" "ERR" }
-    Set-GuiProgress 0
-}
+function Invoke-CleanDeviceCleanup { Set-GuiProgress 50 "Launching DeviceCleanup..."; Invoke-LaunchApp "DeviceCleanup.exe" "DeviceCleanup"; Set-GuiProgress 0 }
 #endregion
 
 # ================================================
@@ -1702,12 +1787,12 @@ $Script:EthernetConfigs = @(
     @{Names=@("Power Saving Mode"); Value="Disabled"}
     @{Names=@("Auto Disable Gigabit"); Value="Disabled"}
     @{Names=@("Wake on Magic Packet","Pacote Wake on Magic"); Value="Disabled"}
-    @{Names=@("Wake on pattern match","Wake on Pattern Match","CombinaÃ§Ã£o do padrÃ£o Wake on"); Value="Disabled"}
+    @{Names=@("Wake on pattern match","Wake on Pattern Match","Combinação do padrão Wake on"); Value="Disabled"}
     @{Names=@("Shutdown Wake-On-Lan","Shutdown Wake-On-LAN","Desligar Despertar Aquando de Lan"); Value="Disabled"}
-    @{Names=@("NS Offload","TransferÃªncia NS"); Value="Disabled"}
-    @{Names=@("ARP Offload","TransferÃªncia ARP"); Value="Disabled"}
-    @{Names=@("Receive Buffers","Receber MemÃ³rias IntermÃ©dias"); Value="Maximum"}
-    @{Names=@("Transmit Buffers","Transmitir MemÃ³rias IntermÃ©dias"); Value="Maximum"}
+    @{Names=@("NS Offload","Transferência NS"); Value="Disabled"}
+    @{Names=@("ARP Offload","Transferência ARP"); Value="Disabled"}
+    @{Names=@("Receive Buffers","Receber Memórias Intermédias"); Value="Maximum"}
+    @{Names=@("Transmit Buffers","Transmitir Memórias Intermédias"); Value="Maximum"}
     @{Names=@("Large Send Offload V2 (IPv4)","Large Send Offload v2 (IPv4)","Descarga Large Send v2 (IPv4)"); Value="Disabled"}
     @{Names=@("Large Send Offload V2 (IPv6)","Large Send Offload v2 (IPv6)","Descarga Large Send v2 (IPv6)"); Value="Disabled"}
     @{Names=@("IPv4 Checksum Offload","IPv4 Descarga de Checksum"); Value="Disabled"}
@@ -1715,7 +1800,7 @@ $Script:EthernetConfigs = @(
     @{Names=@("TCP Checksum Offload (IPv6)","TCP Descarga de Checksum (IPv6)"); Value="Disabled"}
     @{Names=@("UDP Checksum Offload (IPv4)","UDP Descarga de Checksum (IPv4)"); Value="Disabled"}
     @{Names=@("UDP Checksum Offload (IPv6)","UDP Descarga de Checksum (IPv6)"); Value="Disabled"}
-    @{Names=@("Interrupt Moderation","ModeraÃ§Ã£o de InterrupÃ§Ã£o"); Value="Disabled"}
+    @{Names=@("Interrupt Moderation","Moderação de Interrupção"); Value="Disabled"}
     @{Names=@("Receive Side Scaling"); Value="Enabled"}
     @{Names=@("Speed & Duplex","Speed and Duplex","Velocidade & Duplex"); Value="Auto Negotiation"}
     @{Names=@("Green Ethernet","Ethernet Verde"); Value="Disabled"}
@@ -1783,8 +1868,8 @@ function Invoke-NetworkOptimize { param([string]$Type)
                 switch ($effVal) {
                     "Enabled" { $cand += @("Activado","Ativado","Enable","Rx & Tx Enabled","Rx & Tx Activados") }
                     "Disabled" { $cand += @("Desactivado","Desativado","Disable") }
-                    "Auto" { $cand += @("AutomÃ¡tico") }
-                    "Auto Negotiation" { $cand += @("Auto NegociaÃ§Ã£o") }
+                    "Auto" { $cand += @("Automático") }
+                    "Auto Negotiation" { $cand += @("Auto Negociação") }
                 }
                 foreach ($c in $cand) { if ($prop.ValidDisplayValues -contains $c) { $locVal = $c; break } }
                 if ($prop.DisplayValue -eq $locVal) { $skipped++; continue }
@@ -1827,7 +1912,7 @@ function Invoke-NetworkRestoreDefaults { param([string]$Type)
                 $defDisp = $null
                 if ($prop.DefaultDisplayValue) { $defDisp = $prop.DefaultDisplayValue }
                 else {
-                    $guesses = @("Auto","Auto Negotiation","Default","Enabled","Activado","Desactivado","AutomÃ¡tico","Auto NegociaÃ§Ã£o")
+                    $guesses = @("Auto","Auto Negotiation","Default","Enabled","Activado","Desactivado","Automático","Auto Negociação")
                     foreach ($g in $guesses) { if ($prop.ValidDisplayValues -contains $g) { $defDisp = $g; break } }
                 }
                 if ($defDisp -and $prop.DisplayValue -ne $defDisp) {
@@ -1841,23 +1926,9 @@ function Invoke-NetworkRestoreDefaults { param([string]$Type)
     Set-GuiProgress 0
 }
 
-function Invoke-DNSTool {
-    Set-GuiProgress 50 "Launching DnsJumper..."
-    $dnsJump = Join-Path $Script:TempDir "Programs\DnsJumper.exe"
-    if (-not (Test-Path $dnsJump)) { Extract-EmbeddedPrograms }
-    if (Test-Path $dnsJump) { Start-Process $dnsJump; Write-GuiLog "DnsJumper launched" "OK" }
-    else { Write-GuiLog "DnsJumper.exe not found" "ERR" }
-    Set-GuiProgress 0
-}
+function Invoke-DNSTool { Set-GuiProgress 50 "Launching DnsJumper..."; Invoke-LaunchApp "DnsJumper.exe" "DnsJumper"; Set-GuiProgress 0 }
 
-function Invoke-FilterKeysTool {
-    Set-GuiProgress 50 "Launching FilterKeysSetter..."
-    $fks = Join-Path $Script:TempDir "Programs\FilterKeysSetter.exe"
-    if (-not (Test-Path $fks)) { Extract-EmbeddedPrograms }
-    if (Test-Path $fks) { Start-Process $fks; Write-GuiLog "FilterKeysSetter launched" "OK" }
-    else { Write-GuiLog "FilterKeysSetter.exe not found" "ERR" }
-    Set-GuiProgress 0
-}
+function Invoke-FilterKeysTool { Set-GuiProgress 50 "Launching FilterKeysSetter..."; Invoke-LaunchApp "FilterKeysSetter.exe" "FilterKeysSetter"; Set-GuiProgress 0 }
 #endregion
 
 # ================================================
@@ -2329,19 +2400,28 @@ function Invoke-PrivacyRevert {
 #endregion
 
 # ================================================
-#region 12. PLAYBOOK - AME WIZARD
+#region 12-14. PLAYBOOK - GitHub release fetchers (AME Wizard, ReviOS, AtlasOS)
 # ================================================
-function Invoke-PlaybookAME {
-    Set-GuiProgress 20 "Fetching latest AME Wizard release..."
-    Write-GuiLog "Fetching latest AME Wizard release..." "STEP"
-    Write-GuiLog "Querying GitHub API: Ameliorated-io/ame-wizard-releases" "INFO"
+# Shared logic: query GitHub "latest release" API, find the first asset matching
+# an extension pattern, log it and open it in the browser. Only repo/pattern/
+# label/fallback differ between playbooks, so they are passed as parameters.
+function Invoke-GitHubPlaybookFetch {
+    param(
+        [string]$Label,
+        [string]$Repo,
+        [string]$AssetPattern,
+        [string]$FallbackUrl
+    )
+    Set-GuiProgress 20 "Fetching latest $Label release..."
+    Write-GuiLog "Fetching latest $Label release..." "STEP"
+    Write-GuiLog "Querying GitHub API: $Repo" "INFO"
     $url = $null
     try {
-        $apiUrl = "https://api.github.com/repos/Ameliorated-io/ame-wizard-releases/releases/latest"
+        $apiUrl = "https://api.github.com/repos/$Repo/releases/latest"
         $headers = @{ "User-Agent" = "SETTDash/1.0" }
         $release = Invoke-RestMethod -Uri $apiUrl -Headers $headers -TimeoutSec 10
         foreach ($asset in $release.assets) {
-            if ($asset.name -like "*.zip") {
+            if ($asset.name -like $AssetPattern) {
                 $url = $asset.browser_download_url
                 $size = [math]::Round($asset.size / 1MB, 2)
                 Write-GuiLog "Found: $($asset.name) ($size MB) - Tag: $($release.tag_name)" "OK"
@@ -2349,79 +2429,31 @@ function Invoke-PlaybookAME {
             }
         }
     } catch { Write-GuiLog "GitHub API lookup failed: $_" "WARN" }
-    if (-not $url) {
+    if (-not $url -and $FallbackUrl) {
         Write-GuiLog "Using fallback direct download URL" "WARN"
-        $url = "https://download.ameliorated.io/AME%20Wizard%20Beta.zip"
+        $url = $FallbackUrl
     }
-    Set-GuiProgress 80 "Opening browser..."
-    Write-GuiLog "Opening AME Wizard download in browser: $url" "OK"
-    try { Start-Process $url } catch { Write-GuiLog "Failed to open browser: $_" "ERR" }
-    Write-GuiLog "AME Wizard download initiated" "OK"
+    if ($url) {
+        Set-GuiProgress 80 "Opening browser..."
+        Write-GuiLog "Opening $Label download in browser: $url" "OK"
+        try { Start-Process $url } catch { Write-GuiLog "Failed to open browser: $_" "ERR" }
+        Write-GuiLog "$Label download initiated" "OK"
+    } else {
+        Write-GuiLog "No $AssetPattern asset found in latest $Label release" "ERR"
+    }
     Set-GuiProgress 0
 }
-#endregion
 
-# ================================================
-#region 13. PLAYBOOK - ReviOS
-# ================================================
+function Invoke-PlaybookAME {
+    Invoke-GitHubPlaybookFetch -Label "AME Wizard" -Repo "Ameliorated-io/ame-wizard-releases" -AssetPattern "*.zip" -FallbackUrl "https://download.ameliorated.io/AME%20Wizard%20Beta.zip"
+}
+
 function Invoke-PlaybookReviOS {
-    Set-GuiProgress 20 "Fetching latest ReviOS playbook..."
-    Write-GuiLog "Fetching latest ReviOS playbook..." "STEP"
-    Write-GuiLog "Querying GitHub API: meetrevision/playbook" "INFO"
-    $url = $null
-    try {
-        $apiUrl = "https://api.github.com/repos/meetrevision/playbook/releases/latest"
-        $headers = @{ "User-Agent" = "SETTDash/1.0" }
-        $release = Invoke-RestMethod -Uri $apiUrl -Headers $headers -TimeoutSec 10
-        foreach ($asset in $release.assets) {
-            if ($asset.name -like "*.apbx") {
-                $url = $asset.browser_download_url
-                $size = [math]::Round($asset.size / 1MB, 2)
-                Write-GuiLog "Found: $($asset.name) ($size MB) - Tag: $($release.tag_name)" "OK"
-                break
-            }
-        }
-    } catch { Write-GuiLog "GitHub API lookup failed: $_" "WARN" }
-    if ($url) {
-        Set-GuiProgress 80 "Opening browser..."
-        Write-GuiLog "Opening ReviOS playbook in browser..." "STEP"
-        try { Start-Process $url } catch { Write-GuiLog "Failed to open browser: $_" "ERR" }
-    } else {
-        Write-GuiLog "No .apbx asset found in latest ReviOS release" "ERR"
-    }
-    Set-GuiProgress 0
+    Invoke-GitHubPlaybookFetch -Label "ReviOS" -Repo "meetrevision/playbook" -AssetPattern "*.apbx"
 }
-#endregion
 
-# ================================================
-#region 14. PLAYBOOK - AtlasOS
-# ================================================
 function Invoke-PlaybookAtlasOS {
-    Set-GuiProgress 20 "Fetching latest AtlasOS playbook..."
-    Write-GuiLog "Fetching latest AtlasOS playbook..." "STEP"
-    Write-GuiLog "Querying GitHub API: Atlas-OS/Atlas" "INFO"
-    $url = $null
-    try {
-        $apiUrl = "https://api.github.com/repos/Atlas-OS/Atlas/releases/latest"
-        $headers = @{ "User-Agent" = "SETTDash/1.0" }
-        $release = Invoke-RestMethod -Uri $apiUrl -Headers $headers -TimeoutSec 10
-        foreach ($asset in $release.assets) {
-            if ($asset.name -like "*.apbx") {
-                $url = $asset.browser_download_url
-                $size = [math]::Round($asset.size / 1MB, 2)
-                Write-GuiLog "Found: $($asset.name) ($size MB) - Tag: $($release.tag_name)" "OK"
-                break
-            }
-        }
-    } catch { Write-GuiLog "GitHub API lookup failed: $_" "WARN" }
-    if ($url) {
-        Set-GuiProgress 80 "Opening browser..."
-        Write-GuiLog "Opening AtlasOS playbook in browser..." "STEP"
-        try { Start-Process $url } catch { Write-GuiLog "Failed to open browser: $_" "ERR" }
-    } else {
-        Write-GuiLog "No .apbx asset found in latest AtlasOS release" "ERR"
-    }
-    Set-GuiProgress 0
+    Invoke-GitHubPlaybookFetch -Label "AtlasOS" -Repo "Atlas-OS/Atlas" -AssetPattern "*.apbx"
 }
 #endregion
 
@@ -2518,7 +2550,7 @@ function Invoke-FullAutoOptimize {
 
     $currentStep++
     Set-GuiProgress ([math]::Round($currentStep/$totalSteps*100)) "Step $currentStep/${totalSteps}: Cache Cleanup (All)"
-    Invoke-CleanAll
+    Invoke-CleanAll -NoConfirm
 
     $currentStep++
     Set-GuiProgress ([math]::Round($currentStep/$totalSteps*100)) "Step $currentStep/${totalSteps}: Network Optimization (Ethernet + WiFi)"
@@ -2569,112 +2601,98 @@ GPU    : $($info.GPUVendor) - $($info.GPUName) ($($info.GPUVRAM) GB VRAM)
 function Show-PageInternet {
     Clear-GuiContent
     Add-GuiPageTitle "Internet Optimization"
-    Add-GuiCard "TCP & QoS Optimization" "Disable TCP autotuning, apply QoS policies for Valorant and CSGO, and increase FastSendDatagramThreshold for lower latency." {
-        param($p) Add-GuiBtn $p "Apply Optimization" "ActionButtonStyle" { Invoke-InternetOptimize }; Add-GuiBtn $p "Revert Internet" "RevertButtonStyle" { Invoke-InternetRevert }
-    }
+    Add-GuiApplyRevertCard "TCP & QoS Optimization" "Disable TCP autotuning, apply QoS policies for Valorant and CSGO, and increase FastSendDatagramThreshold for lower latency." `
+        "Apply Optimization" { Invoke-InternetOptimize } "Revert Internet" { Invoke-InternetRevert }
 }
 
 function Show-PagePower {
     Clear-GuiContent
     Add-GuiPageTitle "Power Options"
-    Add-GuiCard "SETT Power Plan" "Import and activate the custom SETT high-performance power plan for maximum system responsiveness." {
-        param($p) Add-GuiBtn $p "Apply Power Plan" "ActionButtonStyle" { Invoke-PowerApply }; Add-GuiBtn $p "Revert Power" "RevertButtonStyle" { Invoke-PowerRevert }
-    }
+    Add-GuiApplyRevertCard "SETT Power Plan" "Import and activate the custom SETT high-performance power plan for maximum system responsiveness." `
+        "Apply Power Plan" { Invoke-PowerApply } "Revert Power" { Invoke-PowerRevert }
 }
 
 function Show-PageGameMode {
     Clear-GuiContent
     Add-GuiPageTitle "Game Mode"
-    Add-GuiCard "Game Mode & Game Bar" "Enable Game Mode, disable Game Bar overlays, DVR capture, and recording hotkeys to reduce input lag." {
-        param($p) Add-GuiBtn $p "Apply Game Mode" "ActionButtonStyle" { Invoke-GameModeApply }; Add-GuiBtn $p "Revert Game Mode" "RevertButtonStyle" { Invoke-GameModeRevert }
-    }
-    Add-GuiCard "Extra Game Optimizations" "Apply additional performance tweaks: priority control, multimedia scheduling, GPU priority, Direct3D pre-rendered frames, and timer resolution." {
-        param($p) Add-GuiBtn $p "Apply Extra Optimizations" "ActionButtonStyle" { Invoke-GameExtraApply }; Add-GuiBtn $p "Revert Extra" "RevertButtonStyle" { Invoke-GameExtraRevert }
-    }
+    Add-GuiApplyRevertCard "Game Mode & Game Bar" "Enable Game Mode, disable Game Bar overlays, DVR capture, and recording hotkeys to reduce input lag." `
+        "Apply Game Mode" { Invoke-GameModeApply } "Revert Game Mode" { Invoke-GameModeRevert }
+    Add-GuiApplyRevertCard "Extra Game Optimizations" "Apply additional performance tweaks: priority control, multimedia scheduling, GPU priority, Direct3D pre-rendered frames, and timer resolution." `
+        "Apply Extra Optimizations" { Invoke-GameExtraApply } "Revert Extra" { Invoke-GameExtraRevert }
 }
 
 function Show-PageMemory {
     Clear-GuiContent
     Add-GuiPageTitle "Memory Optimization"
-    Add-GuiCard "Memory Management" "Configure memory management keys, disable memory compression, and dynamically configure SvcHost based on your installed RAM." {
-        param($p) Add-GuiBtn $p "Apply Memory Optimizations" "ActionButtonStyle" { Invoke-MemoryApply }; Add-GuiBtn $p "Revert Memory" "RevertButtonStyle" { Invoke-MemoryRevert }
-    }
+    Add-GuiApplyRevertCard "Memory Management" "Configure memory management keys, disable memory compression, and dynamically configure SvcHost based on your installed RAM." `
+        "Apply Memory Optimizations" { Invoke-MemoryApply } "Revert Memory" { Invoke-MemoryRevert }
 }
 
 function Show-PageServices {
     Clear-GuiContent
     Add-GuiPageTitle "Disable Unnecessary Services"
-    Add-GuiCard "Service Configuration" "Configure 50+ non-essential Windows services (telephony, maps, Xbox, NFC, fax, smart card, etc.) to Manual or Disabled to free up system resources." {
-        param($p) Add-GuiBtn $p "Disable Services" "ActionButtonStyle" { Invoke-ServicesApply }; Add-GuiBtn $p "Revert Services" "RevertButtonStyle" { Invoke-ServicesRevert }
-    }
+    Add-GuiApplyRevertCard "Service Configuration" "Configure 50+ non-essential Windows services (telephony, maps, Xbox, NFC, fax, smart card, etc.) to Manual or Disabled to free up system resources." `
+        "Disable Services" { Invoke-ServicesApply } "Revert Services" { Invoke-ServicesRevert }
 }
 
 function Show-PageTweaks {
     Clear-GuiContent
     Add-GuiPageTitle "System Tweaks"
-    Add-GuiCard "Comprehensive System Tweaks" "Remove Edge scheduled tasks and apply 60+ registry tweaks across categories: Telemetry/Diagnostics, Settings Sync, Maintenance, Interface/Appearance, Search/Cortana/Bing, and Kernel/Performance." {
-        param($p) Add-GuiBtn $p "Apply All System Tweaks" "ActionButtonStyle" { Invoke-TweaksApply }; Add-GuiBtn $p "Revert Tweaks" "RevertButtonStyle" { Invoke-TweaksRevert }
-    }
+    Add-GuiApplyRevertCard "Comprehensive System Tweaks" "Remove Edge scheduled tasks and apply 60+ registry tweaks across categories: Telemetry/Diagnostics, Settings Sync, Maintenance, Interface/Appearance, Search/Cortana/Bing, and Kernel/Performance." `
+        "Apply All System Tweaks" { Invoke-TweaksApply } "Revert Tweaks" { Invoke-TweaksRevert }
 }
 
 function Show-PageGPU {
     Clear-GuiContent
     Add-GuiPageTitle "GPU Optimization"
-    Add-GuiCard "Auto-Detect & Optimize GPU" "Automatically detect your NVIDIA or AMD GPU and apply vendor-specific registry tweaks: disable preemption, CUDA context preemption, power gating, ULPS, and stutter mode." {
-        param($p) Add-GuiBtn $p "Detect & Optimize GPU" "ActionButtonStyle" { Invoke-GPUApply }; Add-GuiBtn $p "Revert GPU" "RevertButtonStyle" { Invoke-GPURevert }
-    }
+    Add-GuiApplyRevertCard "Auto-Detect & Optimize GPU" "Automatically detect your NVIDIA or AMD GPU and apply vendor-specific registry tweaks: disable preemption, CUDA context preemption, power gating, ULPS, and stutter mode." `
+        "Detect & Optimize GPU" { Invoke-GPUApply } "Revert GPU" { Invoke-GPURevert }
 }
 
 function Show-PageIntegrations {
     Clear-GuiContent
     Add-GuiPageTitle "Integrations Cleanup"
-    Add-GuiCard "Remove Integration Keys" "Remove leftover app integration registry keys for EclipseManager, Xbox, PPIProjection, and other pre-installed bloat." {
-        param($p) Add-GuiBtn $p "Clean Integrations" "ActionButtonStyle" { Invoke-IntegrationsApply }; Add-GuiBtn $p "Revert Integrations" "RevertButtonStyle" { Invoke-IntegrationsRevert }
-    }
+    Add-GuiApplyRevertCard "Remove Integration Keys" "Remove leftover app integration registry keys for EclipseManager, Xbox, PPIProjection, and other pre-installed bloat." `
+        "Clean Integrations" { Invoke-IntegrationsApply } "Revert Integrations" { Invoke-IntegrationsRevert }
 }
 
 function Show-PagePrivacy {
     Clear-GuiContent
     Add-GuiPageTitle "Privacy Protection"
-    Add-GuiCard "Privacy Settings" "Disable advertising ID, Cortana, telemetry, recent apps, and third-party suggestions." {
-        param($p) Add-GuiBtn $p "Apply Privacy Settings" "ActionButtonStyle" { Invoke-PrivacyApply }; Add-GuiBtn $p "Revert Privacy" "RevertButtonStyle" { Invoke-PrivacyRevert }
-    }
+    Add-GuiApplyRevertCard "Privacy Settings" "Disable advertising ID, Cortana, telemetry, recent apps, and third-party suggestions." `
+        "Apply Privacy Settings" { Invoke-PrivacyApply } "Revert Privacy" { Invoke-PrivacyRevert }
 }
 
 function Show-PageW11 {
     Clear-GuiContent
     Add-GuiPageTitle "Windows 11 Tweaks"
-    Add-GuiCard "Context Menu" "Revert to the classic Windows 10-style right-click context menu." {
-        param($p) Add-GuiBtn $p "Apply Old Menu" "ActionButtonStyle" { Invoke-W11OldMenu }; Add-GuiBtn $p "Revert to W11 Menu" "RevertButtonStyle" { Invoke-W11RevertMenu }
-    }
-    Add-GuiCard "Alt+Tab" "Switch between classic and modern Alt+Tab behavior." {
-        param($p) Add-GuiBtn $p "Apply Classic Alt+Tab" "ActionButtonStyle" { Invoke-W11ClassicAltTab }; Add-GuiBtn $p "Revert to Modern Alt+Tab" "RevertButtonStyle" { Invoke-W11RevertAltTab }
-    }
+    Add-GuiApplyRevertCard "Context Menu" "Revert to the classic Windows 10-style right-click context menu." `
+        "Apply Old Menu" { Invoke-W11OldMenu } "Revert to W11 Menu" { Invoke-W11RevertMenu }
+    Add-GuiApplyRevertCard "Alt+Tab" "Switch between classic and modern Alt+Tab behavior." `
+        "Apply Classic Alt+Tab" { Invoke-W11ClassicAltTab } "Revert to Modern Alt+Tab" { Invoke-W11RevertAltTab }
 }
 
+$Script:BrowserTweakDescriptions = [ordered]@{
+    "Brave"   = "Disable Brave Rewards, Wallet, VPN, and AI Chat."
+    "Chrome"  = "Disable search suggestions, promotional tabs, and metrics reporting."
+    "Edge"    = "Disable sync, wallet, sidebar, web widget, and first-run experience."
+    "Firefox" = "Disable telemetry, Pocket, Firefox Studies, and search suggestions."
+}
 function Show-PageBrowser {
     Clear-GuiContent
     Add-GuiPageTitle "Browser Tweaks"
-    Add-GuiCard "Brave" "Disable Brave Rewards, Wallet, VPN, and AI Chat." {
-        param($p) Add-GuiBtn $p "Optimize Brave" "ActionButtonStyle" { Invoke-BraveTweaks }
-    }
-    Add-GuiCard "Chrome" "Disable search suggestions, promotional tabs, and metrics reporting." {
-        param($p) Add-GuiBtn $p "Optimize Chrome" "ActionButtonStyle" { Invoke-ChromeTweaks }
-    }
-    Add-GuiCard "Edge" "Disable sync, wallet, sidebar, web widget, and first-run experience." {
-        param($p) Add-GuiBtn $p "Optimize Edge" "ActionButtonStyle" { Invoke-EdgeTweaks }
-    }
-    Add-GuiCard "Firefox" "Disable telemetry, Pocket, Firefox Studies, and search suggestions." {
-        param($p) Add-GuiBtn $p "Optimize Firefox" "ActionButtonStyle" { Invoke-FirefoxTweaks }
+    foreach ($browser in $Script:BrowserTweakDescriptions.Keys) {
+        Add-GuiCard $browser $Script:BrowserTweakDescriptions[$browser] {
+            param($p) Add-GuiBtn $p "Optimize $browser" "ActionButtonStyle" { Invoke-BrowserTweaks $browser }.GetNewClosure()
+        }.GetNewClosure()
     }
 }
 
 function Show-PageContext {
     Clear-GuiContent
     Add-GuiPageTitle "Context Menu Tweaks"
-    Add-GuiCard "Context Menu" "Apply or revert custom context menu tweaks." {
-        param($p) Add-GuiBtn $p "Apply Tweaks" "ActionButtonStyle" { Invoke-ContextApply }; Add-GuiBtn $p "Revert Tweaks" "RevertButtonStyle" { Invoke-ContextRevert }
-    }
+    Add-GuiApplyRevertCard "Context Menu" "Apply or revert custom context menu tweaks." `
+        "Apply Tweaks" { Invoke-ContextApply } "Revert Tweaks" { Invoke-ContextRevert }
 }
 
 
@@ -2807,6 +2825,10 @@ function Show-PageHome {
     Add-GuiBtn $cacheWrap "Minidumps" "ActionButtonStyle" { Invoke-CleanMemoryDumps }
     Add-GuiBtn $cacheWrap "Delivery Opt" "ActionButtonStyle" { Invoke-CleanDeliveryOpt }
     Add-GuiBtn $cacheWrap "DX Shaders" "ActionButtonStyle" { Invoke-CleanShaderCache }
+    Add-GuiBtn $cacheWrap "Recycle Bin" "ActionButtonStyle" { Invoke-CleanRecycleBin }
+    Add-GuiBtn $cacheWrap "Thumbnails" "ActionButtonStyle" { Invoke-CleanThumbnails }
+    Add-GuiBtn $cacheWrap "Error Reports" "ActionButtonStyle" { Invoke-CleanWER }
+    Add-GuiBtn $cacheWrap "Font Cache" "ActionButtonStyle" { Invoke-CleanFontCache }
     Add-GuiBtn $cacheWrap "Full Cleanup" "DangerButtonStyle" { Invoke-CleanAll }
     $cacheInner.AddChild($cacheWrap)
     
@@ -2960,54 +2982,54 @@ function Show-PageInstallers {
     
     Add-CatCard 0 0 "Developer" "Code & CLI tools." {
         param($w)
-        Add-GuiBtn $w "GitHub CLI" "ActionButtonStyle" { Invoke-InstallWingetApp "GitHub.cli" "GitHub CLI" -FallbackUrl "https://cli.github.com/" }
-        Add-GuiBtn $w "VS Code" "ActionButtonStyle" { Invoke-InstallWingetApp "Microsoft.VisualStudioCode" "VS Code" -FallbackUrl "https://code.visualstudio.com/" }
-        Add-GuiBtn $w "NodeJS" "ActionButtonStyle" { Invoke-InstallWingetApp "OpenJS.NodeJS.LTS" "NodeJS" -FallbackUrl "https://nodejs.org/" }
-        Add-GuiBtn $w "Python" "ActionButtonStyle" { Invoke-InstallWingetApp "Python.Python.3.13" "Python 3.13" -FallbackUrl "https://www.python.org/downloads/" }
+        Add-GuiInstallBtn $w "GitHub CLI" "GitHub.cli" -FallbackUrl "https://cli.github.com/"
+        Add-GuiInstallBtn $w "VS Code" "Microsoft.VisualStudioCode" -FallbackUrl "https://code.visualstudio.com/"
+        Add-GuiInstallBtn $w "NodeJS" "OpenJS.NodeJS.LTS" -FallbackUrl "https://nodejs.org/"
+        Add-GuiInstallBtn $w "Python" "Python.Python.3.13" "Python 3.13" -FallbackUrl "https://www.python.org/downloads/"
     }
     Add-CatCard 1 0 "Media" "Audio & visual." {
         param($w)
-        Add-GuiBtn $w "Spotify" "ActionButtonStyle" { Invoke-InstallWingetApp "Spotify.Spotify" "Spotify" -FallbackUrl "https://www.spotify.com/download/" }
-        Add-GuiBtn $w "Image Glass" "ActionButtonStyle" { Invoke-InstallWingetApp "DuongDieuPhap.ImageGlass" "Image Glass" -FallbackUrl "https://imageglass.org/" }
-        Add-GuiBtn $w "Lightshot" "ActionButtonStyle" { Invoke-InstallWingetApp "Skillbrains.Lightshot" "Lightshot" -FallbackUrl "https://app.prntscr.com/" }
-        Add-GuiBtn $w "YTSage" "ActionButtonStyle" { Invoke-InstallWingetApp "" "YTSage" -FallbackUrl "https://github.com/oop7/YTSage/releases/download/v5.2.0/YTSage-v5.2.0-Setup.exe" }
-        Add-GuiBtn $w "EarTrumpet" "ActionButtonStyle" { Invoke-InstallWingetApp "9NBLGGH516XP" "EarTrumpet" "msstore" "https://apps.microsoft.com/detail/9NBLGGH516XP" }
+        Add-GuiInstallBtn $w "Spotify" "Spotify.Spotify" -FallbackUrl "https://www.spotify.com/download/"
+        Add-GuiInstallBtn $w "Image Glass" "DuongDieuPhap.ImageGlass" -FallbackUrl "https://imageglass.org/"
+        Add-GuiInstallBtn $w "Lightshot" "Skillbrains.Lightshot" -FallbackUrl "https://app.prntscr.com/"
+        Add-GuiInstallBtn $w "YTSage" "" -FallbackUrl "https://github.com/oop7/YTSage/releases/download/v5.2.0/YTSage-v5.2.0-Setup.exe"
+        Add-GuiInstallBtn $w "EarTrumpet" "9NBLGGH516XP" -Source "msstore" -FallbackUrl "https://apps.microsoft.com/detail/9NBLGGH516XP"
         Add-GuiBtn $w "MovieBox-TUI" "ActionButtonStyle" { Invoke-InstallRemoteScript "https://raw.githubusercontent.com/mesamirh/MovieBox-Tui/main/install.ps1" "MovieBox-TUI" -FallbackUrl "https://github.com/mesamirh/MovieBox-Tui" }
     }
     Add-CatCard 2 0 "Utilities" "System tools." {
         param($w)
-        Add-GuiBtn $w "Blip Transfer" "ActionButtonStyle" { Invoke-InstallWingetApp "9N7JSXC1SJK6" "Blip Transfer" "msstore" "https://apps.microsoft.com/detail/9N7JSXC1SJK6" }
-        Add-GuiBtn $w "Firemin" "ActionButtonStyle" { Invoke-InstallWingetApp "Firemin" "Firemin" -FallbackUrl "https://rizonesoft.com/downloads/firemin/" }
-        Add-GuiBtn $w "AirLiveDrive" "ActionButtonStyle" { Invoke-InstallWingetApp "AirLiveDrive" "Air Live Drive" -FallbackUrl "https://www.airlivedrive.com/en/" }
-        Add-GuiBtn $w "Uninstalr" "ActionButtonStyle" { Invoke-InstallWingetApp "" "Uninstalr" -FallbackUrl "https://uninstalr.com/download/" }
-        Add-GuiBtn $w "Kudu" "ActionButtonStyle" { Invoke-InstallWingetApp "" "Kudu" -FallbackUrl "https://github.com/AdventDevInc/kudu/releases/download/v1.47.0/Kudu-Setup-1.47.0.exe" }
-        Add-GuiBtn $w "FDM" "ActionButtonStyle" { Invoke-InstallWingetApp "Softdeluxe.FreeDownloadManager" "FDM" -FallbackUrl "https://www.freedownloadmanager.org/" }
+        Add-GuiInstallBtn $w "Blip Transfer" "9N7JSXC1SJK6" -Source "msstore" -FallbackUrl "https://apps.microsoft.com/detail/9N7JSXC1SJK6"
+        Add-GuiInstallBtn $w "Firemin" "Firemin" -FallbackUrl "https://rizonesoft.com/downloads/firemin/"
+        Add-GuiInstallBtn $w "AirLiveDrive" "AirLiveDrive" "Air Live Drive" -FallbackUrl "https://www.airlivedrive.com/en/"
+        Add-GuiInstallBtn $w "Uninstalr" "" -FallbackUrl "https://uninstalr.com/download/"
+        Add-GuiInstallBtn $w "Kudu" "" -FallbackUrl "https://github.com/AdventDevInc/kudu/releases/download/v1.47.0/Kudu-Setup-1.47.0.exe"
+        Add-GuiInstallBtn $w "FDM" "Softdeluxe.FreeDownloadManager" -FallbackUrl "https://www.freedownloadmanager.org/"
     }
     Add-CatCard 3 0 "Desktop" "Customization tools." {
         param($w)
-        Add-GuiBtn $w "WindHawk" "ActionButtonStyle" { Invoke-InstallWingetApp "RamenSoftware.Windhawk" "WindHawk" -FallbackUrl "https://windhawk.net/" }
-        Add-GuiBtn $w "TranslucentTB" "ActionButtonStyle" { Invoke-InstallWingetApp "9PF4KZ2VN4W9" "Translucent TB" "msstore" "https://apps.microsoft.com/detail/9PF4KZ2VN4W9" }
-        Add-GuiBtn $w "Seelen UI" "ActionButtonStyle" { Invoke-InstallWingetApp "9P67C2D4T9FB" "Seelen UI" "msstore" "https://apps.microsoft.com/detail/9P67C2D4T9FB" }
-        Add-GuiBtn $w "Flow Launcher" "ActionButtonStyle" { Invoke-InstallWingetApp "Flow-Launcher.Flow-Launcher" "Flow Launcher" -FallbackUrl "https://www.flowlauncher.com/" }
-        Add-GuiBtn $w "Lively WP" "ActionButtonStyle" { Invoke-InstallWingetApp "9NTM2QC6QWS7" "Lively Wallpaper" "msstore" "https://apps.microsoft.com/detail/9NTM2QC6QWS7" }
-        Add-GuiBtn $w "RainMeter" "ActionButtonStyle" { Invoke-InstallWingetApp "Rainmeter.Rainmeter" "RainMeter" -FallbackUrl "https://www.rainmeter.net/" }
+        Add-GuiInstallBtn $w "WindHawk" "RamenSoftware.Windhawk" -FallbackUrl "https://windhawk.net/"
+        Add-GuiInstallBtn $w "TranslucentTB" "9PF4KZ2VN4W9" "Translucent TB" -Source "msstore" -FallbackUrl "https://apps.microsoft.com/detail/9PF4KZ2VN4W9"
+        Add-GuiInstallBtn $w "Seelen UI" "9P67C2D4T9FB" -Source "msstore" -FallbackUrl "https://apps.microsoft.com/detail/9P67C2D4T9FB"
+        Add-GuiInstallBtn $w "Flow Launcher" "Flow-Launcher.Flow-Launcher" -FallbackUrl "https://www.flowlauncher.com/"
+        Add-GuiInstallBtn $w "Lively WP" "9NTM2QC6QWS7" "Lively Wallpaper" -Source "msstore" -FallbackUrl "https://apps.microsoft.com/detail/9NTM2QC6QWS7"
+        Add-GuiInstallBtn $w "RainMeter" "Rainmeter.Rainmeter" -FallbackUrl "https://www.rainmeter.net/"
     }
     Add-CatCard 0 1 "Communication" "Chat & voice." {
         param($w)
-        Add-GuiBtn $w "TeamSpeak" "ActionButtonStyle" { Invoke-InstallWingetApp "TeamSpeakSystems.TeamSpeak" "TeamSpeak" -FallbackUrl "https://www.teamspeak.com/en/downloads/" }
-        Add-GuiBtn $w "Vencord" "ActionButtonStyle" { Invoke-InstallWingetApp "Vencord.Vendroid" "Vencord" -FallbackUrl "https://vencord.dev/" }
+        Add-GuiInstallBtn $w "TeamSpeak" "TeamSpeakSystems.TeamSpeak" -FallbackUrl "https://www.teamspeak.com/en/downloads/"
+        Add-GuiInstallBtn $w "Vencord" "Vencord.Vendroid" -FallbackUrl "https://vencord.dev/"
     }
     Add-CatCard 1 1 "Games" "Gaming platforms." {
         param($w)
-        Add-GuiBtn $w "FACEIT" "ActionButtonStyle" { Invoke-InstallWingetApp "FACEITLTD.FACEITClient" "FACEIT" -FallbackUrl "https://www.faceit.com/en/downloads" }
-        Add-GuiBtn $w "GamersClub" "ActionButtonStyle" { Invoke-InstallWingetApp "br.gamersclub.launcher" "GamersClub" -FallbackUrl "https://gamersclub.com.br/" }
+        Add-GuiInstallBtn $w "FACEIT" "FACEITLTD.FACEITClient" -FallbackUrl "https://www.faceit.com/en/downloads"
+        Add-GuiInstallBtn $w "GamersClub" "br.gamersclub.launcher" -FallbackUrl "https://gamersclub.com.br/"
     }
     Add-CatCard 2 1 "VPN Free" "Free VPN clients." {
         param($w)
-        Add-GuiBtn $w "ProtonVPN" "ActionButtonStyle" { Invoke-InstallWingetApp "Proton.ProtonVPN" "Proton VPN" -FallbackUrl "https://protonvpn.com/" }
-        Add-GuiBtn $w "Pritunl" "ActionButtonStyle" { Invoke-InstallWingetApp "Pritunl.PritunlClient" "Pritunl" -FallbackUrl "https://client.pritunl.com/#install" }
-        Add-GuiBtn $w "Riseup" "ActionButtonStyle" { Invoke-InstallWingetApp "Riseup.RiseupVPN" "Riseup VPN" -FallbackUrl "https://riseup.net/pt/windows" }
-        Add-GuiBtn $w "SettVPN" "ActionButtonStyle" { Invoke-InstallWingetApp "" "SettVPN" -FallbackUrl "https://github.com/otaviozanon/SettVPN/releases" }
+        Add-GuiInstallBtn $w "ProtonVPN" "Proton.ProtonVPN" "Proton VPN" -FallbackUrl "https://protonvpn.com/"
+        Add-GuiInstallBtn $w "Pritunl" "Pritunl.PritunlClient" -FallbackUrl "https://client.pritunl.com/#install"
+        Add-GuiInstallBtn $w "Riseup" "Riseup.RiseupVPN" "Riseup VPN" -FallbackUrl "https://riseup.net/pt/windows"
+        Add-GuiInstallBtn $w "SettVPN" "" -FallbackUrl "https://github.com/otaviozanon/SettVPN/releases"
     }
     
     $pnlContent.AddChild($grid)
@@ -3019,8 +3041,8 @@ function Show-PageAllInstallers {
     Add-GuiPageTitle "ALL Programs"
 
     # --- Data ---
-    $global:AllAppsData.Clear()
-    $global:AllSelectedSet.Clear()
+    $Script:AllAppsData.Clear()
+    $Script:AllSelectedSet.Clear()
 
     # --- Search + Install bar ---
     $topRow = New-Object System.Windows.Controls.StackPanel
@@ -3062,228 +3084,228 @@ function Show-PageAllInstallers {
     $pnlContent.AddChild($topRow)
 
     # Store button reference at script scope for handlers
-    $global:AllInstallBtn = $btnInstall
+    $Script:AllInstallBtn = $btnInstall
 
-    $global:AllAppsData[0] = @{Cat='Browsers'; Name='Brave'; Winget='Brave.Brave'; Url='https://www.brave.com'}
-    $global:AllAppsData[1] = @{Cat='Browsers'; Name='Chrome'; Winget='Google.Chrome'; Url='https://www.google.com/chrome/'}
-    $global:AllAppsData[2] = @{Cat='Browsers'; Name='Chromium'; Winget='Hibbiki.Chromium'; Url='https://github.com/Hibbiki/chromium-win64'}
-    $global:AllAppsData[3] = @{Cat='Browsers'; Name='Edge'; Winget='Microsoft.Edge'; Url='https://www.microsoft.com/edge'}
-    $global:AllAppsData[4] = @{Cat='Browsers'; Name='Firefox'; Winget='Mozilla.Firefox'; Url='https://www.mozilla.org/en-US/firefox/new/'}
-    $global:AllAppsData[5] = @{Cat='Browsers'; Name='Firefox ESR'; Winget='Mozilla.Firefox.ESR'; Url='https://www.mozilla.org/en-US/firefox/enterprise/'}
-    $global:AllAppsData[6] = @{Cat='Browsers'; Name='Floorp'; Winget='Ablaze.Floorp'; Url='https://floorp.app/'}
-    $global:AllAppsData[7] = @{Cat='Browsers'; Name='Helium'; Winget='ImputNet.Helium'; Url='https://github.com/imputnet/helium/'}
-    $global:AllAppsData[8] = @{Cat='Browsers'; Name='LibreWolf'; Winget='LibreWolf.LibreWolf'; Url='https://librewolf-community.gitlab.io/'}
-    $global:AllAppsData[9] = @{Cat='Browsers'; Name='Mullvad Browser'; Winget='MullvadVPN.MullvadBrowser'; Url='https://mullvad.net/browser'}
-    $global:AllAppsData[10] = @{Cat='Browsers'; Name='Tor Browser'; Winget='TorProject.TorBrowser'; Url='https://www.torproject.org/'}
-    $global:AllAppsData[11] = @{Cat='Browsers'; Name='Ungoogled Chromium'; Winget='eloston.ungoogled-chromium'; Url='https://github.com/Eloston/ungoogled-chromium'}
-    $global:AllAppsData[12] = @{Cat='Browsers'; Name='Vivaldi'; Winget='Vivaldi.Vivaldi'; Url='https://vivaldi.com/'}
-    $global:AllAppsData[13] = @{Cat='Browsers'; Name='Waterfox'; Winget='Waterfox.Waterfox'; Url='https://www.waterfox.net/'}
-    $global:AllAppsData[14] = @{Cat='Browsers'; Name='Zen Browser'; Winget='Zen-Team.Zen-Browser'; Url='https://zen-browser.app/'}
-    $global:AllAppsData[15] = @{Cat='Communications'; Name='Chatterino'; Winget='ChatterinoTeam.Chatterino'; Url='https://www.chatterino.com/'}
-    $global:AllAppsData[16] = @{Cat='Communications'; Name='Discord'; Winget='Discord.Discord'; Url='https://discord.com/'}
-    $global:AllAppsData[17] = @{Cat='Communications'; Name='Dorion'; Winget='SpikeHD.Dorion'; Url='https://github.com/SpikeHD/Dorion'}
-    $global:AllAppsData[18] = @{Cat='Communications'; Name='Element'; Winget='Element.Element'; Url='https://element.io/'}
-    $global:AllAppsData[19] = @{Cat='Communications'; Name='Proton Mail'; Winget='Proton.ProtonMail'; Url='https://proton.me/mail'}
-    $global:AllAppsData[20] = @{Cat='Communications'; Name='QTox'; Winget='Tox.qTox'; Url='https://qtox.github.io/'}
-    $global:AllAppsData[21] = @{Cat='Communications'; Name='Signal'; Winget='OpenWhisperSystems.Signal'; Url='https://signal.org/'}
-    $global:AllAppsData[22] = @{Cat='Communications'; Name='Slack'; Winget='SlackTechnologies.Slack'; Url='https://slack.com/'}
-    $global:AllAppsData[23] = @{Cat='Communications'; Name='Teams'; Winget='Microsoft.Teams'; Url='https://www.microsoft.com/en-us/microsoft-teams/group-chat-software'}
-    $global:AllAppsData[24] = @{Cat='Communications'; Name='TeamSpeak 3'; Winget='TeamSpeakSystems.TeamSpeakClient'; Url='https://www.teamspeak.com/'}
-    $global:AllAppsData[25] = @{Cat='Communications'; Name='Telegram'; Winget='Telegram.TelegramDesktop'; Url='https://telegram.org/'}
-    $global:AllAppsData[26] = @{Cat='Communications'; Name='Thunderbird'; Winget='Mozilla.Thunderbird'; Url='https://www.thunderbird.net/'}
-    $global:AllAppsData[27] = @{Cat='Communications'; Name='Betterbird'; Winget='Betterbird.Betterbird'; Url='https://www.betterbird.eu/'}
-    $global:AllAppsData[28] = @{Cat='Communications'; Name='Vesktop'; Winget='Vencord.Vesktop'; Url='https://github.com/Vencord/Vesktop'}
-    $global:AllAppsData[29] = @{Cat='Communications'; Name='Viber'; Winget='Rakuten.Viber'; Url='https://www.viber.com/'}
-    $global:AllAppsData[30] = @{Cat='Communications'; Name='WhatsApp Desktop'; Winget='msstore:9NKSQGP7F2NH'; Url='https://apps.microsoft.com/detail/9nksqgp7f2nh'}
-    $global:AllAppsData[31] = @{Cat='Communications'; Name='Zoom'; Winget='Zoom.Zoom'; Url='https://zoom.us/'}
-    $global:AllAppsData[32] = @{Cat='Development'; Name='ChatGPT Desktop'; Winget='msstore:9NT1R1C2HH7J'; Url='https://apps.microsoft.com/detail/9nt1r1c2hh7j'}
-    $global:AllAppsData[33] = @{Cat='Development'; Name='Claude Desktop'; Winget='Anthropic.Claude'; Url='https://claude.ai/download'}
-    $global:AllAppsData[34] = @{Cat='Development'; Name='Claude Code'; Winget='Anthropic.ClaudeCode'; Url='https://code.claude.com/'}
-    $global:AllAppsData[35] = @{Cat='Development'; Name='CMake'; Winget='Kitware.CMake'; Url='https://cmake.org/'}
-    $global:AllAppsData[36] = @{Cat='Development'; Name='Codex'; Winget='OpenAI.Codex'; Url='https://developers.openai.com/codex/cli'}
-    $global:AllAppsData[37] = @{Cat='Development'; Name='Cursor'; Winget='Anysphere.Cursor'; Url='https://cursor.com/'}
-    $global:AllAppsData[38] = @{Cat='Development'; Name='Git'; Winget='Git.Git'; Url='https://git-scm.com/'}
-    $global:AllAppsData[39] = @{Cat='Development'; Name='GitHub Desktop'; Winget='GitHub.GitHubDesktop'; Url='https://desktop.github.com/'}
-    $global:AllAppsData[40] = @{Cat='Development'; Name='Go'; Winget='GoLang.Go'; Url='https://go.dev/'}
-    $global:AllAppsData[41] = @{Cat='Development'; Name='Amazon Corretto 8 (LTS)'; Winget='Amazon.Corretto.8.JDK'; Url='https://aws.amazon.com/corretto'}
-    $global:AllAppsData[42] = @{Cat='Development'; Name='Amazon Corretto 21 (LTS)'; Winget='Amazon.Corretto.21.JDK'; Url='https://aws.amazon.com/corretto'}
-    $global:AllAppsData[43] = @{Cat='Development'; Name='Amazon Corretto 25 (LTS)'; Winget='Amazon.Corretto.25.JDK'; Url='https://aws.amazon.com/corretto'}
-    $global:AllAppsData[44] = @{Cat='Development'; Name='Jetbrains Toolbox'; Winget='JetBrains.Toolbox'; Url='https://www.jetbrains.com/toolbox/'}
-    $global:AllAppsData[45] = @{Cat='Development'; Name='Lazygit'; Winget='JesseDuffield.lazygit'; Url='https://github.com/jesseduffield/lazygit/'}
-    $global:AllAppsData[46] = @{Cat='Development'; Name='Neovim'; Winget='Neovim.Neovim'; Url='https://neovim.io/'}
-    $global:AllAppsData[47] = @{Cat='Development'; Name='NodeJS'; Winget='OpenJS.NodeJS'; Url='https://nodejs.org/'}
-    $global:AllAppsData[48] = @{Cat='Development'; Name='NodeJS LTS'; Winget='OpenJS.NodeJS.LTS'; Url='https://nodejs.org/'}
-    $global:AllAppsData[49] = @{Cat='Development'; Name='pnpm'; Winget='pnpm.pnpm'; Url='https://pnpm.io/'}
-    $global:AllAppsData[50] = @{Cat='Development'; Name='Oh My Posh (Prompt)'; Winget='JanDeDobbeleer.OhMyPosh'; Url='https://ohmyposh.dev/'}
-    $global:AllAppsData[51] = @{Cat='Development'; Name='Python3'; Winget='Python.Python.3.14'; Url='https://www.python.org/'}
-    $global:AllAppsData[52] = @{Cat='Development'; Name='Rust'; Winget='Rustlang.Rust.MSVC'; Url='https://www.rust-lang.org/'}
-    $global:AllAppsData[53] = @{Cat='Development'; Name='System Informer'; Winget='WinsiderSS.SystemInformer'; Url='https://systeminformer.com/'}
-    $global:AllAppsData[54] = @{Cat='Development'; Name='Sublime Text'; Winget='SublimeHQ.SublimeText.4'; Url='https://www.sublimetext.com/'}
-    $global:AllAppsData[55] = @{Cat='Development'; Name='Unity Game Engine'; Winget='Unity.UnityHub'; Url='https://unity.com/'}
-    $global:AllAppsData[56] = @{Cat='Development'; Name='Visual Studio 2022'; Winget='Microsoft.VisualStudio.2022.Community'; Url='https://visualstudio.microsoft.com/'}
-    $global:AllAppsData[57] = @{Cat='Development'; Name='Visual Studio 2026'; Winget='Microsoft.VisualStudio.Community'; Url='https://visualstudio.microsoft.com/'}
-    $global:AllAppsData[58] = @{Cat='Development'; Name='VS Code'; Winget='Microsoft.VisualStudioCode'; Url='https://code.visualstudio.com/'}
-    $global:AllAppsData[59] = @{Cat='Development'; Name='VS Codium'; Winget='VSCodium.VSCodium'; Url='https://vscodium.com/'}
-    $global:AllAppsData[60] = @{Cat='Development'; Name='Yarn'; Winget='Yarn.Yarn'; Url='https://yarnpkg.com/'}
-    $global:AllAppsData[61] = @{Cat='Development'; Name='uv'; Winget='astral-sh.uv'; Url='https://docs.astral.sh/uv/getting-started/installation/'}
-    $global:AllAppsData[62] = @{Cat='Development'; Name='Zed'; Winget='ZedIndustries.Zed'; Url='https://zed.dev/'}
-    $global:AllAppsData[63] = @{Cat='Development'; Name='Ruby'; Winget='RubyInstallerTeam.Ruby.4.0'; Url='https://rubyinstaller.org/'}
-    $global:AllAppsData[64] = @{Cat='Development'; Name='Lua'; Winget='rjpcomputing.luaforwindows'; Url='https://github.com/rjpcomputing/luaforwindows'}
-    $global:AllAppsData[65] = @{Cat='Games'; Name='Cemu'; Winget='Cemu.Cemu'; Url='https://cemu.info/'}
-    $global:AllAppsData[66] = @{Cat='Games'; Name='EA App'; Winget='ElectronicArts.EADesktop'; Url='https://www.ea.com/ea-app'}
-    $global:AllAppsData[67] = @{Cat='Games'; Name='Epic Games Launcher'; Winget='EpicGames.EpicGamesLauncher'; Url='https://www.epicgames.com/store/en-US/'}
-    $global:AllAppsData[68] = @{Cat='Games'; Name='GeForce NOW'; Winget='Nvidia.GeForceNow'; Url='https://www.nvidia.com/en-us/geforce-now/'}
-    $global:AllAppsData[69] = @{Cat='Games'; Name='GOG Galaxy'; Winget='GOG.Galaxy'; Url='https://www.gog.com/galaxy'}
-    $global:AllAppsData[70] = @{Cat='Games'; Name='Heroic Games Launcher'; Winget='HeroicGamesLauncher.HeroicGamesLauncher'; Url='https://heroicgameslauncher.com/'}
-    $global:AllAppsData[71] = @{Cat='Games'; Name='Itch.io'; Winget='ItchIo.Itch'; Url='https://itch.io/'}
-    $global:AllAppsData[72] = @{Cat='Games'; Name='Modrinth App'; Winget='Modrinth.ModrinthApp'; Url='https://modrinth.com/app'}
-    $global:AllAppsData[73] = @{Cat='Games'; Name='Playnite'; Winget='Playnite.Playnite'; Url='https://playnite.link/'}
-    $global:AllAppsData[74] = @{Cat='Games'; Name='Prism Launcher'; Winget='PrismLauncher.PrismLauncher'; Url='https://prismlauncher.org/'}
-    $global:AllAppsData[75] = @{Cat='Games'; Name='Steam'; Winget='Valve.Steam'; Url='https://store.steampowered.com/about/'}
-    $global:AllAppsData[76] = @{Cat='Games'; Name='Ubisoft Connect'; Winget='Ubisoft.Connect'; Url='https://ubisoftconnect.com/'}
-    $global:AllAppsData[77] = @{Cat='Games'; Name='Virtual Desktop Streamer'; Winget='VirtualDesktop.Streamer'; Url='https://www.vrdesktop.net/'}
-    $global:AllAppsData[78] = @{Cat='Games'; Name='Overwolf'; Winget='Overwolf.CurseForge'; Url='https://www.overwolf.com/app/overwolf-curseforge'}
-    $global:AllAppsData[79] = @{Cat='Microsoft Tools'; Name='Autoruns'; Winget='Microsoft.Sysinternals.Autoruns'; Url='https://learn.microsoft.com/en-us/sysinternals/downloads/autoruns'}
-    $global:AllAppsData[80] = @{Cat='Microsoft Tools'; Name='RDCMan'; Winget='Microsoft.Sysinternals.RDCMan'; Url='https://learn.microsoft.com/en-us/sysinternals/downloads/rdcman'}
-    $global:AllAppsData[81] = @{Cat='Microsoft Tools'; Name='DISMTools'; Winget='CodingWondersSoftware.DISMTools.Stable'; Url='https://github.com/CodingWonders/DISMTools'}
-    $global:AllAppsData[82] = @{Cat='Microsoft Tools'; Name='NTLite'; Winget='Nlitesoft.NTLite'; Url='https://ntlite.com'}
-    $global:AllAppsData[83] = @{Cat='Microsoft Tools'; Name='.NET Desktop Runtime 6'; Winget='Microsoft.DotNet.DesktopRuntime.6'; Url='https://dotnet.microsoft.com/download/dotnet/6.0'}
-    $global:AllAppsData[84] = @{Cat='Microsoft Tools'; Name='.NET Desktop Runtime 8'; Winget='Microsoft.DotNet.DesktopRuntime.8'; Url='https://dotnet.microsoft.com/download/dotnet/8.0'}
-    $global:AllAppsData[85] = @{Cat='Microsoft Tools'; Name='.NET Desktop Runtime 9'; Winget='Microsoft.DotNet.DesktopRuntime.9'; Url='https://dotnet.microsoft.com/download/dotnet/9.0'}
-    $global:AllAppsData[86] = @{Cat='Microsoft Tools'; Name='.NET Desktop Runtime 10'; Winget='Microsoft.DotNet.DesktopRuntime.10'; Url='https://dotnet.microsoft.com/download/dotnet/10.0'}
-    $global:AllAppsData[87] = @{Cat='Microsoft Tools'; Name='NuGet'; Winget='Microsoft.NuGet'; Url='https://www.nuget.org/'}
-    $global:AllAppsData[88] = @{Cat='Microsoft Tools'; Name='OneDrive'; Winget='Microsoft.OneDrive'; Url='https://onedrive.live.com/'}
-    $global:AllAppsData[89] = @{Cat='Microsoft Tools'; Name='Process Explorer'; Winget='Microsoft.Sysinternals.ProcessExplorer'; Url='https://learn.microsoft.com/sysinternals/downloads/process-explorer'}
-    $global:AllAppsData[90] = @{Cat='Microsoft Tools'; Name='PowerShell'; Winget='Microsoft.PowerShell'; Url='https://github.com/PowerShell/PowerShell'}
-    $global:AllAppsData[91] = @{Cat='Microsoft Tools'; Name='PowerToys'; Winget='Microsoft.PowerToys'; Url='https://github.com/microsoft/PowerToys'}
-    $global:AllAppsData[92] = @{Cat='Microsoft Tools'; Name='Process Monitor'; Winget='Microsoft.Sysinternals.ProcessMonitor'; Url='https://docs.microsoft.com/en-us/sysinternals/downloads/procmon'}
-    $global:AllAppsData[93] = @{Cat='Microsoft Tools'; Name='TCPView'; Winget='Microsoft.Sysinternals.TCPView'; Url='https://docs.microsoft.com/en-us/sysinternals/downloads/tcpview'}
-    $global:AllAppsData[94] = @{Cat='Microsoft Tools'; Name='Windows Terminal'; Winget='Microsoft.WindowsTerminal'; Url='https://aka.ms/terminal'}
-    $global:AllAppsData[95] = @{Cat='Microsoft Tools'; Name='Visual C++ 2015-2022 32-bit'; Winget='Microsoft.VCRedist.2015+.x86'; Url='https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads'}
-    $global:AllAppsData[96] = @{Cat='Microsoft Tools'; Name='Visual C++ 2015-2022 64-bit'; Winget='Microsoft.VCRedist.2015+.x64'; Url='https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads'}
-    $global:AllAppsData[97] = @{Cat='Multimedia Tools'; Name='Adobe Acrobat Reader'; Winget='Adobe.Acrobat.Reader.64-bit'; Url='https://www.adobe.com/acrobat/pdf-reader.html'}
-    $global:AllAppsData[98] = @{Cat='Multimedia Tools'; Name='AIMP (Music Player)'; Winget='AIMP.AIMP'; Url='https://www.aimp.ru/'}
-    $global:AllAppsData[99] = @{Cat='Multimedia Tools'; Name='Audacity'; Winget='Audacity.Audacity'; Url='https://www.audacityteam.org/'}
-    $global:AllAppsData[100] = @{Cat='Multimedia Tools'; Name='Blender (3D Graphics)'; Winget='BlenderFoundation.Blender'; Url='https://www.blender.org/'}
-    $global:AllAppsData[101] = @{Cat='Multimedia Tools'; Name='Calibre'; Winget='calibre.calibre'; Url='https://calibre-ebook.com/'}
-    $global:AllAppsData[102] = @{Cat='Multimedia Tools'; Name='EarTrumpet (Audio)'; Winget='File-New-Project.EarTrumpet'; Url='https://eartrumpet.app/'}
-    $global:AllAppsData[103] = @{Cat='Multimedia Tools'; Name='GIMP (Image Editor)'; Winget='GIMP.GIMP.3'; Url='https://www.gimp.org/'}
-    $global:AllAppsData[104] = @{Cat='Multimedia Tools'; Name='HandBrake'; Winget='HandBrake.HandBrake'; Url='https://handbrake.fr/'}
-    $global:AllAppsData[105] = @{Cat='Multimedia Tools'; Name='ImageGlass (Image Viewer)'; Winget='DuongDieuPhap.ImageGlass'; Url='https://imageglass.org/'}
-    $global:AllAppsData[106] = @{Cat='Multimedia Tools'; Name='IrfanView'; Winget='IrfanSkiljan.IrfanView'; Url='https://irfanview.com/'}
-    $global:AllAppsData[107] = @{Cat='Multimedia Tools'; Name='iTunes'; Winget='Apple.iTunes'; Url='https://www.apple.com/itunes/'}
-    $global:AllAppsData[108] = @{Cat='Multimedia Tools'; Name='K-Lite Codec Standard'; Winget='CodecGuide.K-LiteCodecPack.Standard'; Url='https://www.codecguide.com/'}
-    $global:AllAppsData[109] = @{Cat='Multimedia Tools'; Name='LibreOffice'; Winget='TheDocumentFoundation.LibreOffice'; Url='https://www.libreoffice.org/'}
-    $global:AllAppsData[110] = @{Cat='Multimedia Tools'; Name='mpc-qt'; Winget='mpc-qt.mpc-qt'; Url='https://github.com/mpc-qt/mpc-qt'}
-    $global:AllAppsData[111] = @{Cat='Multimedia Tools'; Name='Media Player Classic - Home Cinema'; Winget='clsid2.mpc-hc'; Url='https://github.com/clsid2/mpc-hc/'}
-    $global:AllAppsData[112] = @{Cat='Multimedia Tools'; Name='nomacs'; Winget='nomacs.nomacs'; Url='https://nomacs.org/'}
-    $global:AllAppsData[113] = @{Cat='Multimedia Tools'; Name='NAPS2 (Document Scanner)'; Winget='Cyanfish.NAPS2'; Url='https://www.naps2.com/'}
-    $global:AllAppsData[114] = @{Cat='Multimedia Tools'; Name='Notepad++'; Winget='Notepad++.Notepad++'; Url='https://notepad-plus-plus.org/'}
-    $global:AllAppsData[115] = @{Cat='Multimedia Tools'; Name='OBS Studio'; Winget='OBSProject.OBSStudio'; Url='https://obsproject.com/'}
-    $global:AllAppsData[116] = @{Cat='Multimedia Tools'; Name='Obsidian'; Winget='Obsidian.Obsidian'; Url='https://obsidian.md/'}
-    $global:AllAppsData[117] = @{Cat='Multimedia Tools'; Name='ONLYOFFICE Desktop'; Winget='ONLYOFFICE.DesktopEditors'; Url='https://www.onlyoffice.com/desktop.aspx'}
-    $global:AllAppsData[118] = @{Cat='Multimedia Tools'; Name='Paint.NET'; Winget='dotPDN.PaintDotNet'; Url='https://www.getpaint.net/'}
-    $global:AllAppsData[119] = @{Cat='Multimedia Tools'; Name='ShareX (Screenshots)'; Winget='ShareX.ShareX'; Url='https://getsharex.com/'}
-    $global:AllAppsData[120] = @{Cat='Multimedia Tools'; Name='VLC (Video Player)'; Winget='VideoLAN.VLC'; Url='https://www.videolan.org/vlc/'}
-    $global:AllAppsData[121] = @{Cat='Pro Tools'; Name='Advanced IP Scanner'; Winget='Famatech.AdvancedIPScanner'; Url='https://www.advanced-ip-scanner.com/'}
-    $global:AllAppsData[122] = @{Cat='Pro Tools'; Name='Angry IP Scanner'; Winget='angryziber.AngryIPScanner'; Url='https://angryip.org/'}
-    $global:AllAppsData[123] = @{Cat='Pro Tools'; Name='Cinebench R23'; Winget='Maxon.CinebenchR23'; Url='https://www.maxon.net/en/cinebench'}
-    $global:AllAppsData[124] = @{Cat='Pro Tools'; Name='CPU-Z'; Winget='CPUID.CPU-Z'; Url='https://www.cpuid.com/softwares/cpu-z.html'}
-    $global:AllAppsData[125] = @{Cat='Pro Tools'; Name='Display Driver Uninstaller'; Winget='Wagnardsoft.DisplayDriverUninstaller'; Url='https://www.wagnardsoft.com/display-driver-uninstaller-DDU-'}
-    $global:AllAppsData[126] = @{Cat='Pro Tools'; Name='GPU-Z'; Winget='TechPowerUp.GPU-Z'; Url='https://www.techpowerup.com/gpuz/'}
-    $global:AllAppsData[127] = @{Cat='Pro Tools'; Name='gsudo'; Winget='gerardog.gsudo'; Url='https://github.com/gerardog/gsudo'}
-    $global:AllAppsData[128] = @{Cat='Pro Tools'; Name='HWiNFO'; Winget='REALiX.HWiNFO'; Url='https://www.hwinfo.com/'}
-    $global:AllAppsData[129] = @{Cat='Pro Tools'; Name='HWMonitor'; Winget='CPUID.HWMonitor'; Url='https://www.cpuid.com/softwares/hwmonitor.html'}
-    $global:AllAppsData[130] = @{Cat='Pro Tools'; Name='Mullvad VPN'; Winget='MullvadVPN.MullvadVPN'; Url='https://github.com/mullvad/mullvadvpn-app'}
-    $global:AllAppsData[131] = @{Cat='Pro Tools'; Name='Nmap'; Winget='Insecure.Nmap'; Url='https://nmap.org/'}
-    $global:AllAppsData[132] = @{Cat='Pro Tools'; Name='OpenVPN Connect'; Winget='OpenVPNTechnologies.OpenVPNConnect'; Url='https://openvpn.net/'}
-    $global:AllAppsData[133] = @{Cat='Pro Tools'; Name='Proton VPN'; Winget='Proton.ProtonVPN'; Url='https://protonvpn.com/'}
-    $global:AllAppsData[134] = @{Cat='Pro Tools'; Name='PuTTY'; Winget='PuTTY.PuTTY'; Url='https://www.chiark.greenend.org.uk/~sgtatham/putty/'}
-    $global:AllAppsData[135] = @{Cat='Pro Tools'; Name='Simplewall'; Winget='Henry++.simplewall'; Url='https://github.com/henrypp/simplewall'}
-    $global:AllAppsData[136] = @{Cat='Pro Tools'; Name='Ventoy'; Winget='Ventoy.Ventoy'; Url='https://www.ventoy.net/'}
-    $global:AllAppsData[137] = @{Cat='Pro Tools'; Name='WinSCP'; Winget='WinSCP.WinSCP'; Url='https://winscp.net/'}
-    $global:AllAppsData[138] = @{Cat='Pro Tools'; Name='WireGuard'; Winget='WireGuard.WireGuard'; Url='https://www.wireguard.com/'}
-    $global:AllAppsData[139] = @{Cat='Pro Tools'; Name='Wireshark'; Winget='WiresharkFoundation.Wireshark'; Url='https://www.wireshark.org/'}
-    $global:AllAppsData[140] = @{Cat='Selfhosted Tools'; Name='Jellyfin Media Player'; Winget='Jellyfin.JellyfinMediaPlayer'; Url='https://github.com/jellyfin/jellyfin-media-player'}
-    $global:AllAppsData[141] = @{Cat='Selfhosted Tools'; Name='Jellyfin Server'; Winget='Jellyfin.Server'; Url='https://jellyfin.org/'}
-    $global:AllAppsData[142] = @{Cat='Selfhosted Tools'; Name='Kodi Media Center'; Winget='XBMCFoundation.Kodi'; Url='https://kodi.tv/'}
-    $global:AllAppsData[143] = @{Cat='Selfhosted Tools'; Name='LocalSend'; Winget='LocalSend.LocalSend'; Url='https://localsend.org/'}
-    $global:AllAppsData[144] = @{Cat='Selfhosted Tools'; Name='Moonlight/GameStream Client'; Winget='MoonlightGameStreamingProject.Moonlight'; Url='https://moonlight-stream.org/'}
-    $global:AllAppsData[145] = @{Cat='Selfhosted Tools'; Name='NetBird'; Winget='Netbird.Netbird'; Url='https://netbird.io/'}
-    $global:AllAppsData[146] = @{Cat='Selfhosted Tools'; Name='Nextcloud Desktop'; Winget='Nextcloud.NextcloudDesktop'; Url='https://nextcloud.com/install/#install-clients'}
-    $global:AllAppsData[147] = @{Cat='Selfhosted Tools'; Name='Plex Media Server'; Winget='Plex.PlexMediaServer'; Url='https://www.plex.tv/your-media/'}
-    $global:AllAppsData[148] = @{Cat='Selfhosted Tools'; Name='Plex Desktop'; Winget='Plex.Plex'; Url='https://www.plex.tv'}
-    $global:AllAppsData[149] = @{Cat='Selfhosted Tools'; Name='Sunshine/GameStream Server'; Winget='LizardByte.Sunshine'; Url='https://github.com/LizardByte/Sunshine'}
-    $global:AllAppsData[150] = @{Cat='Utilities'; Name='1Password'; Winget='AgileBits.1Password'; Url='https://1password.com/'}
-    $global:AllAppsData[151] = @{Cat='Utilities'; Name='7-Zip'; Winget='7zip.7zip'; Url='https://www.7-zip.org/'}
-    $global:AllAppsData[152] = @{Cat='Utilities'; Name='AnyDesk'; Winget='AnyDesk.AnyDesk'; Url='https://anydesk.com/'}
-    $global:AllAppsData[153] = @{Cat='Utilities'; Name='AutoHotkey'; Winget='AutoHotkey.AutoHotkey'; Url='https://www.autohotkey.com/'}
-    $global:AllAppsData[154] = @{Cat='Utilities'; Name='Bitwarden'; Winget='Bitwarden.Bitwarden'; Url='https://bitwarden.com/'}
-    $global:AllAppsData[155] = @{Cat='Utilities'; Name='Bulk Crap Uninstaller'; Winget='Klocman.BulkCrapUninstaller'; Url='https://www.bcuninstaller.com/'}
-    $global:AllAppsData[156] = @{Cat='Utilities'; Name='BlurAutoClicker'; Winget='Blur009.BlurAutoClicker'; Url='https://blur009.vercel.app/projects/blur-autoclicker/'}
-    $global:AllAppsData[157] = @{Cat='Utilities'; Name='Crystal Disk Info'; Winget='CrystalDewWorld.CrystalDiskInfo'; Url='https://crystalmark.info/en/software/crystaldiskinfo/'}
-    $global:AllAppsData[158] = @{Cat='Utilities'; Name='Crystal Disk Mark'; Winget='CrystalDewWorld.CrystalDiskMark'; Url='https://crystalmark.info/en/software/crystaldiskmark/'}
-    $global:AllAppsData[159] = @{Cat='Utilities'; Name='Dropbox'; Winget='Dropbox.Dropbox'; Url='https://www.dropbox.com/desktop'}
-    $global:AllAppsData[160] = @{Cat='Utilities'; Name='Ente Auth'; Winget='ente-io.auth-desktop'; Url='https://ente.io/auth/'}
-    $global:AllAppsData[161] = @{Cat='Utilities'; Name='Files'; Winget='FilesCommunity.Files'; Url='https://github.com/files-community/Files'}
-    $global:AllAppsData[162] = @{Cat='Utilities'; Name='F.lux'; Winget='flux.flux'; Url='https://justgetflux.com/'}
-    $global:AllAppsData[163] = @{Cat='Utilities'; Name='Google Drive'; Winget='Google.GoogleDrive'; Url='https://www.google.com/drive/'}
-    $global:AllAppsData[164] = @{Cat='Utilities'; Name='Hugo'; Winget='Hugo.Hugo.Extended'; Url='https://github.com/gohugoio/hugo/'}
-    $global:AllAppsData[165] = @{Cat='Utilities'; Name='Internet Download Manager'; Winget='Tonec.InternetDownloadManager'; Url='https://www.internetdownloadmanager.com/'}
-    $global:AllAppsData[166] = @{Cat='Utilities'; Name='JPEG View'; Winget='sylikc.JPEGView'; Url='https://github.com/sylikc/jpegview'}
-    $global:AllAppsData[167] = @{Cat='Utilities'; Name='KeePassXC'; Winget='KeePassXCTeam.KeePassXC'; Url='https://keepassxc.org/'}
-    $global:AllAppsData[168] = @{Cat='Utilities'; Name='MiniTool Partition Wizard'; Winget='MiniTool.PartitionWizard.Free'; Url='https://www.partitionwizard.com/'}
-    $global:AllAppsData[169] = @{Cat='Utilities'; Name='MSEdgeRedirect'; Winget='rcmaehl.MSEdgeRedirect'; Url='https://github.com/rcmaehl/MSEdgeRedirect'}
-    $global:AllAppsData[170] = @{Cat='Utilities'; Name='MSI Afterburner'; Winget='Guru3D.Afterburner'; Url='https://www.msi.com/Landing/afterburner'}
-    $global:AllAppsData[171] = @{Cat='Utilities'; Name='NanaZip'; Winget='M2Team.NanaZip'; Url='https://github.com/M2Team/NanaZip'}
-    $global:AllAppsData[172] = @{Cat='Utilities'; Name='NVCleanstall'; Winget='TechPowerUp.NVCleanstall'; Url='https://www.techpowerup.com/nvcleanstall/'}
-    $global:AllAppsData[173] = @{Cat='Utilities'; Name='OPAutoClicker'; Winget='OPAutoClicker.OPAutoClicker'; Url='https://www.opautoclicker.com'}
-    $global:AllAppsData[174] = @{Cat='Utilities'; Name='OpenRGB'; Winget='OpenRGB.OpenRGB'; Url='https://openrgb.org/'}
-    $global:AllAppsData[175] = @{Cat='Utilities'; Name='Oracle VirtualBox'; Winget='Oracle.VirtualBox'; Url='https://www.virtualbox.org/'}
-    $global:AllAppsData[176] = @{Cat='Utilities'; Name='Policy Plus'; Winget='Fleex255.PolicyPlus'; Url='https://github.com/Fleex255/PolicyPlus'}
-    $global:AllAppsData[177] = @{Cat='Utilities'; Name='Parsec'; Winget='Parsec.Parsec'; Url='https://parsec.app/'}
-    $global:AllAppsData[178] = @{Cat='Utilities'; Name='PeaZip'; Winget='Giorgiotani.Peazip'; Url='https://peazip.github.io/'}
-    $global:AllAppsData[179] = @{Cat='Utilities'; Name='Process Lasso'; Winget='BitSum.ProcessLasso'; Url='https://bitsum.com/'}
-    $global:AllAppsData[180] = @{Cat='Utilities'; Name='Proton Authenticator'; Winget='Proton.ProtonAuthenticator'; Url='https://proton.me/authenticator'}
-    $global:AllAppsData[181] = @{Cat='Utilities'; Name='Proton Drive'; Winget='Proton.ProtonDrive'; Url='https://proton.me/drive'}
-    $global:AllAppsData[182] = @{Cat='Utilities'; Name='Proton Pass'; Winget='Proton.ProtonPass'; Url='https://proton.me/pass'}
-    $global:AllAppsData[183] = @{Cat='Utilities'; Name='qBittorrent'; Winget='qBittorrent.qBittorrent'; Url='https://www.qbittorrent.org/'}
-    $global:AllAppsData[184] = @{Cat='Utilities'; Name='Revo Uninstaller'; Winget='RevoUninstaller.RevoUninstaller'; Url='https://www.revouninstaller.com/'}
-    $global:AllAppsData[185] = @{Cat='Utilities'; Name='Wise Program Uninstaller (WiseCleaner)'; Winget='WiseCleaner.WiseProgramUninstaller'; Url='https://www.wisecleaner.com/wise-program-uninstaller.html'}
-    $global:AllAppsData[186] = @{Cat='Utilities'; Name='Rufus Imager'; Winget='Rufus.Rufus'; Url='https://rufus.ie/'}
-    $global:AllAppsData[187] = @{Cat='Utilities'; Name='Snappy Driver Installer Origin'; Winget='GlennDelahoy.SnappyDriverInstallerOrigin'; Url='https://www.glenn.delahoy.com/snappy-driver-installer-origin/'}
-    $global:AllAppsData[188] = @{Cat='Utilities'; Name='Nilesoft Shell'; Winget='Nilesoft.Shell'; Url='https://nilesoft.org/'}
-    $global:AllAppsData[189] = @{Cat='Utilities'; Name='SignalRGB'; Winget='WhirlwindFX.SignalRgb'; Url='https://www.signalrgb.com/'}
-    $global:AllAppsData[190] = @{Cat='Utilities'; Name='StartAllBack'; Winget='StartIsBack.StartAllBack'; Url='https://www.startallback.com/'}
-    $global:AllAppsData[191] = @{Cat='Utilities'; Name='TeamViewer'; Winget='TeamViewer.TeamViewer'; Url='https://www.teamviewer.com/'}
-    $global:AllAppsData[192] = @{Cat='Utilities'; Name='Total Commander'; Winget='Ghisler.TotalCommander'; Url='https://www.ghisler.com/'}
-    $global:AllAppsData[193] = @{Cat='Utilities'; Name='TreeSize Free'; Winget='JAMSoftware.TreeSize.Free'; Url='https://www.jam-software.com/treesize_free/'}
-    $global:AllAppsData[194] = @{Cat='Utilities'; Name='TranslucentTB'; Winget='CharlesMilette.TranslucentTB'; Url='https://github.com/TranslucentTB/TranslucentTB'}
-    $global:AllAppsData[195] = @{Cat='Utilities'; Name='Everything'; Winget='voidtools.Everything'; Url='https://www.voidtools.com/'}
-    $global:AllAppsData[196] = @{Cat='Utilities'; Name='UniGetUI'; Winget='Devolutions.UniGetUI'; Url='https://devolutions.net/unigetui/'}
-    $global:AllAppsData[197] = @{Cat='Utilities'; Name='WinRAR'; Winget='RARLab.WinRAR'; Url='https://www.win-rar.com/'}
-    $global:AllAppsData[198] = @{Cat='Utilities'; Name='WizTree'; Winget='AntibodySoftware.WizTree'; Url='https://wiztreefree.com/'}
-    $global:AllAppsData[199] = @{Cat='Utilities'; Name='HxD Hex Editor'; Winget='MHNexus.HxD'; Url='https://mh-nexus.de/en/hxd/'}
-    $global:AllAppsData[200] = @{Cat='Utilities'; Name='TightVNC'; Winget='GlavSoft.TightVNC'; Url='https://www.tightvnc.com/'}
-    $global:AllAppsData[201] = @{Cat='Utilities'; Name='GlazeWM'; Winget='glzr-io.glazewm'; Url='https://github.com/glzr-io/glazewm'}
-    $global:AllAppsData[202] = @{Cat='Utilities'; Name='OFGB (Oh Frick Go Back)'; Winget='xM4ddy.OFGB'; Url='https://github.com/xM4ddy/OFGB'}
-    $global:AllAppsData[203] = @{Cat='Utilities'; Name='Deskflow'; Winget='Deskflow.Deskflow'; Url='https://github.com/deskflow/deskflow'}
+    $Script:AllAppsData[0] = @{Cat='Browsers'; Name='Brave'; Winget='Brave.Brave'; Url='https://www.brave.com'}
+    $Script:AllAppsData[1] = @{Cat='Browsers'; Name='Chrome'; Winget='Google.Chrome'; Url='https://www.google.com/chrome/'}
+    $Script:AllAppsData[2] = @{Cat='Browsers'; Name='Chromium'; Winget='Hibbiki.Chromium'; Url='https://github.com/Hibbiki/chromium-win64'}
+    $Script:AllAppsData[3] = @{Cat='Browsers'; Name='Edge'; Winget='Microsoft.Edge'; Url='https://www.microsoft.com/edge'}
+    $Script:AllAppsData[4] = @{Cat='Browsers'; Name='Firefox'; Winget='Mozilla.Firefox'; Url='https://www.mozilla.org/en-US/firefox/new/'}
+    $Script:AllAppsData[5] = @{Cat='Browsers'; Name='Firefox ESR'; Winget='Mozilla.Firefox.ESR'; Url='https://www.mozilla.org/en-US/firefox/enterprise/'}
+    $Script:AllAppsData[6] = @{Cat='Browsers'; Name='Floorp'; Winget='Ablaze.Floorp'; Url='https://floorp.app/'}
+    $Script:AllAppsData[7] = @{Cat='Browsers'; Name='Helium'; Winget='ImputNet.Helium'; Url='https://github.com/imputnet/helium/'}
+    $Script:AllAppsData[8] = @{Cat='Browsers'; Name='LibreWolf'; Winget='LibreWolf.LibreWolf'; Url='https://librewolf-community.gitlab.io/'}
+    $Script:AllAppsData[9] = @{Cat='Browsers'; Name='Mullvad Browser'; Winget='MullvadVPN.MullvadBrowser'; Url='https://mullvad.net/browser'}
+    $Script:AllAppsData[10] = @{Cat='Browsers'; Name='Tor Browser'; Winget='TorProject.TorBrowser'; Url='https://www.torproject.org/'}
+    $Script:AllAppsData[11] = @{Cat='Browsers'; Name='Ungoogled Chromium'; Winget='eloston.ungoogled-chromium'; Url='https://github.com/Eloston/ungoogled-chromium'}
+    $Script:AllAppsData[12] = @{Cat='Browsers'; Name='Vivaldi'; Winget='Vivaldi.Vivaldi'; Url='https://vivaldi.com/'}
+    $Script:AllAppsData[13] = @{Cat='Browsers'; Name='Waterfox'; Winget='Waterfox.Waterfox'; Url='https://www.waterfox.net/'}
+    $Script:AllAppsData[14] = @{Cat='Browsers'; Name='Zen Browser'; Winget='Zen-Team.Zen-Browser'; Url='https://zen-browser.app/'}
+    $Script:AllAppsData[15] = @{Cat='Communications'; Name='Chatterino'; Winget='ChatterinoTeam.Chatterino'; Url='https://www.chatterino.com/'}
+    $Script:AllAppsData[16] = @{Cat='Communications'; Name='Discord'; Winget='Discord.Discord'; Url='https://discord.com/'}
+    $Script:AllAppsData[17] = @{Cat='Communications'; Name='Dorion'; Winget='SpikeHD.Dorion'; Url='https://github.com/SpikeHD/Dorion'}
+    $Script:AllAppsData[18] = @{Cat='Communications'; Name='Element'; Winget='Element.Element'; Url='https://element.io/'}
+    $Script:AllAppsData[19] = @{Cat='Communications'; Name='Proton Mail'; Winget='Proton.ProtonMail'; Url='https://proton.me/mail'}
+    $Script:AllAppsData[20] = @{Cat='Communications'; Name='QTox'; Winget='Tox.qTox'; Url='https://qtox.github.io/'}
+    $Script:AllAppsData[21] = @{Cat='Communications'; Name='Signal'; Winget='OpenWhisperSystems.Signal'; Url='https://signal.org/'}
+    $Script:AllAppsData[22] = @{Cat='Communications'; Name='Slack'; Winget='SlackTechnologies.Slack'; Url='https://slack.com/'}
+    $Script:AllAppsData[23] = @{Cat='Communications'; Name='Teams'; Winget='Microsoft.Teams'; Url='https://www.microsoft.com/en-us/microsoft-teams/group-chat-software'}
+    $Script:AllAppsData[24] = @{Cat='Communications'; Name='TeamSpeak 3'; Winget='TeamSpeakSystems.TeamSpeakClient'; Url='https://www.teamspeak.com/'}
+    $Script:AllAppsData[25] = @{Cat='Communications'; Name='Telegram'; Winget='Telegram.TelegramDesktop'; Url='https://telegram.org/'}
+    $Script:AllAppsData[26] = @{Cat='Communications'; Name='Thunderbird'; Winget='Mozilla.Thunderbird'; Url='https://www.thunderbird.net/'}
+    $Script:AllAppsData[27] = @{Cat='Communications'; Name='Betterbird'; Winget='Betterbird.Betterbird'; Url='https://www.betterbird.eu/'}
+    $Script:AllAppsData[28] = @{Cat='Communications'; Name='Vesktop'; Winget='Vencord.Vesktop'; Url='https://github.com/Vencord/Vesktop'}
+    $Script:AllAppsData[29] = @{Cat='Communications'; Name='Viber'; Winget='Rakuten.Viber'; Url='https://www.viber.com/'}
+    $Script:AllAppsData[30] = @{Cat='Communications'; Name='WhatsApp Desktop'; Winget='msstore:9NKSQGP7F2NH'; Url='https://apps.microsoft.com/detail/9nksqgp7f2nh'}
+    $Script:AllAppsData[31] = @{Cat='Communications'; Name='Zoom'; Winget='Zoom.Zoom'; Url='https://zoom.us/'}
+    $Script:AllAppsData[32] = @{Cat='Development'; Name='ChatGPT Desktop'; Winget='msstore:9NT1R1C2HH7J'; Url='https://apps.microsoft.com/detail/9nt1r1c2hh7j'}
+    $Script:AllAppsData[33] = @{Cat='Development'; Name='Claude Desktop'; Winget='Anthropic.Claude'; Url='https://claude.ai/download'}
+    $Script:AllAppsData[34] = @{Cat='Development'; Name='Claude Code'; Winget='Anthropic.ClaudeCode'; Url='https://code.claude.com/'}
+    $Script:AllAppsData[35] = @{Cat='Development'; Name='CMake'; Winget='Kitware.CMake'; Url='https://cmake.org/'}
+    $Script:AllAppsData[36] = @{Cat='Development'; Name='Codex'; Winget='OpenAI.Codex'; Url='https://developers.openai.com/codex/cli'}
+    $Script:AllAppsData[37] = @{Cat='Development'; Name='Cursor'; Winget='Anysphere.Cursor'; Url='https://cursor.com/'}
+    $Script:AllAppsData[38] = @{Cat='Development'; Name='Git'; Winget='Git.Git'; Url='https://git-scm.com/'}
+    $Script:AllAppsData[39] = @{Cat='Development'; Name='GitHub Desktop'; Winget='GitHub.GitHubDesktop'; Url='https://desktop.github.com/'}
+    $Script:AllAppsData[40] = @{Cat='Development'; Name='Go'; Winget='GoLang.Go'; Url='https://go.dev/'}
+    $Script:AllAppsData[41] = @{Cat='Development'; Name='Amazon Corretto 8 (LTS)'; Winget='Amazon.Corretto.8.JDK'; Url='https://aws.amazon.com/corretto'}
+    $Script:AllAppsData[42] = @{Cat='Development'; Name='Amazon Corretto 21 (LTS)'; Winget='Amazon.Corretto.21.JDK'; Url='https://aws.amazon.com/corretto'}
+    $Script:AllAppsData[43] = @{Cat='Development'; Name='Amazon Corretto 25 (LTS)'; Winget='Amazon.Corretto.25.JDK'; Url='https://aws.amazon.com/corretto'}
+    $Script:AllAppsData[44] = @{Cat='Development'; Name='Jetbrains Toolbox'; Winget='JetBrains.Toolbox'; Url='https://www.jetbrains.com/toolbox/'}
+    $Script:AllAppsData[45] = @{Cat='Development'; Name='Lazygit'; Winget='JesseDuffield.lazygit'; Url='https://github.com/jesseduffield/lazygit/'}
+    $Script:AllAppsData[46] = @{Cat='Development'; Name='Neovim'; Winget='Neovim.Neovim'; Url='https://neovim.io/'}
+    $Script:AllAppsData[47] = @{Cat='Development'; Name='NodeJS'; Winget='OpenJS.NodeJS'; Url='https://nodejs.org/'}
+    $Script:AllAppsData[48] = @{Cat='Development'; Name='NodeJS LTS'; Winget='OpenJS.NodeJS.LTS'; Url='https://nodejs.org/'}
+    $Script:AllAppsData[49] = @{Cat='Development'; Name='pnpm'; Winget='pnpm.pnpm'; Url='https://pnpm.io/'}
+    $Script:AllAppsData[50] = @{Cat='Development'; Name='Oh My Posh (Prompt)'; Winget='JanDeDobbeleer.OhMyPosh'; Url='https://ohmyposh.dev/'}
+    $Script:AllAppsData[51] = @{Cat='Development'; Name='Python3'; Winget='Python.Python.3.14'; Url='https://www.python.org/'}
+    $Script:AllAppsData[52] = @{Cat='Development'; Name='Rust'; Winget='Rustlang.Rust.MSVC'; Url='https://www.rust-lang.org/'}
+    $Script:AllAppsData[53] = @{Cat='Development'; Name='System Informer'; Winget='WinsiderSS.SystemInformer'; Url='https://systeminformer.com/'}
+    $Script:AllAppsData[54] = @{Cat='Development'; Name='Sublime Text'; Winget='SublimeHQ.SublimeText.4'; Url='https://www.sublimetext.com/'}
+    $Script:AllAppsData[55] = @{Cat='Development'; Name='Unity Game Engine'; Winget='Unity.UnityHub'; Url='https://unity.com/'}
+    $Script:AllAppsData[56] = @{Cat='Development'; Name='Visual Studio 2022'; Winget='Microsoft.VisualStudio.2022.Community'; Url='https://visualstudio.microsoft.com/'}
+    $Script:AllAppsData[57] = @{Cat='Development'; Name='Visual Studio 2026'; Winget='Microsoft.VisualStudio.Community'; Url='https://visualstudio.microsoft.com/'}
+    $Script:AllAppsData[58] = @{Cat='Development'; Name='VS Code'; Winget='Microsoft.VisualStudioCode'; Url='https://code.visualstudio.com/'}
+    $Script:AllAppsData[59] = @{Cat='Development'; Name='VS Codium'; Winget='VSCodium.VSCodium'; Url='https://vscodium.com/'}
+    $Script:AllAppsData[60] = @{Cat='Development'; Name='Yarn'; Winget='Yarn.Yarn'; Url='https://yarnpkg.com/'}
+    $Script:AllAppsData[61] = @{Cat='Development'; Name='uv'; Winget='astral-sh.uv'; Url='https://docs.astral.sh/uv/getting-started/installation/'}
+    $Script:AllAppsData[62] = @{Cat='Development'; Name='Zed'; Winget='ZedIndustries.Zed'; Url='https://zed.dev/'}
+    $Script:AllAppsData[63] = @{Cat='Development'; Name='Ruby'; Winget='RubyInstallerTeam.Ruby.4.0'; Url='https://rubyinstaller.org/'}
+    $Script:AllAppsData[64] = @{Cat='Development'; Name='Lua'; Winget='rjpcomputing.luaforwindows'; Url='https://github.com/rjpcomputing/luaforwindows'}
+    $Script:AllAppsData[65] = @{Cat='Games'; Name='Cemu'; Winget='Cemu.Cemu'; Url='https://cemu.info/'}
+    $Script:AllAppsData[66] = @{Cat='Games'; Name='EA App'; Winget='ElectronicArts.EADesktop'; Url='https://www.ea.com/ea-app'}
+    $Script:AllAppsData[67] = @{Cat='Games'; Name='Epic Games Launcher'; Winget='EpicGames.EpicGamesLauncher'; Url='https://www.epicgames.com/store/en-US/'}
+    $Script:AllAppsData[68] = @{Cat='Games'; Name='GeForce NOW'; Winget='Nvidia.GeForceNow'; Url='https://www.nvidia.com/en-us/geforce-now/'}
+    $Script:AllAppsData[69] = @{Cat='Games'; Name='GOG Galaxy'; Winget='GOG.Galaxy'; Url='https://www.gog.com/galaxy'}
+    $Script:AllAppsData[70] = @{Cat='Games'; Name='Heroic Games Launcher'; Winget='HeroicGamesLauncher.HeroicGamesLauncher'; Url='https://heroicgameslauncher.com/'}
+    $Script:AllAppsData[71] = @{Cat='Games'; Name='Itch.io'; Winget='ItchIo.Itch'; Url='https://itch.io/'}
+    $Script:AllAppsData[72] = @{Cat='Games'; Name='Modrinth App'; Winget='Modrinth.ModrinthApp'; Url='https://modrinth.com/app'}
+    $Script:AllAppsData[73] = @{Cat='Games'; Name='Playnite'; Winget='Playnite.Playnite'; Url='https://playnite.link/'}
+    $Script:AllAppsData[74] = @{Cat='Games'; Name='Prism Launcher'; Winget='PrismLauncher.PrismLauncher'; Url='https://prismlauncher.org/'}
+    $Script:AllAppsData[75] = @{Cat='Games'; Name='Steam'; Winget='Valve.Steam'; Url='https://store.steampowered.com/about/'}
+    $Script:AllAppsData[76] = @{Cat='Games'; Name='Ubisoft Connect'; Winget='Ubisoft.Connect'; Url='https://ubisoftconnect.com/'}
+    $Script:AllAppsData[77] = @{Cat='Games'; Name='Virtual Desktop Streamer'; Winget='VirtualDesktop.Streamer'; Url='https://www.vrdesktop.net/'}
+    $Script:AllAppsData[78] = @{Cat='Games'; Name='Overwolf'; Winget='Overwolf.CurseForge'; Url='https://www.overwolf.com/app/overwolf-curseforge'}
+    $Script:AllAppsData[79] = @{Cat='Microsoft Tools'; Name='Autoruns'; Winget='Microsoft.Sysinternals.Autoruns'; Url='https://learn.microsoft.com/en-us/sysinternals/downloads/autoruns'}
+    $Script:AllAppsData[80] = @{Cat='Microsoft Tools'; Name='RDCMan'; Winget='Microsoft.Sysinternals.RDCMan'; Url='https://learn.microsoft.com/en-us/sysinternals/downloads/rdcman'}
+    $Script:AllAppsData[81] = @{Cat='Microsoft Tools'; Name='DISMTools'; Winget='CodingWondersSoftware.DISMTools.Stable'; Url='https://github.com/CodingWonders/DISMTools'}
+    $Script:AllAppsData[82] = @{Cat='Microsoft Tools'; Name='NTLite'; Winget='Nlitesoft.NTLite'; Url='https://ntlite.com'}
+    $Script:AllAppsData[83] = @{Cat='Microsoft Tools'; Name='.NET Desktop Runtime 6'; Winget='Microsoft.DotNet.DesktopRuntime.6'; Url='https://dotnet.microsoft.com/download/dotnet/6.0'}
+    $Script:AllAppsData[84] = @{Cat='Microsoft Tools'; Name='.NET Desktop Runtime 8'; Winget='Microsoft.DotNet.DesktopRuntime.8'; Url='https://dotnet.microsoft.com/download/dotnet/8.0'}
+    $Script:AllAppsData[85] = @{Cat='Microsoft Tools'; Name='.NET Desktop Runtime 9'; Winget='Microsoft.DotNet.DesktopRuntime.9'; Url='https://dotnet.microsoft.com/download/dotnet/9.0'}
+    $Script:AllAppsData[86] = @{Cat='Microsoft Tools'; Name='.NET Desktop Runtime 10'; Winget='Microsoft.DotNet.DesktopRuntime.10'; Url='https://dotnet.microsoft.com/download/dotnet/10.0'}
+    $Script:AllAppsData[87] = @{Cat='Microsoft Tools'; Name='NuGet'; Winget='Microsoft.NuGet'; Url='https://www.nuget.org/'}
+    $Script:AllAppsData[88] = @{Cat='Microsoft Tools'; Name='OneDrive'; Winget='Microsoft.OneDrive'; Url='https://onedrive.live.com/'}
+    $Script:AllAppsData[89] = @{Cat='Microsoft Tools'; Name='Process Explorer'; Winget='Microsoft.Sysinternals.ProcessExplorer'; Url='https://learn.microsoft.com/sysinternals/downloads/process-explorer'}
+    $Script:AllAppsData[90] = @{Cat='Microsoft Tools'; Name='PowerShell'; Winget='Microsoft.PowerShell'; Url='https://github.com/PowerShell/PowerShell'}
+    $Script:AllAppsData[91] = @{Cat='Microsoft Tools'; Name='PowerToys'; Winget='Microsoft.PowerToys'; Url='https://github.com/microsoft/PowerToys'}
+    $Script:AllAppsData[92] = @{Cat='Microsoft Tools'; Name='Process Monitor'; Winget='Microsoft.Sysinternals.ProcessMonitor'; Url='https://docs.microsoft.com/en-us/sysinternals/downloads/procmon'}
+    $Script:AllAppsData[93] = @{Cat='Microsoft Tools'; Name='TCPView'; Winget='Microsoft.Sysinternals.TCPView'; Url='https://docs.microsoft.com/en-us/sysinternals/downloads/tcpview'}
+    $Script:AllAppsData[94] = @{Cat='Microsoft Tools'; Name='Windows Terminal'; Winget='Microsoft.WindowsTerminal'; Url='https://aka.ms/terminal'}
+    $Script:AllAppsData[95] = @{Cat='Microsoft Tools'; Name='Visual C++ 2015-2022 32-bit'; Winget='Microsoft.VCRedist.2015+.x86'; Url='https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads'}
+    $Script:AllAppsData[96] = @{Cat='Microsoft Tools'; Name='Visual C++ 2015-2022 64-bit'; Winget='Microsoft.VCRedist.2015+.x64'; Url='https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads'}
+    $Script:AllAppsData[97] = @{Cat='Multimedia Tools'; Name='Adobe Acrobat Reader'; Winget='Adobe.Acrobat.Reader.64-bit'; Url='https://www.adobe.com/acrobat/pdf-reader.html'}
+    $Script:AllAppsData[98] = @{Cat='Multimedia Tools'; Name='AIMP (Music Player)'; Winget='AIMP.AIMP'; Url='https://www.aimp.ru/'}
+    $Script:AllAppsData[99] = @{Cat='Multimedia Tools'; Name='Audacity'; Winget='Audacity.Audacity'; Url='https://www.audacityteam.org/'}
+    $Script:AllAppsData[100] = @{Cat='Multimedia Tools'; Name='Blender (3D Graphics)'; Winget='BlenderFoundation.Blender'; Url='https://www.blender.org/'}
+    $Script:AllAppsData[101] = @{Cat='Multimedia Tools'; Name='Calibre'; Winget='calibre.calibre'; Url='https://calibre-ebook.com/'}
+    $Script:AllAppsData[102] = @{Cat='Multimedia Tools'; Name='EarTrumpet (Audio)'; Winget='File-New-Project.EarTrumpet'; Url='https://eartrumpet.app/'}
+    $Script:AllAppsData[103] = @{Cat='Multimedia Tools'; Name='GIMP (Image Editor)'; Winget='GIMP.GIMP.3'; Url='https://www.gimp.org/'}
+    $Script:AllAppsData[104] = @{Cat='Multimedia Tools'; Name='HandBrake'; Winget='HandBrake.HandBrake'; Url='https://handbrake.fr/'}
+    $Script:AllAppsData[105] = @{Cat='Multimedia Tools'; Name='ImageGlass (Image Viewer)'; Winget='DuongDieuPhap.ImageGlass'; Url='https://imageglass.org/'}
+    $Script:AllAppsData[106] = @{Cat='Multimedia Tools'; Name='IrfanView'; Winget='IrfanSkiljan.IrfanView'; Url='https://irfanview.com/'}
+    $Script:AllAppsData[107] = @{Cat='Multimedia Tools'; Name='iTunes'; Winget='Apple.iTunes'; Url='https://www.apple.com/itunes/'}
+    $Script:AllAppsData[108] = @{Cat='Multimedia Tools'; Name='K-Lite Codec Standard'; Winget='CodecGuide.K-LiteCodecPack.Standard'; Url='https://www.codecguide.com/'}
+    $Script:AllAppsData[109] = @{Cat='Multimedia Tools'; Name='LibreOffice'; Winget='TheDocumentFoundation.LibreOffice'; Url='https://www.libreoffice.org/'}
+    $Script:AllAppsData[110] = @{Cat='Multimedia Tools'; Name='mpc-qt'; Winget='mpc-qt.mpc-qt'; Url='https://github.com/mpc-qt/mpc-qt'}
+    $Script:AllAppsData[111] = @{Cat='Multimedia Tools'; Name='Media Player Classic - Home Cinema'; Winget='clsid2.mpc-hc'; Url='https://github.com/clsid2/mpc-hc/'}
+    $Script:AllAppsData[112] = @{Cat='Multimedia Tools'; Name='nomacs'; Winget='nomacs.nomacs'; Url='https://nomacs.org/'}
+    $Script:AllAppsData[113] = @{Cat='Multimedia Tools'; Name='NAPS2 (Document Scanner)'; Winget='Cyanfish.NAPS2'; Url='https://www.naps2.com/'}
+    $Script:AllAppsData[114] = @{Cat='Multimedia Tools'; Name='Notepad++'; Winget='Notepad++.Notepad++'; Url='https://notepad-plus-plus.org/'}
+    $Script:AllAppsData[115] = @{Cat='Multimedia Tools'; Name='OBS Studio'; Winget='OBSProject.OBSStudio'; Url='https://obsproject.com/'}
+    $Script:AllAppsData[116] = @{Cat='Multimedia Tools'; Name='Obsidian'; Winget='Obsidian.Obsidian'; Url='https://obsidian.md/'}
+    $Script:AllAppsData[117] = @{Cat='Multimedia Tools'; Name='ONLYOFFICE Desktop'; Winget='ONLYOFFICE.DesktopEditors'; Url='https://www.onlyoffice.com/desktop.aspx'}
+    $Script:AllAppsData[118] = @{Cat='Multimedia Tools'; Name='Paint.NET'; Winget='dotPDN.PaintDotNet'; Url='https://www.getpaint.net/'}
+    $Script:AllAppsData[119] = @{Cat='Multimedia Tools'; Name='ShareX (Screenshots)'; Winget='ShareX.ShareX'; Url='https://getsharex.com/'}
+    $Script:AllAppsData[120] = @{Cat='Multimedia Tools'; Name='VLC (Video Player)'; Winget='VideoLAN.VLC'; Url='https://www.videolan.org/vlc/'}
+    $Script:AllAppsData[121] = @{Cat='Pro Tools'; Name='Advanced IP Scanner'; Winget='Famatech.AdvancedIPScanner'; Url='https://www.advanced-ip-scanner.com/'}
+    $Script:AllAppsData[122] = @{Cat='Pro Tools'; Name='Angry IP Scanner'; Winget='angryziber.AngryIPScanner'; Url='https://angryip.org/'}
+    $Script:AllAppsData[123] = @{Cat='Pro Tools'; Name='Cinebench R23'; Winget='Maxon.CinebenchR23'; Url='https://www.maxon.net/en/cinebench'}
+    $Script:AllAppsData[124] = @{Cat='Pro Tools'; Name='CPU-Z'; Winget='CPUID.CPU-Z'; Url='https://www.cpuid.com/softwares/cpu-z.html'}
+    $Script:AllAppsData[125] = @{Cat='Pro Tools'; Name='Display Driver Uninstaller'; Winget='Wagnardsoft.DisplayDriverUninstaller'; Url='https://www.wagnardsoft.com/display-driver-uninstaller-DDU-'}
+    $Script:AllAppsData[126] = @{Cat='Pro Tools'; Name='GPU-Z'; Winget='TechPowerUp.GPU-Z'; Url='https://www.techpowerup.com/gpuz/'}
+    $Script:AllAppsData[127] = @{Cat='Pro Tools'; Name='gsudo'; Winget='gerardog.gsudo'; Url='https://github.com/gerardog/gsudo'}
+    $Script:AllAppsData[128] = @{Cat='Pro Tools'; Name='HWiNFO'; Winget='REALiX.HWiNFO'; Url='https://www.hwinfo.com/'}
+    $Script:AllAppsData[129] = @{Cat='Pro Tools'; Name='HWMonitor'; Winget='CPUID.HWMonitor'; Url='https://www.cpuid.com/softwares/hwmonitor.html'}
+    $Script:AllAppsData[130] = @{Cat='Pro Tools'; Name='Mullvad VPN'; Winget='MullvadVPN.MullvadVPN'; Url='https://github.com/mullvad/mullvadvpn-app'}
+    $Script:AllAppsData[131] = @{Cat='Pro Tools'; Name='Nmap'; Winget='Insecure.Nmap'; Url='https://nmap.org/'}
+    $Script:AllAppsData[132] = @{Cat='Pro Tools'; Name='OpenVPN Connect'; Winget='OpenVPNTechnologies.OpenVPNConnect'; Url='https://openvpn.net/'}
+    $Script:AllAppsData[133] = @{Cat='Pro Tools'; Name='Proton VPN'; Winget='Proton.ProtonVPN'; Url='https://protonvpn.com/'}
+    $Script:AllAppsData[134] = @{Cat='Pro Tools'; Name='PuTTY'; Winget='PuTTY.PuTTY'; Url='https://www.chiark.greenend.org.uk/~sgtatham/putty/'}
+    $Script:AllAppsData[135] = @{Cat='Pro Tools'; Name='Simplewall'; Winget='Henry++.simplewall'; Url='https://github.com/henrypp/simplewall'}
+    $Script:AllAppsData[136] = @{Cat='Pro Tools'; Name='Ventoy'; Winget='Ventoy.Ventoy'; Url='https://www.ventoy.net/'}
+    $Script:AllAppsData[137] = @{Cat='Pro Tools'; Name='WinSCP'; Winget='WinSCP.WinSCP'; Url='https://winscp.net/'}
+    $Script:AllAppsData[138] = @{Cat='Pro Tools'; Name='WireGuard'; Winget='WireGuard.WireGuard'; Url='https://www.wireguard.com/'}
+    $Script:AllAppsData[139] = @{Cat='Pro Tools'; Name='Wireshark'; Winget='WiresharkFoundation.Wireshark'; Url='https://www.wireshark.org/'}
+    $Script:AllAppsData[140] = @{Cat='Selfhosted Tools'; Name='Jellyfin Media Player'; Winget='Jellyfin.JellyfinMediaPlayer'; Url='https://github.com/jellyfin/jellyfin-media-player'}
+    $Script:AllAppsData[141] = @{Cat='Selfhosted Tools'; Name='Jellyfin Server'; Winget='Jellyfin.Server'; Url='https://jellyfin.org/'}
+    $Script:AllAppsData[142] = @{Cat='Selfhosted Tools'; Name='Kodi Media Center'; Winget='XBMCFoundation.Kodi'; Url='https://kodi.tv/'}
+    $Script:AllAppsData[143] = @{Cat='Selfhosted Tools'; Name='LocalSend'; Winget='LocalSend.LocalSend'; Url='https://localsend.org/'}
+    $Script:AllAppsData[144] = @{Cat='Selfhosted Tools'; Name='Moonlight/GameStream Client'; Winget='MoonlightGameStreamingProject.Moonlight'; Url='https://moonlight-stream.org/'}
+    $Script:AllAppsData[145] = @{Cat='Selfhosted Tools'; Name='NetBird'; Winget='Netbird.Netbird'; Url='https://netbird.io/'}
+    $Script:AllAppsData[146] = @{Cat='Selfhosted Tools'; Name='Nextcloud Desktop'; Winget='Nextcloud.NextcloudDesktop'; Url='https://nextcloud.com/install/#install-clients'}
+    $Script:AllAppsData[147] = @{Cat='Selfhosted Tools'; Name='Plex Media Server'; Winget='Plex.PlexMediaServer'; Url='https://www.plex.tv/your-media/'}
+    $Script:AllAppsData[148] = @{Cat='Selfhosted Tools'; Name='Plex Desktop'; Winget='Plex.Plex'; Url='https://www.plex.tv'}
+    $Script:AllAppsData[149] = @{Cat='Selfhosted Tools'; Name='Sunshine/GameStream Server'; Winget='LizardByte.Sunshine'; Url='https://github.com/LizardByte/Sunshine'}
+    $Script:AllAppsData[150] = @{Cat='Utilities'; Name='1Password'; Winget='AgileBits.1Password'; Url='https://1password.com/'}
+    $Script:AllAppsData[151] = @{Cat='Utilities'; Name='7-Zip'; Winget='7zip.7zip'; Url='https://www.7-zip.org/'}
+    $Script:AllAppsData[152] = @{Cat='Utilities'; Name='AnyDesk'; Winget='AnyDesk.AnyDesk'; Url='https://anydesk.com/'}
+    $Script:AllAppsData[153] = @{Cat='Utilities'; Name='AutoHotkey'; Winget='AutoHotkey.AutoHotkey'; Url='https://www.autohotkey.com/'}
+    $Script:AllAppsData[154] = @{Cat='Utilities'; Name='Bitwarden'; Winget='Bitwarden.Bitwarden'; Url='https://bitwarden.com/'}
+    $Script:AllAppsData[155] = @{Cat='Utilities'; Name='Bulk Crap Uninstaller'; Winget='Klocman.BulkCrapUninstaller'; Url='https://www.bcuninstaller.com/'}
+    $Script:AllAppsData[156] = @{Cat='Utilities'; Name='BlurAutoClicker'; Winget='Blur009.BlurAutoClicker'; Url='https://blur009.vercel.app/projects/blur-autoclicker/'}
+    $Script:AllAppsData[157] = @{Cat='Utilities'; Name='Crystal Disk Info'; Winget='CrystalDewWorld.CrystalDiskInfo'; Url='https://crystalmark.info/en/software/crystaldiskinfo/'}
+    $Script:AllAppsData[158] = @{Cat='Utilities'; Name='Crystal Disk Mark'; Winget='CrystalDewWorld.CrystalDiskMark'; Url='https://crystalmark.info/en/software/crystaldiskmark/'}
+    $Script:AllAppsData[159] = @{Cat='Utilities'; Name='Dropbox'; Winget='Dropbox.Dropbox'; Url='https://www.dropbox.com/desktop'}
+    $Script:AllAppsData[160] = @{Cat='Utilities'; Name='Ente Auth'; Winget='ente-io.auth-desktop'; Url='https://ente.io/auth/'}
+    $Script:AllAppsData[161] = @{Cat='Utilities'; Name='Files'; Winget='FilesCommunity.Files'; Url='https://github.com/files-community/Files'}
+    $Script:AllAppsData[162] = @{Cat='Utilities'; Name='F.lux'; Winget='flux.flux'; Url='https://justgetflux.com/'}
+    $Script:AllAppsData[163] = @{Cat='Utilities'; Name='Google Drive'; Winget='Google.GoogleDrive'; Url='https://www.google.com/drive/'}
+    $Script:AllAppsData[164] = @{Cat='Utilities'; Name='Hugo'; Winget='Hugo.Hugo.Extended'; Url='https://github.com/gohugoio/hugo/'}
+    $Script:AllAppsData[165] = @{Cat='Utilities'; Name='Internet Download Manager'; Winget='Tonec.InternetDownloadManager'; Url='https://www.internetdownloadmanager.com/'}
+    $Script:AllAppsData[166] = @{Cat='Utilities'; Name='JPEG View'; Winget='sylikc.JPEGView'; Url='https://github.com/sylikc/jpegview'}
+    $Script:AllAppsData[167] = @{Cat='Utilities'; Name='KeePassXC'; Winget='KeePassXCTeam.KeePassXC'; Url='https://keepassxc.org/'}
+    $Script:AllAppsData[168] = @{Cat='Utilities'; Name='MiniTool Partition Wizard'; Winget='MiniTool.PartitionWizard.Free'; Url='https://www.partitionwizard.com/'}
+    $Script:AllAppsData[169] = @{Cat='Utilities'; Name='MSEdgeRedirect'; Winget='rcmaehl.MSEdgeRedirect'; Url='https://github.com/rcmaehl/MSEdgeRedirect'}
+    $Script:AllAppsData[170] = @{Cat='Utilities'; Name='MSI Afterburner'; Winget='Guru3D.Afterburner'; Url='https://www.msi.com/Landing/afterburner'}
+    $Script:AllAppsData[171] = @{Cat='Utilities'; Name='NanaZip'; Winget='M2Team.NanaZip'; Url='https://github.com/M2Team/NanaZip'}
+    $Script:AllAppsData[172] = @{Cat='Utilities'; Name='NVCleanstall'; Winget='TechPowerUp.NVCleanstall'; Url='https://www.techpowerup.com/nvcleanstall/'}
+    $Script:AllAppsData[173] = @{Cat='Utilities'; Name='OPAutoClicker'; Winget='OPAutoClicker.OPAutoClicker'; Url='https://www.opautoclicker.com'}
+    $Script:AllAppsData[174] = @{Cat='Utilities'; Name='OpenRGB'; Winget='OpenRGB.OpenRGB'; Url='https://openrgb.org/'}
+    $Script:AllAppsData[175] = @{Cat='Utilities'; Name='Oracle VirtualBox'; Winget='Oracle.VirtualBox'; Url='https://www.virtualbox.org/'}
+    $Script:AllAppsData[176] = @{Cat='Utilities'; Name='Policy Plus'; Winget='Fleex255.PolicyPlus'; Url='https://github.com/Fleex255/PolicyPlus'}
+    $Script:AllAppsData[177] = @{Cat='Utilities'; Name='Parsec'; Winget='Parsec.Parsec'; Url='https://parsec.app/'}
+    $Script:AllAppsData[178] = @{Cat='Utilities'; Name='PeaZip'; Winget='Giorgiotani.Peazip'; Url='https://peazip.github.io/'}
+    $Script:AllAppsData[179] = @{Cat='Utilities'; Name='Process Lasso'; Winget='BitSum.ProcessLasso'; Url='https://bitsum.com/'}
+    $Script:AllAppsData[180] = @{Cat='Utilities'; Name='Proton Authenticator'; Winget='Proton.ProtonAuthenticator'; Url='https://proton.me/authenticator'}
+    $Script:AllAppsData[181] = @{Cat='Utilities'; Name='Proton Drive'; Winget='Proton.ProtonDrive'; Url='https://proton.me/drive'}
+    $Script:AllAppsData[182] = @{Cat='Utilities'; Name='Proton Pass'; Winget='Proton.ProtonPass'; Url='https://proton.me/pass'}
+    $Script:AllAppsData[183] = @{Cat='Utilities'; Name='qBittorrent'; Winget='qBittorrent.qBittorrent'; Url='https://www.qbittorrent.org/'}
+    $Script:AllAppsData[184] = @{Cat='Utilities'; Name='Revo Uninstaller'; Winget='RevoUninstaller.RevoUninstaller'; Url='https://www.revouninstaller.com/'}
+    $Script:AllAppsData[185] = @{Cat='Utilities'; Name='Wise Program Uninstaller (WiseCleaner)'; Winget='WiseCleaner.WiseProgramUninstaller'; Url='https://www.wisecleaner.com/wise-program-uninstaller.html'}
+    $Script:AllAppsData[186] = @{Cat='Utilities'; Name='Rufus Imager'; Winget='Rufus.Rufus'; Url='https://rufus.ie/'}
+    $Script:AllAppsData[187] = @{Cat='Utilities'; Name='Snappy Driver Installer Origin'; Winget='GlennDelahoy.SnappyDriverInstallerOrigin'; Url='https://www.glenn.delahoy.com/snappy-driver-installer-origin/'}
+    $Script:AllAppsData[188] = @{Cat='Utilities'; Name='Nilesoft Shell'; Winget='Nilesoft.Shell'; Url='https://nilesoft.org/'}
+    $Script:AllAppsData[189] = @{Cat='Utilities'; Name='SignalRGB'; Winget='WhirlwindFX.SignalRgb'; Url='https://www.signalrgb.com/'}
+    $Script:AllAppsData[190] = @{Cat='Utilities'; Name='StartAllBack'; Winget='StartIsBack.StartAllBack'; Url='https://www.startallback.com/'}
+    $Script:AllAppsData[191] = @{Cat='Utilities'; Name='TeamViewer'; Winget='TeamViewer.TeamViewer'; Url='https://www.teamviewer.com/'}
+    $Script:AllAppsData[192] = @{Cat='Utilities'; Name='Total Commander'; Winget='Ghisler.TotalCommander'; Url='https://www.ghisler.com/'}
+    $Script:AllAppsData[193] = @{Cat='Utilities'; Name='TreeSize Free'; Winget='JAMSoftware.TreeSize.Free'; Url='https://www.jam-software.com/treesize_free/'}
+    $Script:AllAppsData[194] = @{Cat='Utilities'; Name='TranslucentTB'; Winget='CharlesMilette.TranslucentTB'; Url='https://github.com/TranslucentTB/TranslucentTB'}
+    $Script:AllAppsData[195] = @{Cat='Utilities'; Name='Everything'; Winget='voidtools.Everything'; Url='https://www.voidtools.com/'}
+    $Script:AllAppsData[196] = @{Cat='Utilities'; Name='UniGetUI'; Winget='Devolutions.UniGetUI'; Url='https://devolutions.net/unigetui/'}
+    $Script:AllAppsData[197] = @{Cat='Utilities'; Name='WinRAR'; Winget='RARLab.WinRAR'; Url='https://www.win-rar.com/'}
+    $Script:AllAppsData[198] = @{Cat='Utilities'; Name='WizTree'; Winget='AntibodySoftware.WizTree'; Url='https://wiztreefree.com/'}
+    $Script:AllAppsData[199] = @{Cat='Utilities'; Name='HxD Hex Editor'; Winget='MHNexus.HxD'; Url='https://mh-nexus.de/en/hxd/'}
+    $Script:AllAppsData[200] = @{Cat='Utilities'; Name='TightVNC'; Winget='GlavSoft.TightVNC'; Url='https://www.tightvnc.com/'}
+    $Script:AllAppsData[201] = @{Cat='Utilities'; Name='GlazeWM'; Winget='glzr-io.glazewm'; Url='https://github.com/glzr-io/glazewm'}
+    $Script:AllAppsData[202] = @{Cat='Utilities'; Name='OFGB (Oh Frick Go Back)'; Winget='xM4ddy.OFGB'; Url='https://github.com/xM4ddy/OFGB'}
+    $Script:AllAppsData[203] = @{Cat='Utilities'; Name='Deskflow'; Winget='Deskflow.Deskflow'; Url='https://github.com/deskflow/deskflow'}
 
     # --- Build categories ---
-    $global:AllWrapPanels = [System.Collections.Generic.List[System.Windows.Controls.WrapPanel]]::new()
+    $Script:AllWrapPanels = [System.Collections.Generic.List[System.Windows.Controls.WrapPanel]]::new()
     $prevCat = ""
     $wp = $null
 
     # Count items per category for badge
     $catCounts = @{}
-    for ($j = 0; $j -lt $global:AllAppsData.Count; $j++) {
-        $cn = $global:AllAppsData[$j].Cat
+    for ($j = 0; $j -lt $Script:AllAppsData.Count; $j++) {
+        $cn = $Script:AllAppsData[$j].Cat
         if (-not $catCounts[$cn]) { $catCounts[$cn] = 0 }
         $catCounts[$cn]++
     }
 
-    for ($i = 0; $i -lt $global:AllAppsData.Count; $i++) {
-        $d = $global:AllAppsData[$i]
+    for ($i = 0; $i -lt $Script:AllAppsData.Count; $i++) {
+        $d = $Script:AllAppsData[$i]
         if ($d.Cat -ne $prevCat) {
             $prevCat = $d.Cat
 
@@ -3339,7 +3361,7 @@ function Show-PageAllInstallers {
 
             $wp = New-Object System.Windows.Controls.WrapPanel
             $wp.Orientation = "Horizontal"; $wp.Margin = "2,6,2,2"
-            $global:AllWrapPanels.Add($wp)
+            $Script:AllWrapPanels.Add($wp)
 
             # Set Tag AFTER wp is created for THIS category
             $selAll.Tag = $wp
@@ -3399,20 +3421,20 @@ function Show-PageGpuSoftware {
     Add-GuiPageTitle "GPU Software"
     Add-GuiCard "Utilities" "GPU monitoring and tuning tools." {
         param($p)
-        Add-GuiBtn $p "MSI Afterburner" "ActionButtonStyle" { Invoke-InstallWingetApp "Guru3D.MSIAfterburner" "MSI Afterburner" -FallbackUrl "https://www.msi.com/Landing/afterburner/graphics-cards" }
-        Add-GuiBtn $p "HWMonitor" "ActionButtonStyle" { Invoke-InstallWingetApp "CPUID.HWMonitor" "HWMonitor" -FallbackUrl "https://www.cpuid.com/softwares/hwmonitor.html" }
-        Add-GuiBtn $p "GPU-Z" "ActionButtonStyle" { Invoke-InstallWingetApp "TechPowerUp.GPU-Z" "GPU-Z" -FallbackUrl "https://www.techpowerup.com/download/techpowerup-gpu-z/" }
-        Add-GuiBtn $p "DDU" "ActionButtonStyle" { Invoke-InstallWingetApp "Wagnardsoft.DisplayDriverUninstaller" "DDU" -FallbackUrl "https://www.wagnardsoft.com/display-driver-uninstaller-DDU-" }
+        Add-GuiInstallBtn $p "MSI Afterburner" "Guru3D.MSIAfterburner" -FallbackUrl "https://www.msi.com/Landing/afterburner/graphics-cards"
+        Add-GuiInstallBtn $p "HWMonitor" "CPUID.HWMonitor" -FallbackUrl "https://www.cpuid.com/softwares/hwmonitor.html"
+        Add-GuiInstallBtn $p "GPU-Z" "TechPowerUp.GPU-Z" -FallbackUrl "https://www.techpowerup.com/download/techpowerup-gpu-z/"
+        Add-GuiInstallBtn $p "DDU" "Wagnardsoft.DisplayDriverUninstaller" -FallbackUrl "https://www.wagnardsoft.com/display-driver-uninstaller-DDU-"
     }
     Add-GuiCard "AMD" "AMD GPU tools." {
         param($p)
-        Add-GuiBtn $p "RadeonSlimmer" "ActionButtonStyle" { Invoke-InstallWingetApp "" "RadeonSoftwareSlimmer" -FallbackUrl "https://github.com/GSDragoon/RadeonSoftwareSlimmer/releases/latest" }
-        Add-GuiBtn $p "MorePowerTool" "ActionButtonStyle" { Invoke-InstallWingetApp "" "MorePowerTool" -FallbackUrl "https://www.igorslab.de/en/red-bios-rebellion-team/2/#Downloads" }
+        Add-GuiInstallBtn $p "RadeonSlimmer" "" "RadeonSoftwareSlimmer" -FallbackUrl "https://github.com/GSDragoon/RadeonSoftwareSlimmer/releases/latest"
+        Add-GuiInstallBtn $p "MorePowerTool" "" -FallbackUrl "https://www.igorslab.de/en/red-bios-rebellion-team/2/#Downloads"
     }
     Add-GuiCard "NVIDIA" "NVIDIA GPU tools." {
         param($p)
-        Add-GuiBtn $p "NVCleanstall" "ActionButtonStyle" { Invoke-InstallWingetApp "TechPowerUp.NVCleanstall" "NVCleanstall" -FallbackUrl "https://www.techpowerup.com/download/techpowerup-nvcleanstall/" }
-        Add-GuiBtn $p "NvidiaInspector" "ActionButtonStyle" { Invoke-InstallWingetApp "" "NvidiaProfileInspector" -FallbackUrl "https://github.com/Orbmu2k/nvidiaProfileInspector/releases/latest" }
+        Add-GuiInstallBtn $p "NVCleanstall" "TechPowerUp.NVCleanstall" -FallbackUrl "https://www.techpowerup.com/download/techpowerup-nvcleanstall/"
+        Add-GuiInstallBtn $p "NvidiaInspector" "" "NvidiaProfileInspector" -FallbackUrl "https://github.com/Orbmu2k/nvidiaProfileInspector/releases/latest"
     }
 }
 
@@ -3421,16 +3443,16 @@ function Show-PageCPU {
     Add-GuiPageTitle "CPU Software"
     Add-GuiCard "AMD" "AMD CPU tools." {
         param($p)
-        Add-GuiBtn $p "Ryzen Master" "ActionButtonStyle" { Invoke-InstallWingetApp "AMD.RyzenMaster" "Ryzen Master" -FallbackUrl "https://www.amd.com/en/products/software/ryzen-master.html" }
+        Add-GuiInstallBtn $p "Ryzen Master" "AMD.RyzenMaster" -FallbackUrl "https://www.amd.com/en/products/software/ryzen-master.html"
     }
     Add-GuiCard "Intel" "Intel CPU tools." {
         param($p)
-        Add-GuiBtn $p "XTU" "ActionButtonStyle" { Invoke-InstallWingetApp "Intel.ExtremeTuningUtility" "Extreme Tuning Utility" -FallbackUrl "https://www.intel.com/content/www/us/en/download/17881/intel-extreme-tuning-utility-intel-xtu.html" }
-        Add-GuiBtn $p "ThrottleStop" "ActionButtonStyle" { Invoke-InstallWingetApp "TechPowerUp.ThrottleStop" "ThrottleStop" -FallbackUrl "https://www.techpowerup.com/download/techpowerup-throttlestop/" }
+        Add-GuiInstallBtn $p "XTU" "Intel.ExtremeTuningUtility" "Extreme Tuning Utility" -FallbackUrl "https://www.intel.com/content/www/us/en/download/17881/intel-extreme-tuning-utility-intel-xtu.html"
+        Add-GuiInstallBtn $p "ThrottleStop" "TechPowerUp.ThrottleStop" -FallbackUrl "https://www.techpowerup.com/download/techpowerup-throttlestop/"
     }
     Add-GuiCard "Utilities" "CPU utilities." {
         param($p)
-        Add-GuiBtn $p "FanControl" "ActionButtonStyle" { Invoke-InstallWingetApp "Rem0o.FanControl" "FanControl" -FallbackUrl "https://getfancontrol.com/" }
+        Add-GuiInstallBtn $p "FanControl" "Rem0o.FanControl" -FallbackUrl "https://getfancontrol.com/"
     }
 }
 #endregion
