@@ -10,71 +10,116 @@ permissions:
   contents: write
 
 jobs:
-  bump:
-    if: github.ref_type == 'branch'
-    runs-on: ubuntu-latest
+  release:
+    runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Bump patch and tag if source changed
+      - name: Determine version and tag
+        id: ver
+        shell: pwsh
         run: |
-          changed=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || true)
-          if echo "$changed" | grep -Eq '^(SETTDash\.ps1|icon_lightning\.ico)$'; then
-            git fetch --tags
-            last=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
-            if [ -z "$last" ]; then
-              new="3.2.1"
-            else
-              base="${last#v}"
-              IFS=. read -r a b c <<< "$base"
-              new="$a.$b.$((c+1))"
-            fi
-            git config user.name github-actions
-            git config user.email github-actions@github.com
-            if ! git tag -l "v$new" | grep -q .; then
-              git tag "v$new"
-              git push origin "v$new"
-              echo "Tagged v$new"
-            else
-              echo "Tag v$new already exists, skipping"
-            fi
-          else
-            echo "No source change (SETTDash.ps1 / icon), skipping bump"
-          fi
+          $skip = $false
+          $version = $null
+          $tag = $null
 
-  build-release:
-    if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
-    runs-on: windows-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $tag = $env:GITHUB_REF_NAME
+            $version = $tag.TrimStart('v')
+          }
+          elseif ($env:GITHUB_REF_TYPE -eq 'branch') {
+            $changed = git diff --name-only HEAD~1 HEAD 2>$null
+            if ($changed -match '^(SETTDash\.ps1|SETTDash\.ico|icon_lightning\.ico)$') {
+              git fetch --tags
+              $last = git tag --sort=-v:refname | Where-Object { $_ -match '^v[0-9]+\.[0-9]+\.[0-9]+$' } | Select-Object -First 1
+              if (-not $last) {
+                $version = '3.2.1'
+              } else {
+                $base = $last.TrimStart('v')
+                $p = $base.Split('.')
+                $version = "$($p[0]).$($p[1]).$([int]$p[2] + 1)"
+              }
+              $tag = "v$version"
+              git config user.name github-actions
+              git config user.email github-actions@github.com
+              if (-not (git tag -l $tag)) {
+                git tag $tag
+                git push origin $tag
+                Write-Host "Tagged $tag"
+              } else {
+                Write-Host "Tag $tag already exists"
+              }
+            } else {
+              Write-Host "No source change (SETTDash.ps1 / icon), skipping build"
+              $skip = $true
+            }
+          }
+          else {
+            # workflow_dispatch: rebuild the version tagged at HEAD, otherwise bump
+            git fetch --tags
+            $headTag = git tag --points-at HEAD | Where-Object { $_ -match '^v[0-9]+\.[0-9]+\.[0-9]+$' } | Select-Object -First 1
+            if ($headTag) {
+              $tag = $headTag
+              $version = $tag.TrimStart('v')
+            } else {
+              $last = git tag --sort=-v:refname | Where-Object { $_ -match '^v[0-9]+\.[0-9]+\.[0-9]+$' } | Select-Object -First 1
+              if (-not $last) { $version = '3.2.1' }
+              else {
+                $base = $last.TrimStart('v')
+                $p = $base.Split('.')
+                $version = "$($p[0]).$($p[1]).$([int]$p[2] + 1)"
+              }
+              $tag = "v$version"
+              git config user.name github-actions
+              git config user.email github-actions@github.com
+              if (-not (git tag -l $tag)) {
+                git tag $tag
+                git push origin $tag
+              }
+            }
+          }
+
+          Write-Output "skip=$skip" >> $env:GITHUB_OUTPUT
+          Write-Output "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Output "tag=$tag" >> $env:GITHUB_OUTPUT
+          Write-Host "skip=$skip version=$version tag=$tag"
 
       - name: Install ps2exe
+        if: steps.ver.outputs.skip != 'true'
         shell: pwsh
         run: |
           Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
           Install-Module -Name ps2exe -Scope CurrentUser -Force
 
       - name: Build exe
+        if: steps.ver.outputs.skip != 'true'
         shell: pwsh
         run: |
           Import-Module ps2exe
-          if ($env:GITHUB_REF_TYPE -eq 'tag') { $v = $env:GITHUB_REF_NAME.TrimStart('v') } else { $v = '0.0.0' }
-          Invoke-ps2exe -inputFile SETTDash.ps1 -outputFile SETTDash.exe -iconFile SETTDash.ico -noConsole -requireAdmin -x86 -title "SETTDash" -description "All-in-one Windows optimization & tweaking dashboard" -product "SETTDash" -company "otaviozanon" -version $v
+          Invoke-ps2exe -inputFile SETTDash.ps1 -outputFile SETTDash.exe -iconFile SETTDash.ico -noConsole -requireAdmin -x86 -title "SETTDash" -description "All-in-one Windows optimization & tweaking dashboard" -product "SETTDash" -company "otaviozanon" -version "${{ steps.ver.outputs.version }}"
           if (-not (Test-Path SETTDash.exe)) { throw "Build failed: SETTDash.exe not found" }
 
       - name: Upload artifact
+        if: steps.ver.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: SETTDash
           path: SETTDash.exe
 
       - name: Create release
-        if: github.ref_type == 'tag'
+        if: steps.ver.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
-        run: gh release create "$env:GITHUB_REF_NAME" SETTDash.exe --title "SETTDash $env:GITHUB_REF_NAME" --generate-notes
+        run: |
+          $tag = "${{ steps.ver.outputs.tag }}"
+          if (-not $tag) { Write-Host "No tag, skipping release"; exit 0 }
+          gh release view $tag 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Release $tag already exists, skipping"
+          } else {
+            gh release create $tag SETTDash.exe --title "SETTDash $tag" --generate-notes
+          }
