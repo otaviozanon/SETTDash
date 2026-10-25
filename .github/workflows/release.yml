@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     branches: [main]
-    tags: ['v*']
+    tags: ["v*"]
   workflow_dispatch:
 
 permissions:
@@ -63,7 +63,7 @@ jobs:
         run: |
           Import-Module ps2exe
           if ($env:GITHUB_REF_TYPE -eq 'tag') { $v = $env:GITHUB_REF_NAME.TrimStart('v') } else { $v = '0.0.0' }
-          Invoke-ps2exe -inputFile SETTDash.ps1 -outputFile SETTDash.exe -iconFile icon_lightning.ico -noConsole -requireAdmin -x86 -title "SETTDash" -description "All-in-one Windows optimization & tweaking dashboard" -product "SETTDash" -company "otaviozanon" -version $v
+          Invoke-ps2exe -inputFile SETTDash.ps1 -outputFile SETTDash.exe -iconFile SETTDash.ico -noConsole -requireAdmin -x86 -title "SETTDash" -description "All-in-one Windows optimization & tweaking dashboard" -product "SETTDash" -company "otaviozanon" -version $v
           if (-not (Test-Path SETTDash.exe)) { throw "Build failed: SETTDash.exe not found" }
 
       - name: Upload artifact
