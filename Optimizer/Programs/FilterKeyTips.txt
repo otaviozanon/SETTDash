@@ -1,0 +1,6 @@
+Ignore - 0
+Repeat delay - 150
+Repeat rate - 15
+
+On [check]
+Available [check]

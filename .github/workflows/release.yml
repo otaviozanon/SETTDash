@@ -32,7 +32,7 @@ jobs:
           }
           elseif ($env:GITHUB_REF_TYPE -eq 'branch') {
             $changed = git diff --name-only HEAD~1 HEAD 2>$null
-            if ($changed -match '^(SETTDash\.ps1|SETTDash\.ico|icon_lightning\.ico)$') {
+            if ($changed -match '^(Core/|Main/|Sidebar/|Build\.ps1|SETTDash\.ico|icon_lightning\.ico)') {
               git fetch --tags
               $last = git tag --sort=-v:refname | Where-Object { $_ -match '^v[0-9]+\.[0-9]+\.[0-9]+$' } | Select-Object -First 1
               if (-not $last) {
@@ -93,6 +93,13 @@ jobs:
         run: |
           Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
           Install-Module -Name ps2exe -Scope CurrentUser -Force
+
+      - name: Concatenate modular sources
+        if: steps.ver.outputs.skip != 'true'
+        shell: pwsh
+        run: |
+          .\Build.ps1
+          if (-not (Test-Path SETTDash.ps1)) { throw "Build.ps1 failed: SETTDash.ps1 not found" }
 
       - name: Build exe
         if: steps.ver.outputs.skip != 'true'
