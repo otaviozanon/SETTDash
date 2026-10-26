@@ -1,4 +1,4 @@
-﻿#
+#
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Continue"
 $Script:CachedSystemInfo = $null

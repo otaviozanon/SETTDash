@@ -94,6 +94,23 @@ jobs:
           Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
           Install-Module -Name ps2exe -Scope CurrentUser -Force
 
+      - name: Inject version into dashboard sources
+        if: steps.ver.outputs.skip != 'true'
+        shell: pwsh
+        run: |
+          $version = "${{ steps.ver.outputs.version }}"
+
+          (Get-Content 'Main\Layout.ps1' -Raw) -replace 'Dashboard v[0-9]+\.[0-9]+(\.[0-9]+)?', "Dashboard v$version" |
+            Set-Content 'Main\Layout.ps1' -NoNewline
+
+          (Get-Content 'Main\Startup.ps1' -Raw) -replace 'Dashboard v[0-9]+\.[0-9]+(\.[0-9]+)?', "Dashboard v$version" |
+            Set-Content 'Main\Startup.ps1' -NoNewline
+
+          (Get-Content 'Main\Window.ps1' -Raw) -replace 'SETTDash v[0-9]+\.[0-9]+(\.[0-9]+)?', "SETTDash v$version" |
+            Set-Content 'Main\Window.ps1' -NoNewline
+
+          Write-Host "Injected version $version into dashboard sources"
+
       - name: Concatenate modular sources
         if: steps.ver.outputs.skip != 'true'
         shell: pwsh

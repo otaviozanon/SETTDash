@@ -1,4 +1,4 @@
-﻿#region XAML DASHBOARD LAYOUT
+#region XAML DASHBOARD LAYOUT
 [xml]$xaml = @"
 <Window
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"

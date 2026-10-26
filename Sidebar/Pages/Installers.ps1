@@ -40,6 +40,7 @@ function Show-PageInstallers {
         Add-GuiBtn $w "Uninstalr" "ActionButtonStyle" { Invoke-InstallWingetApp "" "Uninstalr" -FallbackUrl "https://uninstalr.com/download/" }
         Add-GuiBtn $w "Kudu" "ActionButtonStyle" { Invoke-InstallWingetApp "" "Kudu" -FallbackUrl "https://github.com/AdventDevInc/kudu/releases/download/v1.47.0/Kudu-Setup-1.47.0.exe" }
         Add-GuiBtn $w "FDM" "ActionButtonStyle" { Invoke-InstallWingetApp "Softdeluxe.FreeDownloadManager" "FDM" -FallbackUrl "https://www.freedownloadmanager.org/" }
+        Add-GuiBtn $w "filee.sh" "ActionButtonStyle" { Invoke-InstallWingetApp "" "filee.sh" -FallbackUrl "https://filee.sh/#download" }
     } "&#xEA99;" "#F0883E" -WrapButtons
     Add-GuiCard "Desktop" "Customization tools." {
         param($w)
@@ -49,6 +50,7 @@ function Show-PageInstallers {
         Add-GuiBtn $w "Flow Launcher" "ActionButtonStyle" { Invoke-InstallWingetApp "Flow-Launcher.Flow-Launcher" "Flow Launcher" -FallbackUrl "https://www.flowlauncher.com/" }
         Add-GuiBtn $w "Lively WP" "ActionButtonStyle" { Invoke-InstallWingetApp "9NTM2QC6QWS7" "Lively Wallpaper" "msstore" "https://apps.microsoft.com/detail/9NTM2QC6QWS7" }
         Add-GuiBtn $w "RainMeter" "ActionButtonStyle" { Invoke-InstallWingetApp "Rainmeter.Rainmeter" "RainMeter" -FallbackUrl "https://www.rainmeter.net/" }
+        Add-GuiBtn $w "Nusa" "ActionButtonStyle" { Invoke-InstallWingetApp "" "Nusa" -FallbackUrl "https://github.com/rama2555/nusa/releases/latest/download/NusaSetup.zip" }
     } "&#xE771;" "#39C5CF" -WrapButtons
     Add-GuiCard "Communication" "Chat and voice." {
         param($w)
