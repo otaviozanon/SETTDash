@@ -1,4 +1,4 @@
-﻿# Used by: Installers, AllInstallers, GpuSoftware, CPU (generic install helpers)
+# Used by: Installers, AllInstallers, GpuSoftware, CPU (generic install helpers)
 # Installs an app via winget using its package $Id. If $Id is empty, or winget fails/isn't
 # available, falls back to opening $FallbackUrl in the browser so the user can install manually.
 # Treats winget's "already installed" exit codes as success.
