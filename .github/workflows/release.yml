@@ -86,11 +86,16 @@ jobs:
         if: steps.ver.outputs.skip != 'true'
         shell: pwsh
         run: |
-          if (-not (Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue)) {
-            Register-PSRepository -Default
+          # Prefer PSResourceGet (shipped natively in pwsh on the runners): the classic
+          # PowerShellGet v2 / NuGet install path broke repeatedly on the runner
+          # ("Missing option value for '-source'" and PSGallery silently unregistering).
+          if (Get-Command Install-PSResource -ErrorAction SilentlyContinue) {
+            Install-PSResource -Name ps2exe -Scope CurrentUser -Quiet -TrustRepository -ErrorAction Stop
+          } else {
+            try { Register-PSRepository -Default -ErrorAction SilentlyContinue } catch {}
+            Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+            Install-Module -Name ps2exe -Scope CurrentUser -Force
           }
-          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
-          Install-Module -Name ps2exe -Scope CurrentUser -Force
 
       - name: Inject version into dashboard sources
         if: steps.ver.outputs.skip != 'true'
