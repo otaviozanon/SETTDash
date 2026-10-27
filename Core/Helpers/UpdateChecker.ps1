@@ -218,9 +218,14 @@ function Show-UpdateConfirmDialog {
 # the current executable in place, relaunches it, and cleans up after itself.
 function Invoke-SelfUpdate {
     param([string]$DownloadUrl, [string]$NewVersion, [long]$ExpectedSize = 0)
+    # Plain local (NOT $Script:) values used inside the ContentRendered closure below:
+    # 'Script: variables are not readable there - that scope expression resolves against
+    # the closure MODULE's script scope (null), which corrupted 'Join-Path' with
+    # "Cannot bind argument to parameter 'Path' because it is null".
+    $tempDir = $Script:TempDir
 
     $currentExe = [System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
-    $newExe = Join-Path $Script:TempDir "SETTDash_v$NewVersion.exe"
+    $newExe = Join-Path $tempDir "SETTDash_v$NewVersion.exe"
 
     $body = @"
         <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
@@ -286,11 +291,11 @@ function Invoke-SelfUpdate {
         $txtStatus.Text = "Restarting SETTDash to apply v$NewVersion..."
 
         try {
-            $markerPath = Join-Path $Script:TempDir "update_applied.txt"
+            $markerPath = Join-Path $tempDir "update_applied.txt"
             Set-Content -Path $markerPath -Value $NewVersion -Encoding UTF8 -Force
 
             $currentPid = [System.Diagnostics.Process]::GetCurrentProcess().Id
-            $updaterPath = Join-Path $Script:TempDir "SETTDash_Updater.ps1"
+            $updaterPath = Join-Path $tempDir "SETTDash_Updater.ps1"
             $logPath = Join-Path $env:LOCALAPPDATA "SETTDash\Backups\updater.log"
             $updaterScript = @"
 `$ErrorActionPreference = 'Stop'
