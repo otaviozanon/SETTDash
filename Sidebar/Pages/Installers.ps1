@@ -61,6 +61,7 @@ function Show-PageInstallers {
         param($w)
         Add-GuiBtn $w "FACEIT" "ActionButtonStyle" { Invoke-InstallWingetApp "FACEITLTD.FACEITClient" "FACEIT" -FallbackUrl "https://www.faceit.com/en/downloads" }
         Add-GuiBtn $w "GamersClub" "ActionButtonStyle" { Invoke-InstallWingetApp "br.gamersclub.launcher" "GamersClub" -FallbackUrl "https://gamersclub.com.br/" }
+        Add-GuiBtn $w "LuaTools" "ActionButtonStyle" { Invoke-InstallWingetApp "" "LuaTools" -FallbackUrl "https://github.com/madoiscool/luatools/releases/latest/download/LuaTools-win-Setup.exe" }
     } "&#xE7FC;" "#F85149" -WrapButtons
     Add-GuiCard "VPN Free" "Free VPN clients." {
         param($w)

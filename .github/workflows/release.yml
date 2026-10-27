@@ -106,7 +106,9 @@ jobs:
           (Get-Content 'Main\Startup.ps1' -Raw) -replace 'Dashboard v[0-9]+\.[0-9]+(\.[0-9]+)?', "Dashboard v$version" |
             Set-Content 'Main\Startup.ps1' -NoNewline
 
-          (Get-Content 'Main\Window.ps1' -Raw) -replace 'SETTDash v[0-9]+\.[0-9]+(\.[0-9]+)?', "SETTDash v$version" |
+          (Get-Content 'Main\Window.ps1' -Raw) `
+            -replace 'SETTDash v[0-9]+\.[0-9]+(\.[0-9]+)?', "SETTDash v$version" `
+            -replace '\$Script:AppVersion = "[0-9]+\.[0-9]+\.[0-9]+"', "`$Script:AppVersion = `"$version`"" |
             Set-Content 'Main\Window.ps1' -NoNewline
 
           Write-Host "Injected version $version into dashboard sources"

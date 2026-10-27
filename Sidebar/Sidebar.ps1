@@ -13,6 +13,8 @@ $navHandlers = @{
                         "navUtilities"   = { Expand-Section $secTools $hdrTools; Clear-GuiLog; Update-GuiNavActive "pageUtilities"; Show-PageUtilities }
                         "navWinShortcuts"= { Expand-Section $secShortcuts $hdrShortcuts; Clear-GuiLog; Update-GuiNavActive "pageWinShortcuts"; Show-PageWinShortcuts }
     "navAll"          = { Clear-GuiLog; Update-GuiNavActive "pageAll"; Show-PageAll }
+    "navClean"        = { Clear-GuiLog; Update-GuiNavActive "pageClean"; Show-PageClean }
+    "navNetwork"      = { Clear-GuiLog; Update-GuiNavActive "pageNetwork"; Show-PageNetwork }
 }
 
 foreach ($n in $navNames) {

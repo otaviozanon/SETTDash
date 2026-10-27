@@ -632,6 +632,18 @@
                             <TextBlock Text="Optimize All" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
+                    <Button x:Name="navClean" Style="{StaticResource NavButtonStyle}" Tag="pageClean">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="14" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Clean" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="navNetwork" Style="{StaticResource NavButtonStyle}" Tag="pageNetwork">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE839;" FontFamily="Segoe MDL2 Assets" FontSize="14" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Network" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
 
                         <!-- INSTALLERS section (collapsible) -->
                         <Button x:Name="hdrInstallers" Style="{StaticResource NavHeaderStyle}">

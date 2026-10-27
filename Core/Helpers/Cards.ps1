@@ -5,7 +5,7 @@
 # instead of clipping the title; handled via a SizeChanged handler that re-measures and re-docks
 # the title/button panels into either one row (side-by-side) or two rows (stacked).
 function Add-GuiCard {
-    param([string]$Title, [string]$Description, [scriptblock]$Content= $null, [string]$Icon = "&#xE90F;", [string]$AccentColor = "#F0883E", [switch]$WrapButtons, $TargetPanel = $null)
+    param([string]$Title, [string]$Description, [scriptblock]$Content= $null, [string]$Icon = "&#xE90F;", [string]$AccentColor = "#F0883E", [switch]$WrapButtons, $TargetPanel = $null, $CollapseTarget = $null)
     if (-not $TargetPanel) { $TargetPanel = $pnlContent }
     $card = New-Object System.Windows.Controls.Border
     $cardStyle = $Window.FindResource("CardStyle"); if ($cardStyle) { $card.Style = $cardStyle }
@@ -17,9 +17,34 @@ function Add-GuiCard {
     $row.ColumnDefinitions.Add($colBtn)
     $titlePanel = New-Object System.Windows.Controls.StackPanel
     $titlePanel.VerticalAlignment = "Center"
-    Add-GuiIconTitle $titlePanel $Icon $Title $AccentColor $Description
+    $chevronBox = $null
+    if ($CollapseTarget) { $chevronBox = @{} }
+    Add-GuiIconTitle $titlePanel $Icon $Title $AccentColor $Description $chevronBox
     [System.Windows.Controls.Grid]::SetColumn($titlePanel, 0)
     $row.AddChild($titlePanel)
+
+    if ($CollapseTarget -and $chevronBox -and $chevronBox.Chevron) {
+        $chevron = $chevronBox.Chevron
+        $titlePanel.Cursor = "Hand"
+        # Starts collapsed (list hidden) until the user clicks the card title/chevron,
+        # or an action (e.g. Scan) explicitly expands it via Expand-GuiCard.
+        $collapseState = [pscustomobject]@{ Collapsed = $true; Chevron = $chevron }
+        $CollapseTarget.Visibility = "Collapsed"
+        $chevron.Text = [char]0xE76C
+        $CollapseTarget.Tag = $collapseState
+        $collapseHandler = {
+            param($s, $e)
+            $collapseState.Collapsed = -not $collapseState.Collapsed
+            if ($collapseState.Collapsed) {
+                $CollapseTarget.Visibility = "Collapsed"
+                $chevron.Text = [char]0xE76C
+            } else {
+                $CollapseTarget.Visibility = "Visible"
+                $chevron.Text = [char]0xE70D
+            }
+        }.GetNewClosure()
+        $titlePanel.Add_MouseLeftButtonUp($collapseHandler)
+    }
     $btnPanel = $null
     if ($Content) {
         if ($WrapButtons) {
@@ -79,10 +104,23 @@ function Add-GuiCard {
     return $card
 }
 
+# Forces an already-collapsed card list (built with -CollapseTarget) open — used by Scan
+# buttons so results are visible immediately instead of requiring a manual chevron click.
+function Expand-GuiCard {
+    param($CollapseTarget)
+    if (-not $CollapseTarget -or -not $CollapseTarget.Tag) { return }
+    $state = $CollapseTarget.Tag
+    if ($state.Collapsed) {
+        $state.Collapsed = $false
+        $CollapseTarget.Visibility = "Visible"
+        if ($state.Chevron) { $state.Chevron.Text = [char]0xE70D }
+    }
+}
+
 # Renders an icon + title row (used as a card header) into $Panel, optionally followed by a
 # small "i" info glyph with a tooltip explaining the setting in more detail.
 function Add-GuiIconTitle {
-    param($Panel, [string]$Glyph, [string]$Text, [string]$AccentColor = "#8B949E", [string]$Tooltip = "")
+    param($Panel, [string]$Glyph, [string]$Text, [string]$AccentColor = "#8B949E", [string]$Tooltip = "", $ChevronBox = $null)
     $row = New-Object System.Windows.Controls.StackPanel
     $row.Orientation = "Horizontal"
     $row.Margin = "0,0,0,4"
@@ -111,6 +149,17 @@ function Add-GuiIconTitle {
         $infoIcon.Cursor = "Help"
         $infoIcon.ToolTip = $Tooltip
         $row.AddChild($infoIcon)
+    }
+    if ($ChevronBox) {
+        $chevron = New-Object System.Windows.Controls.TextBlock
+        $chevron.Text = [char]0xE70D
+        $chevron.FontFamily = "Segoe MDL2 Assets"
+        $chevron.FontSize = 12
+        $chevron.Foreground = "#6E7681"
+        $chevron.Margin = "8,0,0,0"
+        $chevron.VerticalAlignment = "Center"
+        $row.AddChild($chevron)
+        $ChevronBox.Chevron = $chevron
     }
     $Panel.AddChild($row)
 }

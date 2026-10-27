@@ -5,6 +5,9 @@ Write-GuiLog "SETT OPTIMIZER Dashboard v3.2 - Ready" "INFO"
 Write-GuiLog "Select a category from the sidebar to begin" "INFO"
 $sysInfo = Get-SystemInfo
 
+Show-UpdateAppliedNotice
+Invoke-CheckForUpdates
+
 Extract-EmbeddedPrograms
 
 # Load default page

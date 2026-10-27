@@ -12,6 +12,7 @@ Add-Type -AssemblyName WindowsBase
 # ============================================
 # SETTDash v3.2
 # ============================================
+$Script:AppVersion = "3.2.1"
 $Script:AppDir = try {
     [System.IO.Path]::GetDirectoryName([System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName)
 } catch { }
@@ -37,7 +38,7 @@ $controls = @(
 foreach ($name in $controls) { Set-Variable -Name $name -Value $Window.FindName($name) }
 
 $navNames = @("navPerformance","navNetworkPrivacy","navSystemTweaks","navWindows",
-    "navPlaybooks","navAll","navHome","navInstallers","navGpuProgs","navCpuProgs","navAllInstallers","navUtilities","navWinShortcuts")
+    "navPlaybooks","navAll","navClean","navNetwork","navHome","navInstallers","navGpuProgs","navCpuProgs","navAllInstallers","navUtilities","navWinShortcuts")
 foreach ($n in $navNames) { $navButtons[$n] = $Window.FindName($n) }
 #endregion
 
