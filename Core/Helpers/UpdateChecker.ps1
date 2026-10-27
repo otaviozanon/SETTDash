@@ -25,7 +25,7 @@ function Invoke-CheckForUpdates {
         if (-not [version]::TryParse($latestTag, [ref]$latest)) { return }
 
         if ($latest -le $current) {
-            # Shown when no release is newer than $Script:AppVersion.
+            # Shown when the latest release is not newer than the running build.
             Write-GuiLog "SETTDash is up to date (v$Script:AppVersion)" "OK"
             return
         }
