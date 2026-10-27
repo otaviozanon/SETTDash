@@ -40,4 +40,22 @@ function Invoke-CleanAll {
     Write-GuiLog "Advanced cleanup completed!" "OK"
     Set-GuiProgress 0
 }
+
+# Button wrapper used by: Clean > System Cleaner ("Full Cleanup").
+# Mirrors the UX of Invoke-FullAutoOptimize ("OPTIMIZE ALL"): banner in/out, run of
+# every cache category, completion notice with restart warning. Kept SEPARATE from
+# Invoke-CleanAll so old callers (Home > Cache Cleaner card, FullAutoOptimize step 12,
+# Playbooks "Deep Clean") keep running the plain no-banner cleanup unchanged.
+function Invoke-FullSystemCleanup {
+    Clear-GuiLog
+    Write-GuiLog "============================================================" "STEP"
+    Write-GuiLog "  SETT CLEANER - FULL SYSTEM CLEANUP" "STEP"
+    Write-GuiLog "============================================================" "STEP"
+    Invoke-CleanAll
+    Set-GuiProgress 100 "Full cleanup complete!"
+    Write-GuiLog "============================================================" "OK"
+    Write-GuiLog "  FULL SYSTEM CLEANUP COMPLETE!" "OK"
+    Write-GuiLog "  A system restart is recommended for all cleanup to take effect." "WARN"
+    Write-GuiLog "============================================================" "OK"
+}
 #endregion

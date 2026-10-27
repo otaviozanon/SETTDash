@@ -30,8 +30,8 @@ function Show-PageClean {
             if ($selected.Count -eq 0) { Write-GuiLog "No items selected." "WARN"; return }
             Invoke-SystemCleanerClean -Items $selected
         }
-        Add-GuiBtn $p "Full Cleanup" "RevertButtonStyle" {
-            Invoke-CleanAll
+        Add-GuiBtn $p "Full Cleanup" "DangerButtonStyle" {
+            Invoke-FullSystemCleanup
         }
     } "&#xE74D;" -WrapButtons -CollapseTarget $Script:CleanSystemBox
     $pnlContent.AddChild($Script:CleanSystemBox)
