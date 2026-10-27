@@ -278,12 +278,29 @@ function Invoke-SelfUpdate {
 
             $currentPid = [System.Diagnostics.Process]::GetCurrentProcess().Id
             $updaterPath = Join-Path $Script:TempDir "SETTDash_Updater.ps1"
+            $logPath = Join-Path $env:LOCALAPPDATA "SETTDash\Backups\updater.log"
             $updaterScript = @"
-`$ErrorActionPreference = 'SilentlyContinue'
+`$ErrorActionPreference = 'Stop'
+function Write-UpdLog { param(`$m) try { Add-Content -Path '$logPath' -Value ((Get-Date -Format 'HH:mm:ss') + ' ' + `$m) -Encoding UTF8 } catch {} }
 try { Wait-Process -Id $currentPid -Timeout 15 } catch {}
 Start-Sleep -Seconds 1
-Copy-Item -Path '$newExe' -Destination '$currentExe' -Force
-Start-Process -FilePath '$currentExe' -Verb RunAs
+# Copy with retries: the just-exited exe can remain briefly locked by AV/indexer.
+`$copied = `$false
+for (`$i = 0; `$i -lt 20 -and -not `$copied; `$i++) {
+  try {
+    Copy-Item -Path '$newExe' -Destination '$currentExe' -Force -ErrorAction Stop
+    `$copied = `$true
+    Write-UpdLog 'COPY OK'
+  } catch {
+    Write-UpdLog ("COPY RETRY " + (`$i + 1) + ": " + `$_.Exception.Message)
+    Start-Sleep -Milliseconds 500
+  }
+}
+if (-not `$copied) {
+  Write-UpdLog 'COPY FAILED - aborting relaunch'
+  exit 1
+}
+try { Start-Process -FilePath '$currentExe'; Write-UpdLog 'RELAUNCH OK' } catch { Write-UpdLog ('RELAUNCH FAILED: ' + `$_.Exception.Message) }
 Remove-Item -Path '$newExe' -Force -ErrorAction SilentlyContinue
 Remove-Item -Path '$updaterPath' -Force -ErrorAction SilentlyContinue
 "@
