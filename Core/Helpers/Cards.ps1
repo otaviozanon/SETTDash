@@ -28,21 +28,26 @@ function Add-GuiCard {
         $titlePanel.Cursor = "Hand"
         # Starts collapsed (list hidden) until the user clicks the card title/chevron,
         # or an action (e.g. Scan) explicitly expands it via Expand-GuiCard.
-        $collapseState = [pscustomobject]@{ Collapsed = $true; Chevron = $chevron }
+        # State lives on titlePanel.Tag (no free variables): event handlers execute later
+        # under Set-StrictMode without access to function locals, so relying on
+        # .GetNewClosure() snapshots for the target/chevron/state is fragile.
+        $collapseState = [pscustomobject]@{ Collapsed = $true; Chevron = $chevron; Target = $CollapseTarget }
         $CollapseTarget.Visibility = "Collapsed"
         $chevron.Text = [char]0xE76C
         $CollapseTarget.Tag = $collapseState
+        $titlePanel.Tag = $collapseState
         $collapseHandler = {
             param($s, $e)
-            $collapseState.Collapsed = -not $collapseState.Collapsed
-            if ($collapseState.Collapsed) {
-                $CollapseTarget.Visibility = "Collapsed"
-                $chevron.Text = [char]0xE76C
+            $state = $s.Tag
+            $state.Collapsed = -not $state.Collapsed
+            if ($state.Collapsed) {
+                $state.Target.Visibility = "Collapsed"
+                $state.Chevron.Text = [char]0xE76C
             } else {
-                $CollapseTarget.Visibility = "Visible"
-                $chevron.Text = [char]0xE70D
+                $state.Target.Visibility = "Visible"
+                $state.Chevron.Text = [char]0xE70D
             }
-        }.GetNewClosure()
+        }
         $titlePanel.Add_MouseLeftButtonUp($collapseHandler)
     }
     $btnPanel = $null
@@ -72,21 +77,26 @@ function Add-GuiCard {
         $rowAuto2 = New-Object System.Windows.Controls.RowDefinition; $rowAuto2.Height = "Auto"
         $row.RowDefinitions.Add($rowAuto1)
         $row.RowDefinitions.Add($rowAuto2)
-        # Mutable state must live on a reference object: a scriptblock bound to a .NET
-        # event (Add_SizeChanged) does not persist plain local variable writes across calls.
-        $wrapState = [pscustomobject]@{ NeededWidth = 0.0; IsStacked = $false }
+        # Mutable state + element refs live on $row.Tag: event handlers execute later
+        # under Set-StrictMode without access to function locals, so bindings for
+        # $titlePanel/$btnPanel/$wrapState cannot rely on a GetNewClosure() snapshot.
+        $row.Tag = [pscustomobject]@{ Title = $titlePanel; Btns = $btnPanel; NeededWidth = 0.0; IsStacked = $false }
         $handler = {
             param($s, $e)
+            $wrapState = $s.Tag
             if ($wrapState.NeededWidth -eq 0.0) {
                 $infSize = New-Object System.Windows.Size ([double]::PositiveInfinity), ([double]::PositiveInfinity)
-                $titlePanel.Measure($infSize)
-                $btnPanel.Measure($infSize)
-                $wrapState.NeededWidth = $titlePanel.DesiredSize.Width + $btnPanel.DesiredSize.Width + 12
+                $wrapState.Title.Measure($infSize)
+                $wrapState.Btns.Measure($infSize)
+                $wrapState.NeededWidth = $wrapState.Title.DesiredSize.Width + $wrapState.Btns.DesiredSize.Width + 12
             }
             $shouldStack = ($s.ActualWidth -gt 0) -and ($s.ActualWidth -lt $wrapState.NeededWidth)
             if ($shouldStack -ne $wrapState.IsStacked) {
                 $wrapState.IsStacked = $shouldStack
+                $titlePanel = $wrapState.Title
+                $btnPanel = $wrapState.Btns
                 if ($shouldStack) {
+
                     [System.Windows.Controls.Grid]::SetRow($titlePanel, 0); [System.Windows.Controls.Grid]::SetColumn($titlePanel, 0); [System.Windows.Controls.Grid]::SetColumnSpan($titlePanel, 2)
                     [System.Windows.Controls.Grid]::SetRow($btnPanel, 1); [System.Windows.Controls.Grid]::SetColumn($btnPanel, 0); [System.Windows.Controls.Grid]::SetColumnSpan($btnPanel, 2)
                     $btnPanel.HorizontalAlignment = "Left"
@@ -98,7 +108,7 @@ function Add-GuiCard {
                     $btnPanel.Margin = "12,0,0,0"
                 }
             }
-        }.GetNewClosure()
+        }
         $row.Add_SizeChanged($handler)
     }
     return $card

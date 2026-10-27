@@ -6,7 +6,7 @@ function Show-PageNetwork {
     # --- Network Cleanup ---
     $Script:CleanNetworkItems = @()
     $Script:pnlCleanNetworkList = New-Object System.Windows.Controls.StackPanel
-    $networkListBox = New-CleanListContainer $Script:pnlCleanNetworkList
+    $Script:CleanNetworkBox = New-CleanListContainer $Script:pnlCleanNetworkList
     Add-GuiCard "Network Cleanup" "Flush DNS resolver cache, clear ARP cache, remove saved Wi-Fi profiles and stale network history entries." {
         param($p)
         Add-GuiBtn $p "Scan" "ActionButtonStyle" {
@@ -14,7 +14,7 @@ function Show-PageNetwork {
             $Script:CleanNetworkItems = Get-NetworkCleanupItems
             Set-GuiProgress 90
             Set-CleanChecklist $Script:pnlCleanNetworkList $Script:CleanNetworkItems "Nothing to clean." "plain"
-            Expand-GuiCard $networkListBox
+            Expand-GuiCard $Script:CleanNetworkBox
             Set-GuiProgress 0
             Write-GuiLog "Network Cleanup: $($Script:CleanNetworkItems.Count) items found" "OK"
         }
@@ -23,8 +23,8 @@ function Show-PageNetwork {
             if ($selected.Count -eq 0) { Write-GuiLog "No items selected." "WARN"; return }
             Invoke-NetworkCleanupClean -Items $selected
         }
-    } "&#xE968;" -WrapButtons -CollapseTarget $networkListBox
-    $pnlContent.AddChild($networkListBox)
+    } "&#xE968;" -WrapButtons -CollapseTarget $Script:CleanNetworkBox
+    $pnlContent.AddChild($Script:CleanNetworkBox)
 
     # --- Network Optimizer (moved from Home) ---
     Add-GuiCard "Network Optimizer" "Apply or revert network adapter tweaks for Ethernet and Wi-Fi to improve throughput and reduce latency." {
