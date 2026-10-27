@@ -25,61 +25,56 @@ jobs:
           $skip = $false
           $version = $null
           $tag = $null
+          $event = $env:GITHUB_EVENT_NAME
 
-          if ($env:GITHUB_REF_TYPE -eq 'tag') {
-            $tag = $env:GITHUB_REF_NAME
-            $version = $tag.TrimStart('v')
-          }
-          elseif ($env:GITHUB_REF_TYPE -eq 'branch') {
-            $changed = git diff --name-only HEAD~1 HEAD 2>$null
-            if ($changed -match '^(Core/|Main/|Sidebar/|Build\.ps1|SETTDash\.ico|icon_lightning\.ico)') {
-              git fetch --tags
-              $last = git tag --sort=-v:refname | Where-Object { $_ -match '^v[0-9]+\.[0-9]+\.[0-9]+$' } | Select-Object -First 1
-              if (-not $last) {
-                $version = '3.2.1'
-              } else {
-                $base = $last.TrimStart('v')
-                $p = $base.Split('.')
-                $version = "$($p[0]).$($p[1]).$([int]$p[2] + 1)"
-              }
-              $tag = "v$version"
-              git config user.name github-actions
-              git config user.email github-actions@github.com
-              if (-not (git tag -l $tag)) {
-                git tag $tag
-                git push origin $tag
-                Write-Host "Tagged $tag"
-              } else {
-                Write-Host "Tag $tag already exists"
-              }
+          function Set-BumpVersion {
+            git fetch --tags
+            $last = git tag --sort=-v:refname | Where-Object { $_ -match '^v[0-9]+\.[0-9]+\.[0-9]+$' } | Select-Object -First 1
+            if (-not $last) {
+              $script:version = '3.2.1'
             } else {
-              Write-Host "No source change (SETTDash.ps1 / icon), skipping build"
-              $skip = $true
+              $base = $last.TrimStart('v')
+              $p = $base.Split('.')
+              $script:version = "$($p[0]).$($p[1]).$([int]$p[2] + 1)"
+            }
+            $script:tag = "v$script:version"
+            git config user.name github-actions
+            git config user.email github-actions@github.com
+            if (-not (git tag -l $script:tag)) {
+              git tag $script:tag
+              git push origin $script:tag
+              Write-Host "Tagged $script:tag"
+            } else {
+              Write-Host "Tag $script:tag already exists"
             }
           }
-          else {
-            # workflow_dispatch: rebuild the version tagged at HEAD, otherwise bump
+
+          if ($event -eq 'workflow_dispatch') {
+            # Manual run: always build. Reuse the tag at HEAD, otherwise bump.
             git fetch --tags
             $headTag = git tag --points-at HEAD | Where-Object { $_ -match '^v[0-9]+\.[0-9]+\.[0-9]+$' } | Select-Object -First 1
             if ($headTag) {
               $tag = $headTag
               $version = $tag.TrimStart('v')
             } else {
-              $last = git tag --sort=-v:refname | Where-Object { $_ -match '^v[0-9]+\.[0-9]+\.[0-9]+$' } | Select-Object -First 1
-              if (-not $last) { $version = '3.2.1' }
-              else {
-                $base = $last.TrimStart('v')
-                $p = $base.Split('.')
-                $version = "$($p[0]).$($p[1]).$([int]$p[2] + 1)"
-              }
-              $tag = "v$version"
-              git config user.name github-actions
-              git config user.email github-actions@github.com
-              if (-not (git tag -l $tag)) {
-                git tag $tag
-                git push origin $tag
-              }
+              Set-BumpVersion
             }
+          }
+          elseif ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $tag = $env:GITHUB_REF_NAME
+            $version = $tag.TrimStart('v')
+          }
+          elseif ($env:GITHUB_REF_TYPE -eq 'branch') {
+            $changed = git diff --name-only HEAD~1 HEAD 2>$null
+            if ($changed -match '^(Core/|Main/|Sidebar/|Build\.ps1|SETTDash\.ico|icon_lightning\.ico)') {
+              Set-BumpVersion
+            } else {
+              Write-Host "No source change, skipping build"
+              $skip = $true
+            }
+          }
+          else {
+            $skip = $true
           }
 
           Write-Output "skip=$skip" >> $env:GITHUB_OUTPUT
