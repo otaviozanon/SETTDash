@@ -65,7 +65,7 @@
     [System.Windows.Controls.Grid]::SetColumn($specPanel, 1)
 
     $gpuValue = if ($info.GPUs -and $info.GPUs.Count -gt 0) {
-        ($info.GPUs | ForEach-Object { "$($_.Vendor) - $($_.Name) ($($_.VRAM) GB VRAM)" }) -join ", "
+        ($info.GPUs | ForEach-Object { "$($_.Vendor) - $($_.Name) ($($_.VRAM) GB VRAM)" }) -join " | "
     } else {
         "$($info.GPUVendor) - $($info.GPUName) ($($info.GPUVRAM) GB VRAM)"
     }
