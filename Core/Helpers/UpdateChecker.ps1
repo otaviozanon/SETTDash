@@ -25,7 +25,7 @@ function Invoke-CheckForUpdates {
         if (-not [version]::TryParse($latestTag, [ref]$latest)) { return }
 
         if ($latest -le $current) {
-            # Wording kept in sync with the update popup ('You're up to date').
+            # Wording matches the update popup ('You're up to date'); no change on click.
             Write-GuiLog "SETTDash is up to date (v$Script:AppVersion)" "OK"
             return
         }
