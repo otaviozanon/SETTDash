@@ -15,7 +15,10 @@ function Get-CleanPathSize {
         $item = Get-Item -Path $p -Force -ErrorAction SilentlyContinue
         if ($null -eq $item) { continue }
         if ($item.PSIsContainer) {
-            $measured = Get-ChildItem -Path $p -Recurse -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum
+            # -File: PS 5.1's Measure-Object throws "Cannot process argument because the
+            # value of argument 'Property' is not valid" when any pipeline object lacks
+            # the -Property (e.g. DirectoryInfo, which has no Length). Only files feed it.
+            $measured = Get-ChildItem -Path $p -Recurse -Force -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum
             $sum = Get-SafeProp $measured 'Sum'
             if ($sum) { $total += $sum }
         } else {
