@@ -12,6 +12,9 @@ function Invoke-CheckForUpdates {
     )
     Write-GuiLog "Checking for updates..." "STEP"
     try {
+        # .NET Framework (WinPS 5.1 under the compiled -x86 exe) defaults to older TLS;
+        # GitHub API/objects require TLS 1.2 or the asset download aborts mid-transfer.
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor [System.Net.SecurityProtocolType]::Tls12
         $apiUrl = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest"
         $headers = @{ "User-Agent" = "SETTDash/$Script:AppVersion" }
         $release = Invoke-RestMethod -Uri $apiUrl -Headers $headers -TimeoutSec 10
@@ -35,7 +38,7 @@ function Invoke-CheckForUpdates {
             return
         }
 
-        Invoke-SelfUpdate -DownloadUrl $asset.browser_download_url -NewVersion $latestTag
+        Invoke-SelfUpdate -DownloadUrl $asset.browser_download_url -NewVersion $latestTag -ExpectedSize ([long]$asset.size)
     } catch {
         Write-GuiLog "Update check failed: $_" "WARN"
     }
@@ -213,7 +216,7 @@ function Show-UpdateConfirmDialog {
 # helper PowerShell process that waits for this process to exit, overwrites
 # the current executable in place, relaunches it, and cleans up after itself.
 function Invoke-SelfUpdate {
-    param([string]$DownloadUrl, [string]$NewVersion)
+    param([string]$DownloadUrl, [string]$NewVersion, [long]$ExpectedSize = 0)
 
     $currentExe = [System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
     $newExe = Join-Path $Script:TempDir "SETTDash_v$NewVersion.exe"
@@ -249,6 +252,10 @@ function Invoke-SelfUpdate {
     $progressScale = $progressWin.FindName("progressScale")
     Register-UpdatePopupDrag -PopupWindow $progressWin -TitleBar $titleBar
 
+    # Download state carried in ONE reference object (accessible from the async
+    # event handler's closure); gauge/version/UI element refs are captured once.
+    $dlState = [pscustomobject]@{ Attempt = 0; MaxAttempts = 3; Url = $DownloadUrl; Dest = $newExe }
+
     $wc = New-Object System.Net.WebClient
     $wc.add_DownloadProgressChanged({
         param($s, $e)
@@ -260,8 +267,25 @@ function Invoke-SelfUpdate {
 
     $wc.add_DownloadFileCompleted({
         param($s, $e)
-        if ($e.Error) {
-            Write-GuiLog "Update download failed: $($e.Error.Message)" "ERR"
+        # Validate: PS 5.1/.NET FW sometimes drops the transfer mid-receive and still
+        # raises "completed" without e.Error, leaving a truncated file behind.
+        $reason = $null
+        if ($e.Error) { $reason = $e.Error.Message }
+        elseif ($ExpectedSize -gt 0) {
+            $got = (Get-Item $dlState.Dest -ErrorAction SilentlyContinue).Length
+            if ($got -ne $ExpectedSize) { $reason = "incomplete download ($got / $ExpectedSize bytes)" }
+        }
+
+        if ($reason) {
+            $dlState.Attempt = $dlState.Attempt + 1
+            if ($dlState.Attempt -lt $dlState.MaxAttempts) {
+                Write-GuiLog "Attempt $($dlState.Attempt) failed ($reason), retrying [$($dlState.Attempt + 1)/$($dlState.MaxAttempts)]..." "WARN"
+                $txtStatus.Text = "Retrying download ($($dlState.Attempt + 1)/$($dlState.MaxAttempts))..."
+                Remove-Item $dlState.Dest -Force -ErrorAction SilentlyContinue
+                $s.DownloadFileAsync([Uri]$dlState.Url, $dlState.Dest)
+                return
+            }
+            Write-GuiLog "Update download failed after $($dlState.MaxAttempts) attempts: $reason" "ERR"
             $txtStatus.Text = "Download failed. Closing..."
             Start-Sleep -Milliseconds 1500
             $progressWin.Close()
@@ -281,6 +305,7 @@ function Invoke-SelfUpdate {
             $logPath = Join-Path $env:LOCALAPPDATA "SETTDash\Backups\updater.log"
             $updaterScript = @"
 `$ErrorActionPreference = 'Stop'
+New-Item -Path '$(Split-Path $logPath -Parent)' -ItemType Directory -Force | Out-Null
 function Write-UpdLog { param(`$m) try { Add-Content -Path '$logPath' -Value ((Get-Date -Format 'HH:mm:ss') + ' ' + `$m) -Encoding UTF8 } catch {} }
 try { Wait-Process -Id $currentPid -Timeout 15 } catch {}
 Start-Sleep -Seconds 1
