@@ -197,13 +197,13 @@ function Show-UpdateConfirmDialog {
 
     Register-UpdatePopupDrag -PopupWindow $dlg -TitleBar $titleBar
 
-    $script:updateConfirmResult = $false
-    $btnLater.Add_Click({ $script:updateConfirmResult = $false; $dlg.Close() }.GetNewClosure())
-    $btnUpdate.Add_Click({ $script:updateConfirmResult = $true; $dlg.Close() }.GetNewClosure())
-    $btnClose.Add_Click({ $script:updateConfirmResult = $false; $dlg.Close() }.GetNewClosure())
+    $state = [pscustomobject]@{ Confirmed = $false }
+    $btnLater.Add_Click({ $state.Confirmed = $false; $dlg.Close() }.GetNewClosure())
+    $btnUpdate.Add_Click({ $state.Confirmed = $true; $dlg.Close() }.GetNewClosure())
+    $btnClose.Add_Click({ $state.Confirmed = $false; $dlg.Close() }.GetNewClosure())
 
     $dlg.ShowDialog() | Out-Null
-    return $script:updateConfirmResult
+    return $state.Confirmed
 }
 
 # Used by: Invoke-CheckForUpdates
