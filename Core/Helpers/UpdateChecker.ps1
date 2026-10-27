@@ -253,47 +253,35 @@ function Invoke-SelfUpdate {
     $progressScale = $progressWin.FindName("progressScale")
     Register-UpdatePopupDrag -PopupWindow $progressWin -TitleBar $titleBar
 
-    # Download state carried in ONE reference object (accessible from the async
-    # event handler's closure); gauge/version/UI element refs are captured once.
-    $dlState = [pscustomobject]@{ Attempt = 0; MaxAttempts = 3; Url = $DownloadUrl; Dest = $newExe }
-
-    $wc = New-Object System.Net.WebClient
-    $wc.add_DownloadProgressChanged({
-        param($s, $e)
-        $progressScale.ScaleX = $e.ProgressPercentage / 100
-        $recvMB = [math]::Round($e.BytesReceived / 1MB, 1)
-        $totalMB = [math]::Round($e.TotalBytesToReceive / 1MB, 1)
-        $txtStatus.Text = "$($e.ProgressPercentage)% ($recvMB MB / $totalMB MB)"
-    }.GetNewClosure())
-
-    $wc.add_DownloadFileCompleted({
-        param($s, $e)
-        # Validate: PS 5.1/.NET FW sometimes drops the transfer mid-receive and still
-        # raises "completed" without e.Error, leaving a truncated file behind.
-        $reason = $null
-        if ($e.Error) { $reason = $e.Error.Message }
-        elseif ($ExpectedSize -gt 0) {
-            $got = (Get-Item $dlState.Dest -ErrorAction SilentlyContinue).Length
-            if ($got -ne $ExpectedSize) { $reason = "incomplete download ($got / $ExpectedSize bytes)" }
-        }
-
-        if ($reason) {
-            $dlState.Attempt = $dlState.Attempt + 1
-            if ($dlState.Attempt -lt $dlState.MaxAttempts) {
-                Write-GuiLog "Attempt $($dlState.Attempt) failed ($reason), retrying [$($dlState.Attempt + 1)/$($dlState.MaxAttempts)]..." "WARN"
-                $txtStatus.Text = "Retrying download ($($dlState.Attempt + 1)/$($dlState.MaxAttempts))..."
-                Remove-Item $dlState.Dest -Force -ErrorAction SilentlyContinue
-                $s.DownloadFileAsync([Uri]$dlState.Url, $dlState.Dest)
-                return
+    # Synchronous download, scheduled only once the popup has rendered (Add_ContentRendered,
+    # so "Blocking..." text is visible while the UI thread is inside the sync request).
+    # Rationale: the async WebClient (DownloadFileAsync) under the compiled exe's WinPS 5.1
+    # x86 stack aborts the 5.4MB asset transfer at ~20% on every attempt; the exact same
+    # URL downloaded synchronously completes fine. TLS 1.2 is forced by Invoke-CheckForUpdates.
+    $progressWin.Add_ContentRendered({
+        param($pw, $evt)
+        $ok = $false; $lastReason = ''
+        foreach ($tryN in 1..3) {
+            try {
+                $wc2 = New-Object System.Net.WebClient
+                try { $wc2.DownloadFile([Uri]$DownloadUrl, $newExe) } catch { throw } finally { $wc2.Dispose() }
+                $got = (Get-Item $newExe -ErrorAction Stop).Length
+                if ($ExpectedSize -gt 0 -and $got -ne $ExpectedSize) { throw "incomplete download ($got / $ExpectedSize bytes)" }
+                $ok = $true
+                break
+            } catch {
+                $lastReason = $_.Exception.Message
+                Write-GuiLog "Download attempt $tryN failed: $lastReason" "WARN"
+                Remove-Item $newExe -Force -ErrorAction SilentlyContinue
+                Start-Sleep -Milliseconds 800
             }
-            Write-GuiLog "Update download failed after $($dlState.MaxAttempts) attempts: $reason" "ERR"
-            $txtStatus.Text = "Download failed. Closing..."
-            Start-Sleep -Milliseconds 1500
-            $progressWin.Close()
+        }
+        if (-not $ok) {
+            Write-GuiLog "Update download failed after 3 attempts: $lastReason" "ERR"
+            $pw.Close()
             return
         }
 
-        $progressScale.ScaleX = 1
         $txtTitle.Text = "Update downloaded"
         $txtStatus.Text = "Restarting SETTDash to apply v$NewVersion..."
 
@@ -337,23 +325,16 @@ Remove-Item -Path '$updaterPath' -Force -ErrorAction SilentlyContinue
             )
         } catch {
             Write-GuiLog "Self-update failed: $_" "ERR"
-            $progressWin.Close()
+            $pw.Close()
             return
         }
 
-        Start-Sleep -Milliseconds 1200
-        $progressWin.Close()
+        Start-Sleep -Milliseconds 800
+        $pw.Close()
         # Called before $Window.ShowDialog() during startup, so just terminate the
         # process outright rather than closing an unshown Window (Close() would throw).
         [System.Environment]::Exit(0)
     }.GetNewClosure())
-
-    try {
-        $wc.DownloadFileAsync([Uri]$DownloadUrl, $newExe)
-    } catch {
-        Write-GuiLog "Failed to start update download: $_" "ERR"
-        return
-    }
 
     $progressWin.ShowDialog() | Out-Null
 }
