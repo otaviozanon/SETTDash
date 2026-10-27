@@ -86,16 +86,23 @@ jobs:
         if: steps.ver.outputs.skip != 'true'
         shell: pwsh
         run: |
-          # Prefer PSResourceGet (shipped natively in pwsh on the runners): the classic
-          # PowerShellGet v2 / NuGet install path broke repeatedly on the runner
-          # ("Missing option value for '-source'" and PSGallery silently unregistering).
-          if (Get-Command Install-PSResource -ErrorAction SilentlyContinue) {
-            Install-PSResource -Name ps2exe -Scope CurrentUser -Quiet -TrustRepository -ErrorAction Stop
-          } else {
-            try { Register-PSRepository -Default -ErrorAction SilentlyContinue } catch {}
-            Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
-            Install-Module -Name ps2exe -Scope CurrentUser -Force
-          }
+          # Install ps2exe straight from its GitHub repo (pinned commit) instead of the
+          # PowerShell Gallery: the Gallery had a global outage (package API 404) that
+          # broke both Install-Module and Install-PSResource build paths.
+          $sha = '05c62615b33864c177f5de8e56e06e4c7f34adbb'
+          $zip = Join-Path $env:TEMP 'PS2EXE.zip'
+          Invoke-WebRequest -Uri "https://codeload.github.com/MScholtes/PS2EXE/zip/$sha" -OutFile $zip -UserAgent 'SETTDash-builder'
+          $tmpDest = Join-Path $env:TEMP 'PS2EXE_extract'
+          if (Test-Path $tmpDest) { Remove-Item $tmpDest -Recurse -Force }
+          Expand-Archive -Path $zip -DestinationPath $tmpDest -Force
+          $src = Get-ChildItem $tmpDest -Recurse -Filter 'ps2exe.psm1' | Select-Object -First 1 -ExpandProperty DirectoryName
+          $moduleRoot = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'PowerShell\Modules\ps2exe'
+          if (Test-Path $moduleRoot) { Remove-Item $moduleRoot -Recurse -Force }
+          New-Item -Path $moduleRoot -ItemType Directory -Force | Out-Null
+          Copy-Item -Path (Join-Path $src '*') -Destination $moduleRoot -Recurse -Force
+          Import-Module ps2exe
+          if (-not (Get-Command Invoke-ps2exe -ErrorAction Stop)) { throw "ps2exe module failed to load" }
+          Write-Host "ps2exe module installed from MScholtes/PS2EXE@$sha"
 
       - name: Inject version into dashboard sources
         if: steps.ver.outputs.skip != 'true'
