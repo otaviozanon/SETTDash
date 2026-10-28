@@ -1,7 +1,16 @@
-
 # ================================================
 #region PERFORMANCE - GPU AUTO-DETECT & OPTIMIZE
 # ================================================
+function Get-AmdGpuKeys {
+    $base = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}"
+    Get-ChildItem $base -ErrorAction SilentlyContinue |
+        Where-Object { $_.PSChildName -match '^\d{4}$' } |
+        Where-Object {
+            $p = Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue
+            $p.ProviderName -match 'Advanced Micro Devices' -and $p.DriverDesc -match 'Radeon|AMD'
+        } | ForEach-Object { $_.PSPath }
+}
+
 # Used by: Performance ("Detect & Optimize GPU"); also called internally by All ("OPTIMIZE ALL")
 function Invoke-GPUApply {
     Set-GuiProgress 10 "Detecting GPU vendor..."
@@ -30,17 +39,38 @@ function Invoke-GPUApply {
             Invoke-RegistryApply -Settings $nvidiaReg -Label "NVIDIA Registry"
             Write-GuiLog "NVIDIA optimization completed" "OK"
         } elseif ($vendor -eq "AMD") {
-            $basePath = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000"
-            $amdReg = @(
-                @{Path=$basePath;Name="DisableUVDPowerGatingDynamic";Type="DWORD";Value=1}
-                @{Path=$basePath;Name="EnableUlps";Type="DWORD";Value=0}
-                @{Path=$basePath;Name="DisableDMACopy";Type="DWORD";Value=1}
-                @{Path=$basePath;Name="PP_GPUPowerDownEnabled";Type="DWORD";Value=0}
-                @{Path=$basePath;Name="DisableBlockWrite";Type="DWORD";Value=0}
-                @{Path=$basePath;Name="StutterMode";Type="DWORD";Value=0}
-            )
-            Invoke-RegistryApply -Settings $amdReg -Label "AMD Optimization"
-            Write-GuiLog "AMD optimization completed" "OK"
+            $keys = @(Get-AmdGpuKeys)
+            if ($keys.Count -eq 0) {
+                Write-GuiLog "AMD registry key not found." "WARN"
+            } else {
+                foreach ($basePath in $keys) {
+                    $amdReg = @(
+                        @{Path=$basePath;Name="DisableUVDPowerGatingDynamic";Type="DWORD";Value=1}
+                        @{Path=$basePath;Name="EnableUlps";Type="DWORD";Value=0}
+                        @{Path=$basePath;Name="DisableDMACopy";Type="DWORD";Value=1}
+                        @{Path=$basePath;Name="PP_GPUPowerDownEnabled";Type="DWORD";Value=0}
+                        @{Path=$basePath;Name="StutterMode";Type="DWORD";Value=0}
+                        @{Path=$basePath;Name="KMD_ChillEnabled";Type="DWORD";Value=0}
+                        @{Path=$basePath;Name="KMD_RadeonBoostEnabled";Type="DWORD";Value=0}
+                        @{Path=$basePath;Name="KMD_DeLagEnabled";Type="DWORD";Value=1}
+                        # Telemetria/avisos
+                        @{Path=$basePath;Name="ReportAnalytics";Type="DWORD";Value=0}
+                        @{Path=$basePath;Name="NotifySubscription";Type="DWORD";Value=0}
+                        @{Path=$basePath;Name="AllowSubscription";Type="DWORD";Value=0}
+                        @{Path=$basePath;Name="ShowReleaseNotes";Type="DWORD";Value=0}
+                        # ASPM
+                        @{Path=$basePath;Name="EnableAspmL0s";Type="DWORD";Value=0}
+                        @{Path=$basePath;Name="EnableAspmL1";Type="DWORD";Value=0}
+                        @{Path=$basePath;Name="EnableAspmL1SS";Type="DWORD";Value=0}
+                        @{Path=$basePath;Name="DisableAspmL0s";Type="DWORD";Value=1}
+                        @{Path=$basePath;Name="DisableAspmL1";Type="DWORD";Value=1}
+                        # Anti-Lag global (descomente só se quiser)
+                        # @{Path=$basePath;Name="KMD_DeLagEnabled";Type="DWORD";Value=1}
+                    )
+                    Invoke-RegistryApply -Settings $amdReg -Label "AMD Optimization"
+                }
+                Write-GuiLog "AMD optimization completed. Restart required." "OK"
+            }
         } else {
             Write-GuiLog "No NVIDIA or AMD GPU detected. Skipping GPU optimizations." "WARN"
         }
@@ -77,22 +107,16 @@ function Invoke-GPURevert {
             Invoke-RegistryApply -Settings $nvidiaRevert -Label "NVIDIA Revert"
             Write-GuiLog "NVIDIA optimizations reverted" "OK"
         } elseif ($vendor -eq "AMD") {
-            $basePath = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000"
-            $amdRevert = @(
-                @{Path=$basePath; Name="EnableUlps"; Value=1; Type="DWORD"}
-                @{Path=$basePath; Name="StutterMode"; Value=1; Type="DWORD"}
-                @{Path=$basePath; Name="PP_GPUPowerDownEnabled"; Value=1; Type="DWORD"}
-            )
-            Invoke-RegistryApply -Settings $amdRevert -Label "AMD Revert"
-            try {
-                Remove-ItemProperty -Path $basePath -Name "DisableUVDPowerGatingDynamic" -Force -ErrorAction SilentlyContinue
-                Remove-ItemProperty -Path $basePath -Name "DisableDMACopy" -Force -ErrorAction SilentlyContinue
-                Remove-ItemProperty -Path $basePath -Name "DisableBlockWrite" -Force -ErrorAction SilentlyContinue
-                Remove-ItemProperty -Path $basePath -Name "DisableVCEPowerGating" -Force -ErrorAction SilentlyContinue
-                Remove-ItemProperty -Path $basePath -Name "DisableDrmdmaPowerGating" -Force -ErrorAction SilentlyContinue
-                Remove-ItemProperty -Path $basePath -Name "DisablePowerGating" -Force -ErrorAction SilentlyContinue
-                Write-GuiLog "AMD optimizations reverted" "OK"
-            } catch { }
+            $names = "DisableUVDPowerGatingDynamic","EnableUlps","DisableDMACopy","PP_GPUPowerDownEnabled","StutterMode",
+                     "KMD_ChillEnabled","KMD_RadeonBoostEnabled","KMD_DeLagEnabled",
+                     "ReportAnalytics","NotifySubscription","AllowSubscription","ShowReleaseNotes",
+                     "EnableAspmL0s","EnableAspmL1","EnableAspmL1SS","DisableAspmL0s","DisableAspmL1"
+            foreach ($basePath in @(Get-AmdGpuKeys)) {
+                foreach ($n in $names) {
+                    Remove-ItemProperty -Path $basePath -Name $n -Force -ErrorAction SilentlyContinue
+                }
+            }
+            Write-GuiLog "AMD optimizations reverted. Restart required." "OK"
         } else {
             Write-GuiLog "No NVIDIA or AMD GPU detected. Nothing to revert." "WARN"
         }
