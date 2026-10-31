@@ -954,6 +954,11 @@
             <Setter Property="FontWeight" Value="SemiBold"/>
         </Style>
 
+        <Style x:Key="SensorNameCellStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource Brush_TextPrimary}"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+
         <Style x:Key="SensorGroupHeaderStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="SemiBold"/>

@@ -1,9 +1,17 @@
 # Used by: Sensors page only.
 # Mirrors ResetExplode's SensorMonitor.IsPawnIOInstalled: PawnIO registers this exact
 # uninstall key when installed (used by LibreHardwareMonitor/FanControl too).
+# NOTE: the official release .exe is compiled -x86 (32-bit), so a plain "HKLM:\SOFTWARE\..."
+# path gets silently redirected by WOW64 to "HKLM:\SOFTWARE\WOW6432Node\...", where PawnIO's
+# (64-bit) installer never writes its key - causing "not installed" false negatives on 64-bit
+# Windows even when PawnIO is present. Open the 64-bit registry view explicitly (like
+# LibreHardwareMonitorLib's own PawnIo.cs does) so detection is correct regardless of this
+# process's bitness.
 function Test-PawnIOInstalled {
     try {
-        return [bool](Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\PawnIO" -ErrorAction Stop)
+        $hklm64 = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine, [Microsoft.Win32.RegistryView]::Registry64)
+        $key = $hklm64.OpenSubKey("SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\PawnIO")
+        return [bool]$key
     } catch { return $false }
 }
 
@@ -44,12 +52,18 @@ function Show-PawnIOInstallPrompt {
 
     Register-UpdatePopupDrag -PopupWindow $dlg -TitleBar $titleBar
 
+    # Plain local (NOT $Script:) value used inside the Add_Click closure below: 'Script:
+    # variables are not readable there - that scope expression resolves against the closure
+    # MODULE's script scope (null), which corrupted 'Join-Path' with "Cannot bind argument to
+    # parameter 'Path' because it is null" (same root cause as Invoke-SelfUpdate's $tempDir).
+    $tempDir = $Script:TempDir
+
     $btnLater.Add_Click({ $dlg.Close() }.GetNewClosure())
     $btnClose.Add_Click({ $dlg.Close() }.GetNewClosure())
     $btnInstall.Add_Click({
         $dlg.Close()
         Write-GuiLog "Installing PawnIO via winget..." "STEP"
-        $marker = Join-Path $Script:TempDir "pawnio_install.flag"
+        $marker = Join-Path $tempDir "pawnio_install.flag"
         if (Test-Path $marker) { Remove-Item $marker -Force -ErrorAction SilentlyContinue }
         Start-Process "cmd.exe" -ArgumentList "/c winget install --id namazso.PawnIO -e --accept-package-agreements --accept-source-agreements & echo.>`"$marker`" & echo Done! You can close this window." -WindowStyle Normal
         Watch-PawnIOInstallResult -Marker $marker
@@ -311,6 +325,7 @@ function Show-PageYourPCSensors {
     $mutedStyle = $Window.FindResource("MutedCellStyle")
     $monoStyle = $Window.FindResource("MonoCellStyle")
     $mutedMonoStyle = $Window.FindResource("MutedMonoCellStyle")
+    $sensorNameStyle = $Window.FindResource("SensorNameCellStyle")
 
     function New-SensorColumn {
         param([string]$Header, [string]$Path, $Width, $ElementStyle)
@@ -321,7 +336,7 @@ function Show-PageYourPCSensors {
         if ($ElementStyle) { $col.ElementStyle = $ElementStyle }
         return $col
     }
-    $grid.Columns.Add((New-SensorColumn "SENSOR" "SensorName" (New-Object System.Windows.Controls.DataGridLength(1, [System.Windows.Controls.DataGridLengthUnitType]::Star)) $null)) | Out-Null
+    $grid.Columns.Add((New-SensorColumn "SENSOR" "SensorName" (New-Object System.Windows.Controls.DataGridLength(1, [System.Windows.Controls.DataGridLengthUnitType]::Star)) $sensorNameStyle)) | Out-Null
     $grid.Columns.Add((New-SensorColumn "TYPE" "Category" 130 $mutedStyle)) | Out-Null
     $grid.Columns.Add((New-SensorColumn "VALUE" "ValueText" 130 $monoStyle)) | Out-Null
     $grid.Columns.Add((New-SensorColumn "MIN" "MinText" 110 $mutedMonoStyle)) | Out-Null

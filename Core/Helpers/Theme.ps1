@@ -133,7 +133,7 @@ function Save-GuiThemePref { param([string]$ThemeName) Save-GuiSettingValue -Key
 # Reads the previously saved theme name, falling back to "Default" if none/invalid.
 function Get-GuiThemePref {
     $data = Get-GuiSettingsData
-    if ($data.Theme -and $Script:Themes.ContainsKey($data.Theme)) { return $data.Theme }
+    if ($data["Theme"] -and $Script:Themes.ContainsKey($data["Theme"])) { return $data["Theme"] }
     return "Default"
 }
 
@@ -141,7 +141,7 @@ function Get-GuiThemePref {
 # NOTE: the extra inner parens matter - "[bool](Get-GuiSettingsData).MinimizeToTray" casts the
 # hashtable itself to bool FIRST (cast binds to the parenthesized call, not the whole chain), then
 # tries ".MinimizeToTray" on that boolean, which fails. Casting the final property value instead.
-function Get-GuiMinimizeToTrayPref { return [bool]((Get-GuiSettingsData).MinimizeToTray) }
+function Get-GuiMinimizeToTrayPref { return [bool]((Get-GuiSettingsData)["MinimizeToTray"]) }
 function Save-GuiMinimizeToTrayPref { param([bool]$Enabled) Save-GuiSettingValue -Key "MinimizeToTray" -Value $Enabled }
 
 # Applies the named theme by updating $Window.Resources (DynamicResource targets refresh live),
