@@ -9,7 +9,7 @@ function Show-PageNetwork {
     $Script:CleanNetworkBox = New-CleanListContainer $Script:pnlCleanNetworkList
     Add-GuiCard "Network Cleanup" "Flush DNS resolver cache, clear ARP cache, remove saved Wi-Fi profiles and stale network history entries." {
         param($p)
-        Add-GuiBtn $p "Scan" "ActionButtonStyle" {
+        Add-GuiBtn $p "Scan" "RevertButtonStyle" {
             Set-GuiProgress 20 "Scanning network cache and profiles..."
             $Script:CleanNetworkItems = Get-NetworkCleanupItems
             Set-GuiProgress 90
@@ -18,7 +18,7 @@ function Show-PageNetwork {
             Set-GuiProgress 0
             Write-GuiLog "Network Cleanup: $($Script:CleanNetworkItems.Count) items found" "OK"
         }
-        Add-GuiBtn $p "Clean Selected" "RevertButtonStyle" {
+        Add-GuiBtn $p "Clean Selected" "ActionButtonStyle" {
             $selected = Get-CleanSelected $Script:CleanNetworkItems
             if ($selected.Count -eq 0) { Write-GuiLog "No items selected." "WARN"; return }
             Invoke-NetworkCleanupClean -Items $selected
@@ -38,6 +38,6 @@ function Show-PageNetwork {
     # --- DNS Jumper (moved from Home > Tools) ---
     Add-GuiCard "DNS Jumper" "Switch DNS servers quickly (Google, Cloudflare, OpenDNS, etc)." {
         param($p)
-        Add-GuiBtn $p "Open DNS Jumper" "ActionButtonStyle" { Invoke-DNSTool }
+        Add-GuiBtn $p "Open DNS Jumper" "InstallButtonStyle" { Invoke-DNSTool }
     } "&#xE968;" -WrapButtons
 }

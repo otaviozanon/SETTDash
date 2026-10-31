@@ -16,7 +16,7 @@ function Show-PageClean {
     $Script:CleanSystemBox = New-CleanListContainer $Script:pnlCleanSystemList
     Add-GuiCard "System Cleaner" "Scan and remove temp files, caches, logs, Windows Update cache, Delivery Optimization, prefetch, memory dumps and more." {
         param($p)
-        Add-GuiBtn $p "Scan" "ActionButtonStyle" {
+        Add-GuiBtn $p "Scan" "RevertButtonStyle" {
             Set-GuiProgress 20 "Scanning system cache/temp locations..."
             $Script:CleanSystemItems = Get-SystemCleanerItems
             Set-GuiProgress 90
@@ -25,7 +25,7 @@ function Show-PageClean {
             Set-GuiProgress 0
             Write-GuiLog "System Cleaner: $($Script:CleanSystemItems.Count) categories scanned" "OK"
         }
-        Add-GuiBtn $p "Clean Selected" "RevertButtonStyle" {
+        Add-GuiBtn $p "Clean Selected" "ActionButtonStyle" {
             $selected = Get-CleanSelected $Script:CleanSystemItems
             if ($selected.Count -eq 0) { Write-GuiLog "No items selected." "WARN"; return }
             Invoke-SystemCleanerClean -Items $selected
@@ -42,7 +42,7 @@ function Show-PageClean {
     $Script:CleanRegistryBox = New-CleanListContainer $Script:pnlCleanRegistryList
     Add-GuiCard "Registry Cleaner" "Scan for broken App Paths, SharedDLLs, Run entries, fonts, orphaned services and stale uninstall entries. A .reg backup is saved before any fix." {
         param($p)
-        Add-GuiBtn $p "Scan" "ActionButtonStyle" {
+        Add-GuiBtn $p "Scan" "RevertButtonStyle" {
             Set-GuiProgress 20 "Scanning registry for broken entries..."
             $Script:CleanRegistryItems = Get-RegistryCleanerItems
             Set-GuiProgress 90
@@ -51,7 +51,7 @@ function Show-PageClean {
             Set-GuiProgress 0
             Write-GuiLog "Registry Cleaner: $($Script:CleanRegistryItems.Count) issues found" "OK"
         }
-        Add-GuiBtn $p "Fix Selected" "RevertButtonStyle" {
+        Add-GuiBtn $p "Fix Selected" "ActionButtonStyle" {
             $selected = Get-CleanSelected $Script:CleanRegistryItems
             if ($selected.Count -eq 0) { Write-GuiLog "No items selected." "WARN"; return }
             Invoke-RegistryCleanerFix -Items $selected
@@ -69,7 +69,7 @@ function Show-PageClean {
     }
     Add-GuiCard "Startup Manager" "List Run/RunOnce entries (HKCU+HKLM), Startup folder shortcuts and Task Scheduler logon tasks. Enable, disable or delete selected items." {
         param($p)
-        Add-GuiBtn $p "Scan" "ActionButtonStyle" {
+        Add-GuiBtn $p "Scan" "RevertButtonStyle" {
             Set-GuiProgress 20 "Scanning startup entries..."
             $Script:CleanStartupItems = Get-StartupManagerItems
             Set-GuiProgress 90
@@ -78,7 +78,7 @@ function Show-PageClean {
             Set-GuiProgress 0
             Write-GuiLog "Startup Manager: $($Script:CleanStartupItems.Count) entries found" "OK"
         }
-        Add-GuiBtn $p "Delete Selected" "RevertButtonStyle" {
+        Add-GuiBtn $p "Delete Selected" "ActionButtonStyle" {
             $selected = Get-CleanSelected $Script:CleanStartupItems
             foreach ($it in $selected) { Remove-StartupItem -Item $it }
         }

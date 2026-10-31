@@ -21,6 +21,9 @@
 - **🛠️ Embedded tools** — Autoruns, DeviceCleanup, DnsJumper, FilterKeysSetter, TimerResolution, vibranceGUI, OOAPB, sPowers, MSI util and more, extracted on first run
 - **💾 Installers** — winget-powered app catalog grouped by category (CPU, GPU, Essentials, Internet, Integrations, Utilities)
 - **🛡️ Restore point** — creates a system restore point before applying changes
+- **🖥️ Your PC** — detailed System, Sensors, GPU, CPU, Disks and Energy pages, each exportable to a printable/PDF report
+- **📊 Benchmark** — CPU, GPU, RAM and Disk stress tests with live charts, plus an Export page that combines all results (cached until the app closes) into one printable/PDF report
+- **🎨 Settings** — Default/Terminal Retro theme switcher, auto-start, minimize to tray, default startup page and update check toggle
 
 ## 🚀 Quick Start
 

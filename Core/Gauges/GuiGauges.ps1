@@ -6,6 +6,12 @@ function New-GuiMetricBar {
     $wrap = New-Object System.Windows.Controls.StackPanel
     $wrap.Margin = "0,0,0,10"
 
+    # Default theme keeps the distinct per-metric accent colors (blue/green/orange) passed in by
+    # the caller. Terminal Retro always collapses every bar to the single theme accent (orange) so
+    # the dashboard doesn't mix unrelated hues against the retro palette - only orange "pops".
+    $isRetro = $false
+    try { if ($Window -and $Window.Resources.Contains("Theme_IsRetro")) { $isRetro = [bool]$Window.Resources["Theme_IsRetro"] } } catch {}
+
     $headerGrid = New-Object System.Windows.Controls.Grid
     $headerGrid.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition))
     $colAuto = New-Object System.Windows.Controls.ColumnDefinition; $colAuto.Width = "Auto"
@@ -13,14 +19,16 @@ function New-GuiMetricBar {
 
     $lbl = New-Object System.Windows.Controls.TextBlock
     $lbl.Text = $Label
-    $lbl.Foreground = "#8B949E"
+    $lbl.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextSecondary")
+    $lbl.SetResourceReference([System.Windows.Controls.TextBlock]::FontFamilyProperty, "Theme_FontFamily")
     $lbl.FontSize = 11
     [System.Windows.Controls.Grid]::SetColumn($lbl, 0)
     $headerGrid.AddChild($lbl)
 
     $pct = New-Object System.Windows.Controls.TextBlock
     $pct.Text = "--%"
-    $pct.Foreground = "#E6EDF3"
+    $pct.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextPrimary")
+    $pct.SetResourceReference([System.Windows.Controls.TextBlock]::FontFamilyProperty, "Theme_FontFamily")
     $pct.FontSize = 11
     $pct.FontWeight = "SemiBold"
     [System.Windows.Controls.Grid]::SetColumn($pct, 1)
@@ -35,7 +43,11 @@ function New-GuiMetricBar {
     $bar.Value = 0
     $bar.Height = 8
     $bar.Margin = "0,6,0,0"
-    $bar.Foreground = $AccentColor
+    if ($isRetro) {
+        $bar.SetResourceReference([System.Windows.Controls.Control]::ForegroundProperty, "Brush_Accent")
+    } else {
+        $bar.Foreground = $AccentColor
+    }
     $wrap.AddChild($bar)
 
     return @{ Panel = $wrap; Bar = $bar; Text = $pct }
@@ -103,22 +115,52 @@ function New-GuiCircularGauge {
 
     $track = New-Object System.Windows.Shapes.Ellipse
     $track.Width = $radius * 2; $track.Height = $radius * 2
-    $track.Stroke = "#242A32"
+    $track.SetResourceReference([System.Windows.Shapes.Shape]::StrokeProperty, "Brush_GaugeTrack")
     $track.StrokeThickness = $Thickness
     [System.Windows.Controls.Canvas]::SetLeft($track, $Thickness / 2)
     [System.Windows.Controls.Canvas]::SetTop($track, $Thickness / 2)
     $canvas.AddChild($track)
 
+    # Retro theme: flat caps + a dash pattern turn the smooth arc into a segmented
+    # LED-ring look (blocky ticks) instead of a continuous curve; Default theme keeps
+    # the original smooth rounded-cap arc untouched.
+    $isRetro = $false
+    try { if ($Window -and $Window.Resources.Contains("Theme_IsRetro")) { $isRetro = [bool]$Window.Resources["Theme_IsRetro"] } } catch {}
+
+    # Retro theme: a thin ring of small white pixelated dots sits just inside the track, purely
+    # decorative (always full circle, independent of the value) to read as an 8-bit LED dial face.
+    if ($isRetro) {
+        $dotRing = New-Object System.Windows.Shapes.Ellipse
+        $dotRadius = $radius - ($Thickness * 0.75)
+        $dotRing.Width = $dotRadius * 2; $dotRing.Height = $dotRadius * 2
+        $dotRing.SetResourceReference([System.Windows.Shapes.Shape]::StrokeProperty, "Brush_GaugeDot")
+        $dotRing.StrokeThickness = 1.5
+        $dotRing.StrokeDashArray = New-Object System.Windows.Media.DoubleCollection @(0.6, 2.4)
+        [System.Windows.Controls.Canvas]::SetLeft($dotRing, $radius - $dotRadius)
+        [System.Windows.Controls.Canvas]::SetTop($dotRing, $radius - $dotRadius)
+        $canvas.AddChild($dotRing)
+    }
+
     $arc = New-Object System.Windows.Shapes.Path
-    $arc.Stroke = $AccentColor
+    if ($isRetro) {
+        $arc.SetResourceReference([System.Windows.Shapes.Shape]::StrokeProperty, "Brush_Accent")
+    } else {
+        $arc.Stroke = $AccentColor
+    }
     $arc.StrokeThickness = $Thickness
-    $arc.StrokeStartLineCap = "Round"
-    $arc.StrokeEndLineCap = "Round"
+    if ($isRetro) {
+        $arc.StrokeStartLineCap = "Flat"
+        $arc.StrokeEndLineCap = "Flat"
+        $arc.StrokeDashArray = New-Object System.Windows.Media.DoubleCollection @(1.1, 0.9)
+    } else {
+        $arc.StrokeStartLineCap = "Round"
+        $arc.StrokeEndLineCap = "Round"
+    }
     $canvas.AddChild($arc)
 
     $pctText = New-Object System.Windows.Controls.TextBlock
     $pctText.Text = "--%"
-    $pctText.Foreground = "#E6EDF3"
+    $pctText.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextPrimary")
     $pctText.FontFamily = $Script:MonoFontFamily
     $pctText.FontSize = [math]::Max(10, [math]::Round($Size * 0.174))
     $pctText.FontWeight = "Bold"
@@ -130,7 +172,8 @@ function New-GuiCircularGauge {
 
     $lbl = New-Object System.Windows.Controls.TextBlock
     $lbl.Text = $Label
-    $lbl.Foreground = "#8B949E"
+    $lbl.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextSecondary")
+    $lbl.SetResourceReference([System.Windows.Controls.TextBlock]::FontFamilyProperty, "Theme_FontFamily")
     $lbl.FontSize = 11
     $lbl.HorizontalAlignment = "Center"
     $lbl.Margin = "0,6,0,0"
@@ -147,5 +190,19 @@ function Set-GuiGaugeValue {
     $v = [math]::Max(0, [math]::Min(100, $Value))
     $Gauge.Text.Text = "$([math]::Round($v))%"
     $Gauge.Arc.Data = New-GuiGaugeArcGeometry -Radius $Gauge.Radius -Cx $Gauge.Cx -Cy $Gauge.Cy -ValuePercent $v
+
+    # Keep the arc's cap/dash style in sync with the currently active theme on every refresh,
+    # so switching themes updates already-rendered gauges immediately (not just newly created ones).
+    $isRetro = $false
+    try { if ($Window -and $Window.Resources.Contains("Theme_IsRetro")) { $isRetro = [bool]$Window.Resources["Theme_IsRetro"] } } catch {}
+    if ($isRetro) {
+        $Gauge.Arc.StrokeStartLineCap = "Flat"
+        $Gauge.Arc.StrokeEndLineCap = "Flat"
+        $Gauge.Arc.StrokeDashArray = New-Object System.Windows.Media.DoubleCollection @(1.1, 0.9)
+    } else {
+        $Gauge.Arc.StrokeStartLineCap = "Round"
+        $Gauge.Arc.StrokeEndLineCap = "Round"
+        $Gauge.Arc.StrokeDashArray = $null
+    }
 }
 

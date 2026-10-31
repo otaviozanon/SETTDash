@@ -11,8 +11,8 @@ function Invoke-AllChecked {
     $idx = [int]$cb.Tag
     $bd = $cb.Parent
     if ($bd -is [System.Windows.Controls.Border]) {
-        $bd.Background = "#0D419D"
-        $bd.BorderBrush = "#1F6FEB"
+        $bd.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, "Brush_PressedBg")
+        $bd.SetResourceReference([System.Windows.Controls.Border]::BorderBrushProperty, "Brush_Accent")
     }
     if ($null -ne $global:AllSelectedSet) {
         if (-not ($global:AllSelectedSet.Contains($idx))) {
@@ -22,7 +22,7 @@ function Invoke-AllChecked {
     $cnt = $global:AllSelectedSet.Count
     if ($null -ne $global:AllInstallBtn) {
         $global:AllInstallBtn.Content = "Install Selected [$cnt]"
-        $global:AllInstallBtn.Background = if ($cnt -gt 0) { "#2EA043" } else { "#238636" }
+        $global:AllInstallBtn.SetResourceReference([System.Windows.Controls.Button]::BackgroundProperty, $(if ($cnt -gt 0) { "Brush_Accent" } else { "Brush_Disabled" }))
     }
 }
 
@@ -32,14 +32,14 @@ function Invoke-AllUnchecked {
     $idx = [int]$cb.Tag
     $bd = $cb.Parent
     if ($bd -is [System.Windows.Controls.Border]) {
-        $bd.Background = "#161B22"
-        $bd.BorderBrush = "#21262D"
+        $bd.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, "Brush_CardBg")
+        $bd.SetResourceReference([System.Windows.Controls.Border]::BorderBrushProperty, "Brush_CardBorder")
     }
     if ($null -ne $global:AllSelectedSet) { $global:AllSelectedSet.Remove($idx) }
     $cnt = $global:AllSelectedSet.Count
     if ($null -ne $global:AllInstallBtn) {
         $global:AllInstallBtn.Content = "Install Selected [$cnt]"
-        $global:AllInstallBtn.Background = if ($cnt -gt 0) { "#2EA043" } else { "#238636" }
+        $global:AllInstallBtn.SetResourceReference([System.Windows.Controls.Button]::BackgroundProperty, $(if ($cnt -gt 0) { "Brush_Accent" } else { "Brush_Disabled" }))
     }
 }
 
@@ -84,8 +84,11 @@ function Show-PageAllInstallers {
     $topRow.Orientation = "Horizontal"; $topRow.Margin = "0,0,0,8"
 
     $searchBorder = New-Object System.Windows.Controls.Border
-    $searchBorder.Background = "#0D1117"; $searchBorder.BorderBrush = "#1F6FEB"; $searchBorder.BorderThickness = "1"
-    $searchBorder.CornerRadius = "8"; $searchBorder.Padding = "4,3,4,3"
+    $searchBorder.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, "Brush_CardBg")
+    $searchBorder.SetResourceReference([System.Windows.Controls.Border]::BorderBrushProperty, "Brush_Accent")
+    $searchBorder.BorderThickness = "1"
+    $searchBorder.SetResourceReference([System.Windows.Controls.Border]::CornerRadiusProperty, "Theme_CornerRadius")
+    $searchBorder.Padding = "4,3,4,3"
     $searchBorder.Width = 520
 
     $searchGrid = New-Object System.Windows.Controls.Grid
@@ -94,14 +97,19 @@ function Show-PageAllInstallers {
     $searchGrid.ColumnDefinitions.Add($c1); $searchGrid.ColumnDefinitions.Add($c2)
 
     $searchIcon = New-Object System.Windows.Controls.TextBlock
-    $searchIcon.Text = "Q"; $searchIcon.Foreground = "#58A6FF"; $searchIcon.FontSize = 15
+    $searchIcon.Text = "Q"; $searchIcon.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_Accent")
+    $searchIcon.FontSize = 15
     $searchIcon.FontWeight = "Bold"; $searchIcon.VerticalAlignment = "Center"; $searchIcon.Margin = "4,0,6,0"
     [System.Windows.Controls.Grid]::SetColumn($searchIcon, 0); $searchGrid.AddChild($searchIcon)
 
     $tb = New-Object System.Windows.Controls.TextBox
     $tb.MinWidth = 300; $tb.Height = 24; $tb.FontSize = 13
-    $tb.Background = "Transparent"; $tb.Foreground = "#C9D1D9"; $tb.BorderBrush = "Transparent"; $tb.BorderThickness = "0"
-    $tb.CaretBrush = "#58A6FF"; $tb.Padding = "2,3,2,2"; $tb.VerticalContentAlignment = "Center"
+    $tb.Background = "Transparent"
+    $tb.SetResourceReference([System.Windows.Controls.TextBox]::ForegroundProperty, "Brush_TextPrimary")
+    $tb.BorderBrush = "Transparent"; $tb.BorderThickness = "0"
+    $tb.SetResourceReference([System.Windows.Controls.TextBox]::CaretBrushProperty, "Brush_Accent")
+    $tb.SetResourceReference([System.Windows.Controls.TextBox]::FontFamilyProperty, "Theme_FontFamily")
+    $tb.Padding = "2,3,2,2"; $tb.VerticalContentAlignment = "Center"
     $tb.VerticalAlignment = "Center"
     [System.Windows.Controls.Grid]::SetColumn($tb, 1); $searchGrid.AddChild($tb)
     $searchBorder.Child = $searchGrid
@@ -109,8 +117,10 @@ function Show-PageAllInstallers {
 
     $btnInstall = New-Object System.Windows.Controls.Button
     $btnInstall.Content = "Install Selected [0]"
-    $btnInstall.Background = "#238636"; $btnInstall.Foreground = "White"
-    $btnInstall.FontSize = 12; $btnInstall.FontWeight = "SemiBold"
+    $btnInstall.SetResourceReference([System.Windows.Controls.Button]::BackgroundProperty, "Brush_Disabled")
+    $btnInstall.SetResourceReference([System.Windows.Controls.Button]::ForegroundProperty, "Brush_TextPrimary")
+    $btnInstall.SetResourceReference([System.Windows.Controls.Button]::FontFamilyProperty, "Theme_FontFamily")
+    $btnInstall.FontSize = 12; $btnInstall.FontWeight = "Normal"
     $btnInstall.MinHeight = 30; $btnInstall.Padding = "18,0"; $btnInstall.Cursor = "Hand"
     $btnInstall.BorderThickness = "0"
     $btnInstall.VerticalAlignment = "Center"; $btnInstall.Margin = "10,0,0,0"
@@ -346,7 +356,9 @@ function Show-PageAllInstallers {
 
             # Category header card
             $catCard = New-Object System.Windows.Controls.Border
-            $catCard.Background = "#0D1117"; $catCard.BorderBrush = "#1F6FEB"; $catCard.BorderThickness = "0,0,0,1"
+            $catCard.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, "Brush_WindowBg")
+            $catCard.SetResourceReference([System.Windows.Controls.Border]::BorderBrushProperty, "Brush_Accent")
+            $catCard.BorderThickness = "0,0,0,1"
             $catCard.Padding = "10,8,10,7"; $catCard.Margin = "0,10,0,0"
 
             $catGrid = New-Object System.Windows.Controls.Grid
@@ -357,27 +369,41 @@ function Show-PageAllInstallers {
             $catGrid.ColumnDefinitions.Add($cc1); $catGrid.ColumnDefinitions.Add($cc2); $catGrid.ColumnDefinitions.Add($cc3); $catGrid.ColumnDefinitions.Add($cc4)
 
             $catToggle = New-Object System.Windows.Controls.TextBlock
-            $catToggle.Text = "v"; $catToggle.Foreground = "#58A6FF"; $catToggle.FontSize = 11
-            $catToggle.FontFamily = "Consolas"; $catToggle.FontWeight = "Bold"
+            $catToggle.Text = "v"
+            $catToggle.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_Accent")
+            $catToggle.FontSize = 11
+            $catToggle.SetResourceReference([System.Windows.Controls.TextBlock]::FontFamilyProperty, "Theme_FontFamily")
+            $catToggle.FontWeight = "Bold"
             $catToggle.VerticalAlignment = "Center"; $catToggle.Margin = "0,0,8,0"
             [System.Windows.Controls.Grid]::SetColumn($catToggle, 0); $catGrid.AddChild($catToggle)
 
             $catLabel = New-Object System.Windows.Controls.TextBlock
-            $catLabel.Text = $d.Cat; $catLabel.Foreground = "#E6EDF3"; $catLabel.FontSize = 13
+            $catLabel.Text = $d.Cat
+            $catLabel.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextPrimary")
+            $catLabel.SetResourceReference([System.Windows.Controls.TextBlock]::FontFamilyProperty, "Theme_FontFamily")
+            $catLabel.FontSize = 13
             $catLabel.FontWeight = "SemiBold"; $catLabel.VerticalAlignment = "Center"
             [System.Windows.Controls.Grid]::SetColumn($catLabel, 1); $catGrid.AddChild($catLabel)
 
             $catBadge = New-Object System.Windows.Controls.Border
-            $catBadge.Background = "#21262D"; $catBadge.CornerRadius = "10"; $catBadge.Padding = "6,1"
+            $catBadge.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, "Brush_CardBorder")
+            $catBadge.SetResourceReference([System.Windows.Controls.Border]::CornerRadiusProperty, "Theme_CornerRadius")
+            $catBadge.Padding = "6,1"
             $catBadge.Margin = "0,0,6,0"; $catBadge.VerticalAlignment = "Center"
             $badgeText = New-Object System.Windows.Controls.TextBlock
-            $badgeText.Text = "$($catCounts[$d.Cat])"; $badgeText.Foreground = "#8B949E"; $badgeText.FontSize = 11
+            $badgeText.Text = "$($catCounts[$d.Cat])"
+            $badgeText.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextSecondary")
+            $badgeText.SetResourceReference([System.Windows.Controls.TextBlock]::FontFamilyProperty, "Theme_FontFamily")
+            $badgeText.FontSize = 11
             $catBadge.Child = $badgeText
             [System.Windows.Controls.Grid]::SetColumn($catBadge, 2); $catGrid.AddChild($catBadge)
 
             # Select all link
             $selAll = New-Object System.Windows.Controls.TextBlock
-            $selAll.Text = "Select all"; $selAll.Foreground = "#8B949E"; $selAll.FontSize = 11
+            $selAll.Text = "Select all"
+            $selAll.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextSecondary")
+            $selAll.SetResourceReference([System.Windows.Controls.TextBlock]::FontFamilyProperty, "Theme_FontFamily")
+            $selAll.FontSize = 11
             $selAll.VerticalAlignment = "Center"; $selAll.Cursor = "Hand"
             [System.Windows.Controls.Grid]::SetColumn($selAll, 3); $catGrid.AddChild($selAll)
 
@@ -405,36 +431,48 @@ function Show-PageAllInstallers {
             $catCard.Add_MouseLeftButtonUp({
                 param($s,$e)
                 if ($e -and $e.OriginalSource -is [System.Windows.Controls.TextBlock] -and $e.OriginalSource.Text -eq "Select all") { return }
-                if ($wp.Visibility -eq "Collapsed") { $wp.Visibility = "Visible"; $catToggle.Text = "v"; $catToggle.Foreground = "#58A6FF" }
-                else { $wp.Visibility = "Collapsed"; $catToggle.Text = ">"; $catToggle.Foreground = "#8B949E" }
+                if ($wp.Visibility -eq "Collapsed") {
+                    $wp.Visibility = "Visible"; $catToggle.Text = "v"
+                    $catToggle.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_Accent")
+                } else {
+                    $wp.Visibility = "Collapsed"; $catToggle.Text = ">"
+                    $catToggle.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextSecondary")
+                }
             }.GetNewClosure())
 
             # Hover effects on header
-            $catCard.Add_MouseEnter({ $this.Background = "#161B22" })
-            $catCard.Add_MouseLeave({ $this.Background = "#0D1117" })
+            $catCard.Add_MouseEnter({ $this.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, "Brush_HoverBg") })
+            $catCard.Add_MouseLeave({ $this.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, "Brush_WindowBg") })
 
             $pnlContent.AddChild($catCard)
             $pnlContent.AddChild($wp)
         }
 
         $eb = New-Object System.Windows.Controls.Border
-        $eb.Background = "#161B22"; $eb.BorderBrush = "#21262D"; $eb.BorderThickness = "1"
-        $eb.CornerRadius = "4"; $eb.Padding = "5,4,7,3"; $eb.Margin = "3,2"
+        $eb.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, "Brush_CardBg")
+        $eb.SetResourceReference([System.Windows.Controls.Border]::BorderBrushProperty, "Brush_CardBorder")
+        $eb.BorderThickness = "1"
+        $eb.SetResourceReference([System.Windows.Controls.Border]::CornerRadiusProperty, "Theme_CornerRadius")
+        $eb.Padding = "5,4,7,3"; $eb.Margin = "3,2"
         $eb.Cursor = "Hand"; $eb.Tag = $i
 
         $cb = New-Object System.Windows.Controls.CheckBox
-        $cb.FontSize = 12; $cb.Foreground = "#C9D1D9"
+        $cb.FontSize = 12
+        $cb.SetResourceReference([System.Windows.Controls.CheckBox]::ForegroundProperty, "Brush_TextPrimary")
+        $cb.SetResourceReference([System.Windows.Controls.CheckBox]::FontFamilyProperty, "Theme_FontFamily")
         $cb.VerticalContentAlignment = "Center"; $cb.Margin = "-2,0,0,0"
         $cb.Content = $d.Name; $cb.Tag = $i
 
         $eb.Add_MouseEnter({
             if ($this.Child -is [System.Windows.Controls.CheckBox] -and $this.Child.IsChecked -eq $false) {
-                $this.Background = "#1C2333"; $this.BorderBrush = "#30363D"
+                $this.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, "Brush_HoverBg")
+                $this.SetResourceReference([System.Windows.Controls.Border]::BorderBrushProperty, "Brush_Border")
             }
         })
         $eb.Add_MouseLeave({
             if ($this.Child -is [System.Windows.Controls.CheckBox] -and $this.Child.IsChecked -eq $false) {
-                $this.Background = "#161B22"; $this.BorderBrush = "#21262D"
+                $this.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, "Brush_CardBg")
+                $this.SetResourceReference([System.Windows.Controls.Border]::BorderBrushProperty, "Brush_CardBorder")
             }
         })
 

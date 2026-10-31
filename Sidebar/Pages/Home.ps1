@@ -161,7 +161,7 @@
     $safetyBtnPanel = New-Object System.Windows.Controls.StackPanel
     $safetyBtnPanel.Orientation = "Horizontal"
     $safetyBtnPanel.VerticalAlignment = "Center"
-    Add-GuiBtn $safetyBtnPanel "Create Restore Point" "ActionButtonStyle" { Invoke-RestorePoint }
+    [void](Add-GuiBtn $safetyBtnPanel "Create Restore Point" "ActionButtonStyle" { Invoke-RestorePoint })
     [System.Windows.Controls.Grid]::SetColumn($safetyBtnPanel, 3)
     $safetyRow.AddChild($safetyBtnPanel)
     $safetyBorder.Child = $safetyRow
@@ -204,7 +204,7 @@
     $utilBtnPanel = New-Object System.Windows.Controls.StackPanel
     $utilBtnPanel.Orientation = "Horizontal"
     $utilBtnPanel.VerticalAlignment = "Center"
-    Add-GuiBtn $utilBtnPanel "Download SETT Utility" "ActionButtonStyle" { Invoke-DownloadRepoFile -RepoOwner "otaviozanon" -RepoName "settUtility" -FilePath "settUtility.zip" -Label "SETT Utility" }
+    [void](Add-GuiBtn $utilBtnPanel "Download SETT Utility" "InstallButtonStyle" { Invoke-DownloadRepoFile -RepoOwner "otaviozanon" -RepoName "settUtility" -FilePath "settUtility.zip" -Label "SETT Utility" })
     [System.Windows.Controls.Grid]::SetColumn($utilBtnPanel, 3)
     $utilRow.AddChild($utilBtnPanel)
     $utilBorder.Child = $utilRow

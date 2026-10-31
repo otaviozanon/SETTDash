@@ -50,9 +50,18 @@ function Invoke-CheckForUpdates {
 # native Windows chrome. {0}=width {1}=title {2}=extra body XAML
 function script:Get-UpdatePopupXaml {
     param([int]$Width, [string]$Title, [string]$BodyXaml, [bool]$ShowCloseButton = $true)
+
+    # Theme-aware chrome: these custom popups are plain XamlReader Windows (not part of the
+    # main $Window visual tree), so they can't use {DynamicResource} against $Window.Resources.
+    # Instead, bake the CURRENT theme's colors in as literal values each time a popup is built.
+    $t = $Script:Themes[$Script:CurrentTheme]
+    if (-not $t) { $t = $Script:Themes["Default"] }
+    $fontFamily = if ($t.FontFamily -eq "MONO") { "Consolas" } else { "Segoe UI" }
+    $radius = $t.CornerRadius
+
     $closeBtnXaml = ""
     if ($ShowCloseButton) {
-        $closeBtnXaml = '<Button x:Name="btnDialogClose" Grid.Column="1" Content="&#xE8BB;" Width="40" Height="32" Background="Transparent" Foreground="#8B949E" FontFamily="Segoe MDL2 Assets" FontSize="10" BorderThickness="0" Cursor="Hand"><Button.Template><ControlTemplate TargetType="Button"><Border x:Name="b" Background="{TemplateBinding Background}"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="b" Property="Background" Value="#DA3633"/><Setter Property="Foreground" Value="White"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Button.Template></Button>'
+        $closeBtnXaml = "<Button x:Name=`"btnDialogClose`" Grid.Column=`"1`" Content=`"&#xE8BB;`" Width=`"40`" Height=`"32`" Background=`"Transparent`" Foreground=`"$($t.TextSecondary)`" FontFamily=`"Segoe MDL2 Assets`" FontSize=`"10`" BorderThickness=`"0`" Cursor=`"Hand`"><Button.Template><ControlTemplate TargetType=`"Button`"><Border x:Name=`"b`" Background=`"{TemplateBinding Background}`"><ContentPresenter HorizontalAlignment=`"Center`" VerticalAlignment=`"Center`"/></Border><ControlTemplate.Triggers><Trigger Property=`"IsMouseOver`" Value=`"True`"><Setter TargetName=`"b`" Property=`"Background`" Value=`"$($t.DangerHover)`"/><Setter Property=`"Foreground`" Value=`"White`"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Button.Template></Button>"
     }
     return @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -64,8 +73,9 @@ function script:Get-UpdatePopupXaml {
         TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="Grayscale">
     <Window.Resources>
         <Style x:Key="DialogPrimaryButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#1F6FEB"/>
+            <Setter Property="Background" Value="$($t.Accent)"/>
             <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontFamily" Value="$fontFamily"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Height" Value="34"/>
@@ -78,15 +88,15 @@ function script:Get-UpdatePopupXaml {
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="border" Background="{TemplateBinding Background}"
                                 Padding="{TemplateBinding Padding}" MinWidth="{TemplateBinding MinWidth}"
-                                CornerRadius="6">
+                                CornerRadius="$radius">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#388BFD"/>
+                                <Setter TargetName="border" Property="Opacity" Value="0.85"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#1158C7"/>
+                                <Setter TargetName="border" Property="Opacity" Value="0.7"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -95,27 +105,28 @@ function script:Get-UpdatePopupXaml {
         </Style>
         <Style x:Key="DialogSecondaryButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#C9D1D9"/>
+            <Setter Property="Foreground" Value="$($t.TextPrimary)"/>
+            <Setter Property="FontFamily" Value="$fontFamily"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Height" Value="34"/>
             <Setter Property="MinWidth" Value="104"/>
             <Setter Property="Padding" Value="18,0"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BorderBrush" Value="#30363D"/>
+            <Setter Property="BorderBrush" Value="$($t.Border)"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="border" Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
                                 Padding="{TemplateBinding Padding}" MinWidth="{TemplateBinding MinWidth}"
-                                CornerRadius="6">
+                                CornerRadius="$radius">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="BorderBrush" Value="#58A6FF"/>
-                                <Setter Property="Foreground" Value="#58A6FF"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="$($t.Accent)"/>
+                                <Setter Property="Foreground" Value="$($t.Accent)"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -123,7 +134,7 @@ function script:Get-UpdatePopupXaml {
             </Setter>
         </Style>
     </Window.Resources>
-    <Border x:Name="rootBorder" Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8">
+    <Border x:Name="rootBorder" Background="$($t.WindowBg)" BorderBrush="$($t.Border)" BorderThickness="1" CornerRadius="$radius">
         <Border.Effect>
             <DropShadowEffect Color="#000000" BlurRadius="22" ShadowDepth="4" Opacity="0.45"/>
         </Border.Effect>
@@ -132,13 +143,13 @@ function script:Get-UpdatePopupXaml {
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
-            <Border x:Name="titleBar" Grid.Row="0" Background="#161B22" BorderBrush="#30363D" BorderThickness="0,0,0,1">
+            <Border x:Name="titleBar" Grid.Row="0" Background="$($t.TitleBarBg)" BorderBrush="$($t.Border)" BorderThickness="0,0,0,1">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="$Title" Foreground="#E6EDF3" FontSize="12" FontWeight="SemiBold"
+                    <TextBlock Grid.Column="0" Text="$Title" Foreground="$($t.TextPrimary)" FontFamily="$fontFamily" FontSize="12" FontWeight="SemiBold"
                                VerticalAlignment="Center" Margin="16,0,0,0"/>
                     $closeBtnXaml
                 </Grid>
@@ -150,6 +161,15 @@ function script:Get-UpdatePopupXaml {
     </Border>
 </Window>
 "@
+}
+
+# Returns the active theme's color hashtable, used by popup body builders (Show-UpdateConfirmDialog,
+# Invoke-SelfUpdate, Show-PawnIOInstallPrompt) so text/icon colors inside the body also follow the
+# currently selected theme (Default / Terminal Retro), matching the chrome built by Get-UpdatePopupXaml.
+function script:Get-CurrentThemeColors {
+    $t = $Script:Themes[$Script:CurrentTheme]
+    if (-not $t) { $t = $Script:Themes["Default"] }
+    return $t
 }
 
 # Wires DragMove on a popup's custom title bar (skips drag when clicking the close button).
@@ -171,19 +191,20 @@ function script:Register-UpdatePopupDrag {
 function Show-UpdateConfirmDialog {
     param([string]$CurrentVersion, [string]$NewVersion)
 
+    $t = Get-CurrentThemeColors
     $body = @"
         <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-            <Border Width="40" Height="40" CornerRadius="8" Background="#132040">
-                <TextBlock Text="&#xE895;" FontFamily="Segoe MDL2 Assets" FontSize="18" Foreground="#58A6FF"
+            <Border Width="40" Height="40" CornerRadius="$($t.CornerRadius)" Background="$($t.HoverBg)">
+                <TextBlock Text="&#xE895;" FontFamily="Segoe MDL2 Assets" FontSize="18" Foreground="$($t.Accent)"
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
-                <TextBlock Text="Update Available" FontFamily="JetBrains Mono, Consolas" Foreground="#E6EDF3" FontSize="14" FontWeight="Bold"/>
-                <TextBlock x:Name="txtVersions" FontFamily="JetBrains Mono, Consolas" Text="v$CurrentVersion &#8594; v$NewVersion" Foreground="#6E7681" FontSize="11" Margin="0,3,0,0"/>
+                <TextBlock Text="Update Available" FontFamily="JetBrains Mono, Consolas" Foreground="$($t.TextPrimary)" FontSize="14" FontWeight="Bold"/>
+                <TextBlock x:Name="txtVersions" FontFamily="JetBrains Mono, Consolas" Text="v$CurrentVersion &#8594; v$NewVersion" Foreground="$($t.TextMuted)" FontSize="11" Margin="0,3,0,0"/>
             </StackPanel>
         </StackPanel>
         <TextBlock Text="A new version of SETTDash is ready to install. Do you want to update now?"
-                   Foreground="#C9D1D9" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,22"/>
+                   Foreground="$($t.TextSecondary)" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,22"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
             <Button x:Name="btnLater" Content="Later" Style="{StaticResource DialogSecondaryButtonStyle}" Margin="0,0,12,0"/>
             <Button x:Name="btnUpdate" Content="Update Now" Style="{StaticResource DialogPrimaryButtonStyle}"/>
@@ -227,20 +248,21 @@ function Invoke-SelfUpdate {
     $currentExe = [System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
     $newExe = Join-Path $tempDir "SETTDash_v$NewVersion.exe"
 
+    $t = Get-CurrentThemeColors
     $body = @"
         <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-            <Border Width="40" Height="40" CornerRadius="8" Background="#132040">
-                <TextBlock Text="&#xE896;" FontFamily="Segoe MDL2 Assets" FontSize="18" Foreground="#58A6FF"
+            <Border Width="40" Height="40" CornerRadius="$($t.CornerRadius)" Background="$($t.HoverBg)">
+                <TextBlock Text="&#xE896;" FontFamily="Segoe MDL2 Assets" FontSize="18" Foreground="$($t.Accent)"
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
-                <TextBlock x:Name="txtTitle" FontFamily="JetBrains Mono, Consolas" Text="Downloading update v$NewVersion" Foreground="#E6EDF3" FontSize="14" FontWeight="Bold"/>
-                <TextBlock x:Name="txtStatus" FontFamily="JetBrains Mono, Consolas" Text="Connecting..." Foreground="#6E7681" FontSize="11" Margin="0,3,0,0"/>
+                <TextBlock x:Name="txtTitle" FontFamily="JetBrains Mono, Consolas" Text="Downloading update v$NewVersion" Foreground="$($t.TextPrimary)" FontSize="14" FontWeight="Bold"/>
+                <TextBlock x:Name="txtStatus" FontFamily="JetBrains Mono, Consolas" Text="Connecting..." Foreground="$($t.TextMuted)" FontSize="11" Margin="0,3,0,0"/>
             </StackPanel>
         </StackPanel>
         <Grid Height="8" Margin="0,2,0,0">
-            <Border Background="#21262D" CornerRadius="4"/>
-            <Border x:Name="progressFill" Background="#1F6FEB" CornerRadius="4" HorizontalAlignment="Stretch" RenderTransformOrigin="0,0.5">
+            <Border Background="$($t.ProgressTrack)" CornerRadius="4"/>
+            <Border x:Name="progressFill" Background="$($t.Accent)" CornerRadius="4" HorizontalAlignment="Stretch" RenderTransformOrigin="0,0.5">
                 <Border.RenderTransform>
                     <ScaleTransform x:Name="progressScale" ScaleX="0"/>
                 </Border.RenderTransform>
