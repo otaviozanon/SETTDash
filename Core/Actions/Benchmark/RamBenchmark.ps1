@@ -18,11 +18,33 @@
 # redraw - the other symptom reported as "crashing".
 function Get-RamBenchmarkResult {
     param([int]$BufferSizeMB = 512, [double]$DurationSeconds = 30, [scriptblock]$OnWriteSample = $null, [scriptblock]$OnCopySample = $null, [scriptblock]$CancelCheck = $null, [double]$MinPassSeconds = 0.15)
+    # The released .exe is compiled -x86 (32-bit), so this process only has ~2 GB of address
+    # space. Allocating two 512 MB byte[] buffers (1 GB total) back-to-back as contiguous blocks
+    # can throw OutOfMemoryException on a 32-bit process even with plenty of free system RAM, once
+    # the managed heap (especially the Large Object Heap) is fragmented by everything else WPF has
+    # already allocated - not an actual low-memory condition. Shrink the default buffer on 32-bit
+    # processes, and retry with progressively smaller buffers if allocation still fails, instead of
+    # letting the whole benchmark crash with an unhelpful .ctor OutOfMemoryException.
+    if ([IntPtr]::Size -eq 4 -and $BufferSizeMB -gt 128) { $BufferSizeMB = 128 }
+
+    $src = $null; $dst = $null
+    while ($true) {
+        try {
+            $size = $BufferSizeMB * 1MB
+            Set-GuiProgress 10 "Allocating $BufferSizeMB MB test buffers..."
+            $src = [byte[]]::new($size)
+            $dst = [byte[]]::new($size)
+            break
+        } catch [OutOfMemoryException] {
+            $src = $null; $dst = $null
+            [System.GC]::Collect()
+            if ($BufferSizeMB -le 32) { throw }
+            $BufferSizeMB = [Math]::Max(32, [int]($BufferSizeMB / 2))
+            Write-GuiLog "RAM benchmark: not enough contiguous memory, retrying with a $BufferSizeMB MB buffer..." "WARN"
+        }
+    }
     $size = $BufferSizeMB * 1MB
     $phaseBudget = $DurationSeconds / 2
-    Set-GuiProgress 10 "Allocating $BufferSizeMB MB test buffers..."
-    $src = [byte[]]::new($size)
-    $dst = [byte[]]::new($size)
     $chunkSize = [Math]::Min(1MB, $size)
     $chunk = [byte[]]::new($chunkSize)
     $rnd = [System.Random]::new(42)
