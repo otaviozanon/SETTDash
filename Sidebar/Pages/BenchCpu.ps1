@@ -59,6 +59,7 @@ function Show-PageBenchCpu {
                 $multiChart = New-GuiLiveChart $resultsStack -Unit "it/s"
                 $Global:BenchCpuResultsCard.Visibility = "Visible"
 
+                $deviceName = Get-BenchDeviceName "CPU"
                 $result = Get-CpuBenchmarkResult -DurationSeconds $durState.Seconds `
                     -OnSingleSample { param($v) Add-GuiLiveChartSample $singleChart $v }.GetNewClosure() `
                     -OnMultiSample { param($v) Add-GuiLiveChartSample $multiChart $v }.GetNewClosure() `
@@ -79,20 +80,23 @@ function Show-PageBenchCpu {
                 Add-GuiBenchStatTiles $resultsStack @(
                     @{Label="Single Avg"; Value=$result.SingleScore}
                     @{Label="Multi Avg"; Value=$result.MultiScore}
+                    @{Label="MT/ST Ratio"; Value="$($result.MtStRatio)x"}
                 )
 
                 if ($result.Cancelled) {
-                    Write-GuiLog "CPU benchmark stopped - single: $($result.SingleScore) it/s, multi: $($result.MultiScore) it/s" "WARN"
+                    Write-GuiLog "CPU benchmark stopped - single: $($result.SingleScore) it/s, multi: $($result.MultiScore) it/s (x$($result.MtStRatio))" "WARN"
                 } else {
-                    Write-GuiLog "CPU benchmark complete - single: $($result.SingleScore) it/s, multi: $($result.MultiScore) it/s" "OK"
+                    Write-GuiLog "CPU benchmark complete - single: $($result.SingleScore) it/s, multi: $($result.MultiScore) it/s (x$($result.MtStRatio))" "OK"
                 }
 
                 # Cache the result (kept until the program closes) so the Export page can include it.
                 $Global:BenchCpuLastResult = @{
+                    DeviceName      = $deviceName
                     DurationSeconds = $durState.Seconds
                     Threads         = $result.Threads
                     SingleScore     = $result.SingleScore
                     MultiScore      = $result.MultiScore
+                    MtStRatio       = $result.MtStRatio
                     Cancelled       = $result.Cancelled
                     Timestamp       = Get-Date
                 }

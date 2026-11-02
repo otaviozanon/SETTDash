@@ -105,27 +105,51 @@ function Invoke-CpuWorkloadMultiThread {
 # Orchestrates the full CPU benchmark: single-core pass then all-core pass (10 seconds each by
 # default - long enough for thermal/boost behavior to settle, unlike a short 4-5s burst), logging
 # progress and returning both per-second sample sets plus min/max/avg for each pass.
+
+# Discards the first few per-second samples of a benchmark pass before scoring - both single and
+# multi-thread workloads here start "cold" (branch predictor/caches not warmed, and on modern CPUs
+# the first 1-2s often still ride a transient boost clock that isn't sustainable for the full run).
+# Cinebench/Geekbench-style tools don't count this ramp-up window in the final score; without
+# discarding it, the Min (and sometimes the Avg) comes out skewed by an unrepresentative first
+# second rather than the steady-state throughput the rest of the run settles into.
+function Get-CpuScoredSamples {
+    param([System.Collections.Generic.List[double]]$Samples, [int]$WarmupSeconds = 2)
+    if ($Samples.Count -le $WarmupSeconds) { return $Samples }
+    return [System.Collections.Generic.List[double]]::new($Samples.GetRange($WarmupSeconds, $Samples.Count - $WarmupSeconds))
+}
+
 function Get-CpuBenchmarkResult {
     param([double]$DurationSeconds = 30, [scriptblock]$OnSingleSample = $null, [scriptblock]$OnMultiSample = $null, [scriptblock]$CancelCheck = $null)
     $cores = [Environment]::ProcessorCount
     Set-GuiProgress 10 "Running single-core workload ($DurationSeconds s)..."
     $single = Invoke-CpuWorkload -DurationSeconds $DurationSeconds -OnSample $OnSingleSample -CancelCheck $CancelCheck
-    $singleScore = [math]::Round($single.Total / $DurationSeconds)
     Set-GuiProgress 55 "Running multi-core workload across $cores threads ($DurationSeconds s)..."
     $multi = Invoke-CpuWorkloadMultiThread -DurationSeconds $DurationSeconds -OnSample $OnMultiSample -CancelCheck $CancelCheck
-    $multiScore = [math]::Round($multi.Total / $DurationSeconds)
+
+    # Score off the post-warm-up samples (steady-state throughput) instead of Total/DurationSeconds,
+    # which still includes the discarded ramp-up seconds in its denominator and average.
+    $singleScored = Get-CpuScoredSamples $single.Samples
+    $multiScored = Get-CpuScoredSamples $multi.Samples
+    $singleScore = if ($singleScored.Count -gt 0) { [math]::Round(($singleScored | Measure-Object -Average).Average) } else { [math]::Round($single.Total / $DurationSeconds) }
+    $multiScore = if ($multiScored.Count -gt 0) { [math]::Round(($multiScored | Measure-Object -Average).Average) } else { [math]::Round($multi.Total / $DurationSeconds) }
+
     $cancelled = [bool]($CancelCheck -and (& $CancelCheck))
     Set-GuiProgress 100 $(if ($cancelled) { "CPU benchmark stopped." } else { "CPU benchmark complete." })
     [PSCustomObject]@{
         Threads       = $cores
         Cancelled     = $cancelled
         SingleScore   = $singleScore
-        SingleMin     = if ($single.Samples.Count -gt 0) { [math]::Round(($single.Samples | Measure-Object -Minimum).Minimum) } else { $singleScore }
-        SingleMax     = if ($single.Samples.Count -gt 0) { [math]::Round(($single.Samples | Measure-Object -Maximum).Maximum) } else { $singleScore }
+        SingleMin     = if ($singleScored.Count -gt 0) { [math]::Round(($singleScored | Measure-Object -Minimum).Minimum) } else { $singleScore }
+        SingleMax     = if ($singleScored.Count -gt 0) { [math]::Round(($singleScored | Measure-Object -Maximum).Maximum) } else { $singleScore }
         SingleSamples = $single.Samples
         MultiScore    = $multiScore
-        MultiMin      = if ($multi.Samples.Count -gt 0) { [math]::Round(($multi.Samples | Measure-Object -Minimum).Minimum) } else { $multiScore }
-        MultiMax      = if ($multi.Samples.Count -gt 0) { [math]::Round(($multi.Samples | Measure-Object -Maximum).Maximum) } else { $multiScore }
+        MultiMin      = if ($multiScored.Count -gt 0) { [math]::Round(($multiScored | Measure-Object -Minimum).Minimum) } else { $multiScore }
+        MultiMax      = if ($multiScored.Count -gt 0) { [math]::Round(($multiScored | Measure-Object -Maximum).Maximum) } else { $multiScore }
         MultiSamples  = $multi.Samples
+        # Multi/Single ratio - how well the workload scales with core count (e.g. ~N on an N-core
+        # CPU with no SMT/efficiency-core penalty; well below N signals thermal/power limits or
+        # heterogeneous (P+E) core scheduling eating into scaling). Same metric Geekbench/Cinebench
+        # report as "multi-core score / single-core score".
+        MtStRatio     = if ($singleScore -gt 0) { [math]::Round($multiScore / $singleScore, 2) } else { 0 }
     }
 }

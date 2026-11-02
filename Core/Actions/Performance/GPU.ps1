@@ -89,20 +89,16 @@ function Invoke-GPURevert {
         $vendor = if ($nameLow -match "nvidia") { "NVIDIA" } elseif ($nameLow -match "amd|radeon") { "AMD" } else { "Unknown" }
         Write-GuiLog "Detected GPU vendor: $vendor" "INFO"
         if ($vendor -eq "NVIDIA") {
+            # NOTE: must only revert the exact keys Invoke-GPUApply sets above - previously this
+            # list also wrote 8 extra nvlddmkm/NVIDIA keys (incl. SendTelemetryData,
+            # OptInOrOutPreference) that Apply never touched, creating registry values/preferences
+            # that didn't exist before instead of restoring prior state.
             $nvidiaRevert = @(
                 @{Path="HKLM:\SYSTEM\ControlSet001\Services\nvlddmkm"; Name="DisablePreemption"; Value=0; Type="DWORD"}
                 @{Path="HKLM:\SYSTEM\ControlSet001\Services\nvlddmkm"; Name="DisableCudaContextPreemption"; Value=0; Type="DWORD"}
                 @{Path="HKLM:\SYSTEM\ControlSet001\Services\nvlddmkm"; Name="EnableCEPreemption"; Value=1; Type="DWORD"}
                 @{Path="HKLM:\SYSTEM\ControlSet001\Services\nvlddmkm"; Name="ComputePreemption"; Value=1; Type="DWORD"}
-                @{Path="HKLM:\SYSTEM\ControlSet001\Services\nvlddmkm"; Name="DisablePreemptionOnS3S4"; Value=0; Type="DWORD"}
-                @{Path="HKLM:\SYSTEM\ControlSet001\Services\nvlddmkm"; Name="EnableMidGfxPreemption"; Value=1; Type="DWORD"}
-                @{Path="HKLM:\SYSTEM\ControlSet001\Services\nvlddmkm"; Name="EnableMidGfxPreemptionVGPU"; Value=1; Type="DWORD"}
-                @{Path="HKLM:\SYSTEM\ControlSet001\Services\nvlddmkm"; Name="EnableMidBufferPreemptionForHighTdrTimeout"; Value=1; Type="DWORD"}
-                @{Path="HKLM:\SYSTEM\ControlSet001\Services\nvlddmkm"; Name="EnableMidBufferPreemption"; Value=1; Type="DWORD"}
-                @{Path="HKLM:\SYSTEM\ControlSet001\Services\nvlddmkm"; Name="EnableAsyncMidBufferPreemption"; Value=1; Type="DWORD"}
                 @{Path="HKLM:\SYSTEM\ControlSet001\Control\GraphicsDrivers\Scheduler"; Name="EnablePreemption"; Value=1; Type="DWORD"}
-                @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\nvlddmkm\Global\Startup"; Name="SendTelemetryData"; Value=1; Type="DWORD"}
-                @{Path="HKLM:\SOFTWARE\NVIDIA Corporation\NvControlPanel2\Client"; Name="OptInOrOutPreference"; Value=1; Type="DWORD"}
             )
             Invoke-RegistryApply -Settings $nvidiaRevert -Label "NVIDIA Revert"
             Write-GuiLog "NVIDIA optimizations reverted" "OK"

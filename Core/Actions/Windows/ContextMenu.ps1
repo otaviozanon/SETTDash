@@ -25,6 +25,9 @@ function Invoke-ContextRevert {
     Write-GuiLog "Reverting context menu..." "STEP"
     $bp = "HKCU:\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}"
     if (Test-Path $bp) { Remove-Item -Path $bp -Recurse -Force }
+    # Must also remove HasLUAShield - Invoke-ContextApply sets it alongside the CLSID key above,
+    # but it previously wasn't reverted here, leaving an orphaned empty value in the registry.
+    Remove-ItemProperty -Path "HKCU:\Software\Classes\*\shell\runas" -Name "HasLUAShield" -Force -ErrorAction SilentlyContinue
     Write-GuiLog "Context menu reverted" "OK"
     Set-GuiProgress 80 "Restarting Explorer..."
     Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue

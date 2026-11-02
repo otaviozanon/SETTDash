@@ -10,12 +10,12 @@ $Script:EthernetConfigs = @(
     @{Names=@("Power Saving Mode"); Value="Disabled"}
     @{Names=@("Auto Disable Gigabit"); Value="Disabled"}
     @{Names=@("Wake on Magic Packet","Pacote Wake on Magic"); Value="Disabled"}
-    @{Names=@("Wake on pattern match","Wake on Pattern Match","CombinaÃ§Ã£o do padrÃ£o Wake on"); Value="Disabled"}
+    @{Names=@("Wake on pattern match","Wake on Pattern Match","Combinacao do padrao Wake on"); Value="Disabled"}
     @{Names=@("Shutdown Wake-On-Lan","Shutdown Wake-On-LAN","Desligar Despertar Aquando de Lan"); Value="Disabled"}
-    @{Names=@("NS Offload","TransferÃªncia NS"); Value="Disabled"}
-    @{Names=@("ARP Offload","TransferÃªncia ARP"); Value="Disabled"}
-    @{Names=@("Receive Buffers","Receber MemÃ³rias IntermÃ©dias"); Value="Maximum"}
-    @{Names=@("Transmit Buffers","Transmitir MemÃ³rias IntermÃ©dias"); Value="Maximum"}
+    @{Names=@("NS Offload","Transferencia NS"); Value="Disabled"}
+    @{Names=@("ARP Offload","Transferencia ARP"); Value="Disabled"}
+    @{Names=@("Receive Buffers","Receber Memorias Intermedias"); Value="Maximum"}
+    @{Names=@("Transmit Buffers","Transmitir Memorias Intermedias"); Value="Maximum"}
     @{Names=@("Large Send Offload V2 (IPv4)","Large Send Offload v2 (IPv4)","Descarga Large Send v2 (IPv4)"); Value="Disabled"}
     @{Names=@("Large Send Offload V2 (IPv6)","Large Send Offload v2 (IPv6)","Descarga Large Send v2 (IPv6)"); Value="Disabled"}
     @{Names=@("IPv4 Checksum Offload","IPv4 Descarga de Checksum"); Value="Disabled"}
@@ -23,7 +23,7 @@ $Script:EthernetConfigs = @(
     @{Names=@("TCP Checksum Offload (IPv6)","TCP Descarga de Checksum (IPv6)"); Value="Disabled"}
     @{Names=@("UDP Checksum Offload (IPv4)","UDP Descarga de Checksum (IPv4)"); Value="Disabled"}
     @{Names=@("UDP Checksum Offload (IPv6)","UDP Descarga de Checksum (IPv6)"); Value="Disabled"}
-    @{Names=@("Interrupt Moderation","ModeraÃ§Ã£o de InterrupÃ§Ã£o"); Value="Disabled"}
+    @{Names=@("Interrupt Moderation","Moderacao de Interrupcao"); Value="Disabled"}
     @{Names=@("Receive Side Scaling"); Value="Enabled"}
     @{Names=@("Speed & Duplex","Speed and Duplex","Velocidade & Duplex"); Value="Auto Negotiation"}
     @{Names=@("Green Ethernet","Ethernet Verde"); Value="Disabled"}
@@ -92,8 +92,8 @@ function Invoke-NetworkOptimize { param([string]$Type)
                 switch ($effVal) {
                     "Enabled" { $cand += @("Activado","Ativado","Enable","Rx & Tx Enabled","Rx & Tx Activados") }
                     "Disabled" { $cand += @("Desactivado","Desativado","Disable") }
-                    "Auto" { $cand += @("AutomÃ¡tico") }
-                    "Auto Negotiation" { $cand += @("Auto NegociaÃ§Ã£o") }
+                    "Auto" { $cand += @("Automatico") }
+                    "Auto Negotiation" { $cand += @("Auto Negociacao") }
                 }
                 foreach ($c in $cand) { if ($prop.ValidDisplayValues -contains $c) { $locVal = $c; break } }
                 if ($prop.DisplayValue -eq $locVal) { $skipped++; continue }
@@ -137,7 +137,7 @@ function Invoke-NetworkRestoreDefaults { param([string]$Type)
                 $defDisp = $null
                 if ($prop.DefaultDisplayValue) { $defDisp = $prop.DefaultDisplayValue }
                 else {
-                    $guesses = @("Auto","Auto Negotiation","Default","Enabled","Activado","Desactivado","AutomÃ¡tico","Auto NegociaÃ§Ã£o")
+                    $guesses = @("Auto","Auto Negotiation","Default","Enabled","Activado","Desactivado","Automatico","Auto Negociacao")
                     foreach ($g in $guesses) { if ($prop.ValidDisplayValues -contains $g) { $defDisp = $g; break } }
                 }
                 if ($defDisp -and $prop.DisplayValue -ne $defDisp) {

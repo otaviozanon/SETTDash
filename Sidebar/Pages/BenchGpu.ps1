@@ -73,21 +73,29 @@ function Show-PageBenchGpu {
             if ($result) {
                 $Global:BenchGpuResultsStack.Children.Clear()
                 Add-GuiIconTitle $Global:BenchGpuResultsStack "&#xE950;" "Results" "#F0883E" -AccentTitle -TitleColor "#F0883E"
+                $stabilityLabel = if ($result.Throttling) { "Throttling (-$($result.ThrottlePct)%)" } else { "Stable" }
                 Add-GuiBenchStatTiles $Global:BenchGpuResultsStack @(
                     @{Label="Avg FPS"; Value=$result.AvgFps}
+                    @{Label="1st/2nd Half"; Value="$($result.FirstHalfFps) / $($result.SecondHalfFps)"}
+                    @{Label="Stability"; Value=$stabilityLabel}
                 )
                 $Global:BenchGpuResultsCard.Visibility = "Visible"
                 if ($result.Cancelled) {
                     Write-GuiLog "GPU render benchmark stopped ($modeName) - average FPS: $($result.AvgFps)" "WARN"
                 } else {
-                    Write-GuiLog "GPU render benchmark complete ($modeName) - average FPS: $($result.AvgFps)" "OK"
+                    Write-GuiLog "GPU render benchmark complete ($modeName) - average FPS: $($result.AvgFps) ($stabilityLabel)" "OK"
                 }
 
                 # Cache the result (kept until the program closes) so the Export page can include it.
                 $Global:BenchGpuLastResult = @{
+                    DeviceName      = (Get-BenchDeviceName "GPU")
                     DurationSeconds = $durState.Seconds
                     Mode            = $modeName
                     AvgFps          = $result.AvgFps
+                    FirstHalfFps    = $result.FirstHalfFps
+                    SecondHalfFps   = $result.SecondHalfFps
+                    ThrottlePct     = $result.ThrottlePct
+                    Throttling      = $result.Throttling
                     Cancelled       = $result.Cancelled
                     Timestamp       = Get-Date
                 }

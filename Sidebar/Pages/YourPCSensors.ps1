@@ -1,3 +1,36 @@
+# Used by: Get-AllSensorRows/Show-PageYourPCSensors only. Plain PSCustomObject rows have no
+# change notification, so swapping values on the existing objects (done by the live-refresh timer
+# below) never updates the DataGrid's cell text - only reassigning ItemsSource (which rebuilds
+# every row/group container) did, and that rebuild on every 2s tick is the visible "travadinha".
+# Implementing INotifyPropertyChanged lets WPF's binding engine update just the changed cell text
+# in place, with no container rebuild, when ValueText/MinText/MaxText are mutated in a tick.
+if (-not ([System.Management.Automation.PSTypeName]"SettSensorRow").Type) {
+    Add-Type -TypeDefinition @"
+using System.ComponentModel;
+
+public class SettSensorRow : INotifyPropertyChanged
+{
+    public event PropertyChangedEventHandler PropertyChanged;
+    private void Raise(string name) {
+        if (PropertyChanged != null) { PropertyChanged(this, new PropertyChangedEventArgs(name)); }
+    }
+
+    public string HardwareName { get; set; }
+    public string Category { get; set; }
+    public string SensorName { get; set; }
+
+    private string _valueText;
+    public string ValueText { get { return _valueText; } set { if (_valueText != value) { _valueText = value; Raise("ValueText"); } } }
+
+    private string _minText;
+    public string MinText { get { return _minText; } set { if (_minText != value) { _minText = value; Raise("MinText"); } } }
+
+    private string _maxText;
+    public string MaxText { get { return _maxText; } set { if (_maxText != value) { _maxText = value; Raise("MaxText"); } } }
+}
+"@
+}
+
 # Used by: Sensors page only.
 # Mirrors ResetExplode's SensorMonitor.IsPawnIOInstalled: PawnIO registers this exact
 # uninstall key when installed (used by LibreHardwareMonitor/FanControl too).
@@ -133,6 +166,23 @@ function Show-PawnIOInstallResultDialog {
     $dlg.ShowDialog() | Out-Null
 }
 
+# Used by: Show-PageYourPCSensors only. Walks the visual tree to find a DataGrid's internal
+# ScrollViewer (part of its default template), so the live-refresh timer can save/restore the
+# scroll offset around each ItemsSource swap - without this, re-pointing ItemsSource to a brand
+# new filtered list every tick (see $render) snaps the grid back to the top every 2s, making it
+# impossible to actually read a sensor list longer than one screen while it's live-updating.
+function Get-DataGridScrollViewer {
+    param($Visual)
+    if ($null -eq $Visual) { return $null }
+    for ($i = 0; $i -lt [System.Windows.Media.VisualTreeHelper]::GetChildrenCount($Visual); $i++) {
+        $child = [System.Windows.Media.VisualTreeHelper]::GetChild($Visual, $i)
+        if ($child -is [System.Windows.Controls.ScrollViewer]) { return $child }
+        $found = Get-DataGridScrollViewer $child
+        if ($found) { return $found }
+    }
+    return $null
+}
+
 # Used by: Get-AllSensorRows only. Mirrors SensorRow.CategoryName: maps a LibreHardwareMonitor
 # SensorType to the display category used for the chips/pills (e.g. "Temperature", "Load").
 function Get-LHMSensorCategory {
@@ -153,7 +203,10 @@ function Get-AllSensorRows {
     $list = New-Object System.Collections.Generic.List[object]
     $add = {
         param($Hw, $Cat, $Name, $Val, $Min = "—", $Max = "—")
-        $list.Add([PSCustomObject]@{HardwareName=$Hw; Category=$Cat; SensorName=$Name; ValueText=$Val; MinText=$Min; MaxText=$Max}) | Out-Null
+        $row = New-Object SettSensorRow
+        $row.HardwareName = $Hw; $row.Category = $Cat; $row.SensorName = $Name
+        $row.ValueText = $Val; $row.MinText = $Min; $row.MaxText = $Max
+        $list.Add($row) | Out-Null
     }.GetNewClosure()
 
     if ($LhmOk) {
@@ -363,13 +416,18 @@ function Show-PageYourPCSensors {
     $detailCard.Child = $grid
     $pnlContent.AddChild($detailCard)
 
+    # $rowsBox.Rows holds the live sensor list - a hashtable is a reference type, so mutating
+    # .Rows on each timer tick (below) is immediately visible to $render without needing
+    # GetNewClosure() to re-snapshot it (plain array/variable reassignment would NOT be visible
+    # to the already-created closure).
+    $rowsBox = @{ Rows = $allRows }
     $state = @{ Category = $null; Search = "" }
     $pillButtons = @{}
     $activeStyle = $Window.FindResource("CategoryPillActiveStyle")
     $normalStyle = $Window.FindResource("CategoryPillStyle")
 
     $render = {
-        $filtered = @($allRows | Where-Object {
+        $filtered = @($rowsBox.Rows | Where-Object {
             ($null -eq $state.Category -or $_.Category -eq $state.Category) -and
             ($state.Search.Length -eq 0 -or $_.SensorName -like "*$($state.Search)*" -or $_.HardwareName -like "*$($state.Search)*")
         })
@@ -401,4 +459,39 @@ function Show-PageYourPCSensors {
     $searchBox.Add_TextChanged({ $state.Search = $searchBox.Text.Trim(); & $render }.GetNewClosure())
 
     & $setPill "All"
+
+    # Keep sensor values updating in real time while this page stays open (stopped by
+    # Clear-GuiContent as soon as the user navigates away - see $Script:LivePageTimer).
+    # $gridScrollViewer is looked up lazily (resolved on the first tick, once the DataGrid's
+    # template is realized) and its offset is saved/restored around the refresh, so the user's
+    # scroll position survives the ItemsSource swap instead of jumping back to the top every 2s.
+    $gridScrollViewer = $null
+
+    # NOTE: a background-runspace fetch (to keep $Hw.Update() off the UI thread) was tried here and
+    # reverted - LibreHardwareMonitor's Computer/Hardware handles are opened on the main thread and
+    # reading them from a different thread came back empty (likely a thread-affinity requirement on
+    # the underlying Ring0 driver handles, not something this app can safely work around), so the
+    # fetch below stays synchronous on the UI thread like the CPU/GPU pages' own live-refresh timers.
+    $Script:LivePageTimer = New-Object System.Windows.Threading.DispatcherTimer
+    $Script:LivePageTimer.Interval = [TimeSpan]::FromSeconds(2)
+    $Script:LivePageTimer.Add_Tick({
+        if (-not $gridScrollViewer) { $gridScrollViewer = Get-DataGridScrollViewer $grid }
+        $offset = if ($gridScrollViewer) { $gridScrollViewer.VerticalOffset } else { 0 }
+        $newRows = Get-AllSensorRows -LhmOk $lhmOk -PawnIOInstalled $pawnIOInstalled
+
+        # NOTE: an in-place mutation optimization (update ValueText/MinText/MaxText on the existing
+        # SettSensorRow objects instead of reassigning ItemsSource, relying on INotifyPropertyChanged
+        # to refresh just the changed cell text with no container rebuild) was tried here and reverted -
+        # confirmed via diagnostic logging that the underlying data WAS changing correctly every tick,
+        # but the already-realized DataGridCell containers never redrew (likely an interaction between
+        # DataGridTextColumn's generated binding and this grid's GroupStyle/GroupDescriptions, which
+        # isn't trivial to fix). Reassigning ItemsSource (rebuilding groups/containers) every tick is
+        # the only path confirmed to reliably refresh the grid, so it's used unconditionally again -
+        # trades the small per-tick rebuild cost ("travadinha") for actually-live values, which matters
+        # more than smoothness here.
+        $rowsBox.Rows = $newRows
+        & $render
+        if ($gridScrollViewer) { $gridScrollViewer.ScrollToVerticalOffset($offset) }
+    }.GetNewClosure())
+    $Script:LivePageTimer.Start()
 }

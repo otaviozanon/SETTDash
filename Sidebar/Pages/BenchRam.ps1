@@ -79,13 +79,73 @@ function Show-PageBenchRam {
                     Write-GuiLog "RAM benchmark complete - write: $($result.WriteMBs) MB/s, copy: $($result.CopyMBs) MB/s" "OK"
                 }
 
+                # Pure-read + random-access latency sub-test (AIDA64-style Read/Latency scores).
+                $rl = $null
+                if (-not $Global:BenchRamCancel) {
+                    Add-GuiIconTitle $resultsStack "&#xE950;" "Read / Latency" "#F0883E" -AccentTitle -TitleColor "#F0883E"
+                    $readTitle = New-Object System.Windows.Controls.TextBlock
+                    $readTitle.Text = "Read Throughput (MB/s)"
+                    $readTitle.FontSize = 12; $readTitle.Margin = "0,8,0,4"
+                    $readTitle.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextSecondary")
+                    $resultsStack.AddChild($readTitle)
+                    $readChart = New-GuiLiveChart $resultsStack -Unit "MB/s"
+
+                    $latTitle = New-Object System.Windows.Controls.TextBlock
+                    $latTitle.Text = "Random-Access Latency (ns)"
+                    $latTitle.FontSize = 12; $latTitle.Margin = "0,4,0,4"
+                    $latTitle.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextSecondary")
+                    $resultsStack.AddChild($latTitle)
+                    $latChart = New-GuiLiveChart $resultsStack -Unit "ns"
+
+                    $rl = Get-RamReadLatencyResult -BufferSizeMB $result.BufferSizeMB -DurationSeconds ([math]::Min(20, $durState.Seconds)) `
+                        -OnReadSample { param($v) Add-GuiLiveChartSample $readChart $v }.GetNewClosure() `
+                        -OnLatencySample { param($v) Add-GuiLiveChartSample $latChart $v }.GetNewClosure() `
+                        -CancelCheck { $Global:BenchRamCancel }
+                    Complete-GuiLiveChart $readChart
+                    Complete-GuiLiveChart $latChart
+
+                    Add-GuiBenchStatTiles $resultsStack @(
+                        @{Label="Read Avg"; Value="$($rl.ReadMBs) MB/s"}
+                        @{Label="Latency"; Value="$($rl.LatencyNs) ns"}
+                    )
+                    Write-GuiLog "RAM read/latency - read: $($rl.ReadMBs) MB/s, latency: $($rl.LatencyNs) ns" "OK"
+                }
+
+                # Multi-threaded copy bandwidth sub-test (all-cores aggregate, AIDA64-style).
+                $mt = $null
+                if (-not $Global:BenchRamCancel) {
+                    Add-GuiIconTitle $resultsStack "&#xE950;" "Multi-Thread Bandwidth" "#F0883E" -AccentTitle -TitleColor "#F0883E"
+                    $mtTitle = New-Object System.Windows.Controls.TextBlock
+                    $mtTitle.Text = "All-Core Copy Bandwidth (MB/s)"
+                    $mtTitle.FontSize = 12; $mtTitle.Margin = "0,8,0,4"
+                    $mtTitle.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextSecondary")
+                    $resultsStack.AddChild($mtTitle)
+                    $mtChart = New-GuiLiveChart $resultsStack -Unit "MB/s"
+
+                    $mt = Get-RamMultiThreadCopyResult -BufferSizeMB $result.BufferSizeMB -DurationSeconds ([math]::Min(15, $durState.Seconds)) `
+                        -OnSample { param($v) Add-GuiLiveChartSample $mtChart $v }.GetNewClosure() `
+                        -CancelCheck { $Global:BenchRamCancel }
+                    Complete-GuiLiveChart $mtChart
+
+                    Add-GuiBenchStatTiles $resultsStack @(
+                        @{Label="MT Bandwidth"; Value="$($mt.AvgMBs) MB/s"}
+                        @{Label="Threads"; Value=$mt.Threads}
+                    )
+                    Write-GuiLog "RAM multi-thread bandwidth - $($mt.AvgMBs) MB/s across $($mt.Threads) threads" "OK"
+                }
+
                 # Cache the result (kept until the program closes) so the Export page can include it.
                 $Global:BenchRamLastResult = @{
+                    DeviceName      = (Get-BenchDeviceName "RAM")
                     DurationSeconds = $durState.Seconds
                     BufferSizeMB    = $result.BufferSizeMB
                     Passes          = $result.Passes
                     WriteMBs        = $result.WriteMBs
                     CopyMBs         = $result.CopyMBs
+                    ReadMBs         = if ($rl) { $rl.ReadMBs } else { $null }
+                    LatencyNs       = if ($rl) { $rl.LatencyNs } else { $null }
+                    MtBandwidthMBs  = if ($mt) { $mt.AvgMBs } else { $null }
+                    MtThreads       = if ($mt) { $mt.Threads } else { $null }
                     Cancelled       = $result.Cancelled
                     Timestamp       = Get-Date
                 }

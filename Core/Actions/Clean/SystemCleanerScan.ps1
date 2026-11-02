@@ -51,14 +51,14 @@ function Get-SystemCleanerItems {
         @{ Key='deliveryopt'; Label='Delivery Optimization';   Paths=@((Join-Path $env:windir 'SoftwareDistribution\DeliveryOptimization')) }
         @{ Key='prefetch';    Label='Prefetch Files';          Paths=@((Join-Path $env:windir 'Prefetch')) }
         @{ Key='memdumps';    Label='Memory Dumps';            Paths=@((Join-Path $env:windir 'Minidump'), (Join-Path $env:windir 'MEMORY.DMP')) }
-        @{ Key='wer';         Label='Windows Error Reports';   Paths=@('C:\ProgramData\Microsoft\Windows\WER') }
+        @{ Key='wer';         Label='Windows Error Reports';   Paths=@((Join-Path $env:ProgramData 'Microsoft\Windows\WER')) }
         @{ Key='winlogs';     Label='Windows Log Files';       Paths=@((Join-Path $env:windir 'Logs')) }
         @{ Key='thumbcache';  Label='Thumbnail Cache';         Paths=@((Join-Path $env:LOCALAPPDATA 'Microsoft\Windows\Explorer')) }
         @{ Key='shadercache'; Label='Shader Cache';            Paths=@((Join-Path $env:LOCALAPPDATA 'NVIDIA\DXCache'), (Join-Path $env:LOCALAPPDATA 'D3DSCache')) }
         @{ Key='chromecache'; Label='Google Chrome Cache';     Paths=@((Join-Path $env:LOCALAPPDATA 'Google\Chrome\User Data\Default\Cache')) }
         @{ Key='edgecache';   Label='Microsoft Edge Cache';    Paths=@((Join-Path $env:LOCALAPPDATA 'Microsoft\Edge\User Data\Default\Cache')) }
         @{ Key='firefoxcache';Label='Firefox Cache';           Paths=@((Join-Path $env:LOCALAPPDATA 'Mozilla\Firefox\Profiles')) }
-        @{ Key='recyclebin';  Label='Recycle Bin';             Paths=@('C:\$Recycle.Bin') }
+        @{ Key='recyclebin';  Label='Recycle Bin';             Paths=@((Join-Path $env:SystemDrive '$Recycle.Bin')) }
     )
     $items = @()
     foreach ($d in $defs) {

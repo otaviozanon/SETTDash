@@ -166,4 +166,15 @@ function Show-PageYourPCCpu {
 
         & $renderTab "Info"
     }
+
+    # Keep each card's active tab (Info or Sensors) updating in real time while this page stays
+    # open - stopped by Clear-GuiContent as soon as the user navigates away (see
+    # $Script:LivePageTimer). Reuses $cardRenderers (re-invokes whichever tab is currently active
+    # per card, respecting the search filter), same callback the search box already uses.
+    $Script:LivePageTimer = New-Object System.Windows.Threading.DispatcherTimer
+    $Script:LivePageTimer.Interval = [TimeSpan]::FromSeconds(2)
+    $Script:LivePageTimer.Add_Tick({
+        foreach ($r in $cardRenderers) { & $r }
+    }.GetNewClosure())
+    $Script:LivePageTimer.Start()
 }

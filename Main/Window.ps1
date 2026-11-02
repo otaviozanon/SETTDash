@@ -10,6 +10,15 @@ $Global:BenchCpuLastResult = $null
 $Global:BenchGpuLastResult = $null
 $Global:BenchRamLastResult = $null
 $Global:BenchDiskLastResult = $null
+# Sensors/CPU/GPU pages' auto-refresh timer (see Core\Helpers\Navigation.ps1's Clear-GuiContent).
+# Initialized here (before the first page ever loads) so Set-StrictMode -Version Latest does not
+# throw "cannot be retrieved because it has not been set" on the very first navigation/page load,
+# which always calls Clear-GuiContent before any Sensors/CPU/GPU page has had a chance to set it.
+$Script:LivePageTimer = $null
+# Optional cleanup scriptblock a page can attach to its $Script:LivePageTimer (e.g. to dispose a
+# background runspace it started) - invoked by Clear-GuiContent right after stopping the timer, then
+# cleared. See Sidebar\Pages\YourPCSensors.ps1's async LHM fetch for the motivating use case.
+$Script:LivePageTimerCleanup = $null
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
@@ -20,7 +29,7 @@ Add-Type -AssemblyName WindowsBase
 # ============================================
 # SETTDash v4.0
 # ============================================
-$Script:AppVersion = "4.0.2"
+$Script:AppVersion = "4.0.3"
 $Script:AppDir = try {
     [System.IO.Path]::GetDirectoryName([System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName)
 } catch { }

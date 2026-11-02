@@ -514,6 +514,59 @@ function Add-GuiInfoCard {
     return $card
 }
 
+# Resolves the hardware name/model behind a given benchmark category so exported results have
+# context (e.g. "GPU: Score 180 FPS" is meaningless on its own without knowing which GPU was
+# tested) - mirrors how CPU-Z/GPU-Z/CrystalDiskMark always print the device name in their report
+# header. Cached per-category on first call (hardware doesn't change mid-session) since WMI
+# queries are comparatively slow and these are read on every Export page render.
+# Category: "CPU", "GPU", or "Disk" ($TargetDir used to resolve the physical disk backing the
+# benchmark's temp file - defaults to $Script:TempDir, same drive every Disk sub-test writes to).
+$Script:BenchDeviceInfoCache = @{}
+function Get-BenchDeviceName {
+    param([string]$Category, [string]$TargetDir = $null)
+    if ($Script:BenchDeviceInfoCache.ContainsKey($Category)) { return $Script:BenchDeviceInfoCache[$Category] }
+    $name = "Unknown"
+    try {
+        switch ($Category) {
+            "CPU" {
+                $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
+                if ($cpu -and $cpu.Name) { $name = $cpu.Name.Trim() }
+            }
+            "GPU" {
+                $gpu = Get-CimInstance Win32_VideoController | Select-Object -First 1
+                if ($gpu -and $gpu.Name) { $name = $gpu.Name.Trim() }
+            }
+            "RAM" {
+                $mem = Get-CimInstance Win32_PhysicalMemory | Select-Object -First 1
+                if ($mem) {
+                    $speed = if ($mem.Speed) { " $($mem.Speed)MHz" } else { "" }
+                    $manuf = if ($mem.Manufacturer) { $mem.Manufacturer.Trim() + " " } else { "" }
+                    $name = "$manuf$($mem.PartNumber)".Trim() + $speed
+                    if (-not $mem.PartNumber) { $name = "RAM$speed" }
+                }
+            }
+            "Disk" {
+                if (-not $TargetDir) { $TargetDir = $Script:TempDir }
+                if (-not $TargetDir -or -not (Test-Path $TargetDir)) { $TargetDir = [System.IO.Path]::GetTempPath() }
+                $driveLetter = [System.IO.Path]::GetPathRoot($TargetDir).TrimEnd('\').TrimEnd(':')
+                $partition = Get-CimInstance Win32_LogicalDiskToPartition | Where-Object { $_.Dependent -like "*`"$driveLetter`:`"*" } | Select-Object -First 1
+                $disk = $null
+                if ($partition -and $partition.Antecedent -match 'Disk #(\d+)') {
+                    $diskIndex = [int]$Matches[1]
+                    $disk = Get-CimInstance Win32_DiskDrive | Where-Object { $_.Index -eq $diskIndex } | Select-Object -First 1
+                }
+                if (-not $disk) { $disk = Get-CimInstance Win32_DiskDrive | Select-Object -First 1 }
+                if ($disk -and $disk.Model) {
+                    $mediaType = if ($disk.MediaType -match "SSD" -or $disk.Model -match "SSD|NVMe") { "SSD" } elseif ($disk.MediaType -match "Fixed hard disk") { "HDD" } else { "" }
+                    $name = $disk.Model.Trim() + $(if ($mediaType) { " ($mediaType)" } else { "" })
+                }
+            }
+        }
+    } catch { }
+    $Script:BenchDeviceInfoCache[$Category] = $name
+    return $name
+}
+
 # Renders a "Test length:" label + theme-aware ComboBox letting the user pick the benchmark run
 # length (e.g. 30/60/120s) before clicking "Run Benchmark" - same ComboBox used by BenchGpu.ps1's
 # test length/type selectors (New-GuiThemedComboBox below). Appended to $Panel. Returns a

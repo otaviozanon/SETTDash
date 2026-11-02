@@ -19,9 +19,20 @@ function Update-GuiNavActive { param([string]$activeTag)
 
 # Wipes the main content panel ($pnlContent) before rendering a new page, and resets the
 # Home page gauge references so stale gauge objects aren't updated by the metrics timer.
+# Also stops any live-refresh timer started by the page being left (Sensors/CPU/GPU pages'
+# sensor auto-refresh - see $Script:LivePageTimer) so it doesn't keep polling/rendering into
+# a page that's no longer on screen.
 function Clear-GuiContent {
     $pnlContent.Children.Clear()
     $Script:HomeCpuGauge = $null
     $Script:HomeRamGauge = $null
     $Script:HomeGpuGauges = @()
+    if ((Get-Variable -Name LivePageTimer -Scope Script -ErrorAction SilentlyContinue) -and $Script:LivePageTimer) {
+        $Script:LivePageTimer.Stop()
+        $Script:LivePageTimer = $null
+    }
+    if ((Get-Variable -Name LivePageTimerCleanup -Scope Script -ErrorAction SilentlyContinue) -and $Script:LivePageTimerCleanup) {
+        try { & $Script:LivePageTimerCleanup } catch {}
+        $Script:LivePageTimerCleanup = $null
+    }
 }

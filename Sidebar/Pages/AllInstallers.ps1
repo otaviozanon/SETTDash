@@ -4,6 +4,18 @@ $global:AllAppsData = @{}
 $global:AllSelectedSet = New-Object 'System.Collections.Generic.List[int]'
 $global:AllInstallBtn = $null
 $global:AllWrapPanels = $null
+# Maps each category's WrapPanel -> its "Select all"/"Unselect all" TextBlock, so individual
+# checkbox toggles can keep the link's label in sync with the category's actual checked state.
+$global:AllSelectAllLinks = @{}
+
+function Sync-AllSelectAllLabel {
+    param($wp)
+    if ($null -eq $wp -or $null -eq $global:AllSelectAllLinks[$wp]) { return }
+    $boxes = @($wp.Children | Where-Object { $_ -is [System.Windows.Controls.Border] -and $_.Child -is [System.Windows.Controls.CheckBox] } | ForEach-Object { $_.Child })
+    if ($boxes.Count -eq 0) { return }
+    $allChecked = -not ($boxes | Where-Object { -not $_.IsChecked } | Select-Object -First 1)
+    $global:AllSelectAllLinks[$wp].Text = if ($allChecked) { "Unselect all" } else { "Select all" }
+}
 
 function Invoke-AllChecked {
     param($cb, $e)
@@ -24,6 +36,7 @@ function Invoke-AllChecked {
         $global:AllInstallBtn.Content = "Install Selected [$cnt]"
         $global:AllInstallBtn.SetResourceReference([System.Windows.Controls.Button]::BackgroundProperty, $(if ($cnt -gt 0) { "Brush_Accent" } else { "Brush_Disabled" }))
     }
+    if ($bd -is [System.Windows.Controls.Border]) { Sync-AllSelectAllLabel $bd.Parent }
 }
 
 function Invoke-AllUnchecked {
@@ -41,6 +54,7 @@ function Invoke-AllUnchecked {
         $global:AllInstallBtn.Content = "Install Selected [$cnt]"
         $global:AllInstallBtn.SetResourceReference([System.Windows.Controls.Button]::BackgroundProperty, $(if ($cnt -gt 0) { "Brush_Accent" } else { "Brush_Disabled" }))
     }
+    if ($bd -is [System.Windows.Controls.Border]) { Sync-AllSelectAllLabel $bd.Parent }
 }
 
 function Invoke-AllFilter {
@@ -78,6 +92,7 @@ function Show-PageAllInstallers {
     # --- Data ---
     $global:AllAppsData.Clear()
     $global:AllSelectedSet.Clear()
+    $global:AllSelectAllLinks.Clear()
 
     # --- Search + Install bar ---
     $topRow = New-Object System.Windows.Controls.StackPanel
@@ -398,7 +413,7 @@ function Show-PageAllInstallers {
             $catBadge.Child = $badgeText
             [System.Windows.Controls.Grid]::SetColumn($catBadge, 2); $catGrid.AddChild($catBadge)
 
-            # Select all link
+            # Select all / Unselect all link (toggles label + action based on current state)
             $selAll = New-Object System.Windows.Controls.TextBlock
             $selAll.Text = "Select all"
             $selAll.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextSecondary")
@@ -410,11 +425,14 @@ function Show-PageAllInstallers {
             $selAll.Add_MouseLeftButtonUp({
                 $targetWp = $this.Tag
                 if ($null -eq $targetWp) { return }
-                foreach ($b in $targetWp.Children) {
-                    if ($b -is [System.Windows.Controls.Border] -and $b.Child -is [System.Windows.Controls.CheckBox]) {
-                        $b.Child.IsChecked = $true
-                    }
-                }
+                $boxes = @($targetWp.Children | Where-Object { $_ -is [System.Windows.Controls.Border] -and $_.Child -is [System.Windows.Controls.CheckBox] } | ForEach-Object { $_.Child })
+                if ($boxes.Count -eq 0) { return }
+                # If every checkbox in this category is already checked, clicking unselects all;
+                # otherwise (none or some checked) clicking selects all.
+                $allChecked = -not ($boxes | Where-Object { -not $_.IsChecked } | Select-Object -First 1)
+                $newState = -not $allChecked
+                foreach ($box in $boxes) { $box.IsChecked = $newState }
+                $this.Text = if ($newState) { "Unselect all" } else { "Select all" }
             })
 
             $catCard.Child = $catGrid
@@ -426,6 +444,7 @@ function Show-PageAllInstallers {
 
             # Set Tag AFTER wp is created for THIS category
             $selAll.Tag = $wp
+            $global:AllSelectAllLinks[$wp] = $selAll
 
             # Toggle handler -- skip if click came from Select all link
             $catCard.Add_MouseLeftButtonUp({
