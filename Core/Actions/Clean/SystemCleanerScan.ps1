@@ -79,6 +79,7 @@ function Get-SystemCleanerItems {
 # Cleans the given System Cleaner items (array of the objects returned by Get-SystemCleanerItems).
 function Invoke-SystemCleanerClean {
     param([array]$Items)
+    if (-not $Items -or $Items.Count -eq 0) { Write-GuiLog "No items selected." "WARN"; return }
     $total = $Items.Count
     $cleaned = 0; $freed = 0
     for ($i = 0; $i -lt $total; $i++) {

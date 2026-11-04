@@ -61,19 +61,37 @@ function Get-StartupManagerItems {
         }
     }
 
+    # Task Scheduler entries with a logon trigger.
+    # Deliberately a plain foreach over the task list (NOT `Get-ScheduledTask | ForEach-Object`):
+    # driving nested Where-Object pipelines from inside a pipeline stage made every strict-mode
+    # property error (below) blow the stack - the process died with "a new guard page for the
+    # stack cannot be created" and no managed handler could run, so no error report was written.
+    # Triggers/actions are read through Get-SafeProp because some of them really do not expose
+    # CimClass/Execute, and a missing property must be "skip", not an exception.
     try {
-        Get-ScheduledTask -ErrorAction SilentlyContinue | ForEach-Object {
-            $task = $_
-            $hasLogon = $task.Triggers | Where-Object { $_.CimClass.CimClassName -eq 'MSFT_TaskLogonTrigger' }
-            if ($hasLogon -and $task.TaskPath -notmatch '^\\Microsoft\\') {
-                $action = $task.Actions | Where-Object { $_.CimClass.CimClassName -eq 'MSFT_TaskExecAction' } | Select-Object -First 1
-                if ($action) {
-                    $cmd = if ($action.Arguments) { "$($action.Execute) $($action.Arguments)" } else { $action.Execute }
-                    $items += [pscustomobject]@{
-                        Label=$task.TaskName; Detail=$cmd; Selected=($task.State -eq 'Ready' -or $task.State -eq 'Running')
-                        Name=$task.TaskName; Command=$cmd; Location='Task Scheduler'; Source='task-scheduler'
-                    }
-                }
+        foreach ($task in @(Get-ScheduledTask -ErrorAction SilentlyContinue)) {
+            $hasLogon = $false
+            foreach ($trigger in @(Get-SafeProp $task 'Triggers')) {
+                $cim = Get-SafeProp $trigger 'CimClass'
+                if ($cim -and (Get-SafeProp $cim 'CimClassName') -eq 'MSFT_TaskLogonTrigger') { $hasLogon = $true; break }
+            }
+            if (-not $hasLogon) { continue }
+            if ((Get-SafeProp $task 'TaskPath') -match '^\\Microsoft\\') { continue }
+
+            $action = $null
+            foreach ($candidate in @(Get-SafeProp $task 'Actions')) {
+                $cim = Get-SafeProp $candidate 'CimClass'
+                if ($cim -and (Get-SafeProp $cim 'CimClassName') -eq 'MSFT_TaskExecAction') { $action = $candidate; break }
+            }
+            if (-not $action) { continue }
+
+            $execute = Get-SafeProp $action 'Execute'
+            $arguments = Get-SafeProp $action 'Arguments'
+            $cmd = if ($arguments) { "$execute $arguments" } else { $execute }
+            $state = Get-SafeProp $task 'State'
+            $items += [pscustomobject]@{
+                Label=(Get-SafeProp $task 'TaskName'); Detail=$cmd; Selected=($state -eq 'Ready' -or $state -eq 'Running')
+                Name=(Get-SafeProp $task 'TaskName'); Command=$cmd; Location='Task Scheduler'; Source='task-scheduler'
             }
         }
     } catch { }

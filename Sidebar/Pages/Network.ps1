@@ -11,7 +11,8 @@ function Show-PageNetwork {
         param($p)
         Add-GuiBtn $p "Scan" "RevertButtonStyle" {
             Set-GuiProgress 20 "Scanning network cache and profiles..."
-            $Script:CleanNetworkItems = Get-NetworkCleanupItems
+            # Same $null-vs-empty-array trap as the Clean page: wrap so .Count is always valid.
+            $Script:CleanNetworkItems = @(Get-NetworkCleanupItems)
             Set-GuiProgress 90
             Set-CleanChecklist $Script:pnlCleanNetworkList $Script:CleanNetworkItems "Nothing to clean." "plain"
             Expand-GuiCard $Script:CleanNetworkBox
@@ -19,7 +20,7 @@ function Show-PageNetwork {
             Write-GuiLog "Network Cleanup: $($Script:CleanNetworkItems.Count) items found" "OK"
         }
         Add-GuiBtn $p "Clean Selected" "ActionButtonStyle" {
-            $selected = Get-CleanSelected $Script:CleanNetworkItems
+            $selected = @(Get-CleanSelected $Script:CleanNetworkItems)
             if ($selected.Count -eq 0) { Write-GuiLog "No items selected." "WARN"; return }
             Invoke-NetworkCleanupClean -Items $selected
         }

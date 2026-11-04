@@ -135,7 +135,12 @@ jobs:
         shell: pwsh
         run: |
           Import-Module ps2exe
-          Invoke-ps2exe -inputFile SETTDash.ps1 -outputFile SETTDash.exe -iconFile SETTDash.ico -noConsole -requireAdmin -x86 -title "SETTDash" -description "All-in-one Windows optimization & tweaking dashboard" -product "SETTDash" -company "otaviozanon" -version "${{ steps.ver.outputs.version }}"
+          # Compiled -x64 on purpose. As a 32-bit process the app was subject to WOW64 redirection:
+          # System32 -> SysWOW64 (so 64-bit-only tools like wsreset.exe/msconfig.exe could not be
+          # launched), %ProgramFiles% -> "Program Files (x86)" (so 64-bit apps were never found) and
+          # HKLM:\SOFTWARE -> ...\WOW6432Node (so registry tweaks silently wrote the wrong key).
+          # Windows 11 only exists as x64/ARM64, so 32-bit Windows is no longer a target.
+          Invoke-ps2exe -inputFile SETTDash.ps1 -outputFile SETTDash.exe -iconFile SETTDash.ico -noConsole -requireAdmin -x64 -title "SETTDash" -description "All-in-one Windows optimization & tweaking dashboard" -product "SETTDash" -company "otaviozanon" -version "${{ steps.ver.outputs.version }}"
           if (-not (Test-Path SETTDash.exe)) { throw "Build failed: SETTDash.exe not found" }
 
       - name: Upload artifact

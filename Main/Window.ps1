@@ -37,7 +37,12 @@ if ([string]::IsNullOrEmpty($Script:AppDir)) { $Script:AppDir = if ($PSScriptRoo
 if ([string]::IsNullOrEmpty($Script:AppDir)) { $Script:AppDir = if ($MyInvocation.MyCommand.Path) { Split-Path -Parent $MyInvocation.MyCommand.Path } }
 if ([string]::IsNullOrEmpty($Script:AppDir)) { $Script:AppDir = Split-Path -Parent $PSCommandPath }
 if ([string]::IsNullOrEmpty($Script:AppDir)) { $Script:AppDir = Get-Location | Select-Object -ExpandProperty Path }
-$Script:TempDir = Join-Path $env:TEMP "SETTDash"
+# Runtime files (embedded programs, P/Invoke libraries, the JetBrains Mono font) are extracted
+# under %LOCALAPPDATA%, NEVER under %TEMP%: "Temp Files"/"Full Cleanup" wipes %TEMP% while the app
+# is still running, which deleted the extracted font and made WPF throw "Unable to find the
+# specified file." on the next log line (crash popup + app exit). Anything the app needs for its
+# own lifetime has to survive its own cleanup.
+$Script:TempDir = Join-Path $env:LOCALAPPDATA "SETTDash\runtime"
 if (-not (Test-Path $Script:TempDir)) { New-Item -Path $Script:TempDir -ItemType Directory -Force | Out-Null }
 
 

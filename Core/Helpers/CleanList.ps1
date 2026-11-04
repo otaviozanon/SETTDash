@@ -200,6 +200,10 @@ function Set-CleanChecklist {
 }
 
 # Returns only the items in $Items whose Selected flag is currently true.
+# NOTE: like every other collection-returning function here, an empty result comes back as
+# $null (PowerShell unrolls the empty array). Callers must normalize with @(...) before
+# touching .Count - $null.Count throws "The property 'Count' cannot be found on this object"
+# under Set-StrictMode.
 function Get-CleanSelected {
     param([array]$Items)
     if (-not $Items) { return @() }

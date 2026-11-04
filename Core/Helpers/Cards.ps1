@@ -330,6 +330,10 @@ function Add-GuiBtn {
             # be diagnosed from the in-app log alone instead of requiring a repro/trace session.
             Write-GuiLog "Action failed: $($_.Exception.Message)" "ERR"
             if ($_.ScriptStackTrace) { Write-GuiLog $_.ScriptStackTrace "ERR" }
+            # Full exception (with the .NET stack) goes to the error report as well, so the report
+            # survives even if the UI thread dies right after this handler.
+            Write-ErrorLog "ACTION FAILED ($Text): $($_.Exception.ToString())"
+            if ($_.ScriptStackTrace) { Write-ErrorLog "SCRIPT STACK: $($_.ScriptStackTrace)" }
             Set-GuiProgress 0
         }
     }.GetNewClosure())

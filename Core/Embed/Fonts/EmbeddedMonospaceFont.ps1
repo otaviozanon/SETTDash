@@ -1,6 +1,6 @@
 ﻿#region EMBEDDED MONOSPACE FONT
 # JetBrains Mono TTFs are embedded (base64 + GZip) directly in this script,
-# extracted to %TEMP%\SETTDash\Fonts at runtime, and loaded via FontFamily URI.
+# extracted to %LOCALAPPDATA%\SETTDash\runtime\Fonts at runtime, and loaded via FontFamily URI.
 # No external Fonts folder or font installation is required.
 $Script:EmbeddedFonts = @{}
 $Script:EmbeddedFonts['JetBrainsMono-Regular.ttf'] = @'
@@ -30,7 +30,18 @@ try {
     $fontFile = Join-Path $fontsDir "JetBrainsMono-Regular.ttf"
     if (Test-Path $fontFile) {
         $fontBaseUri = New-Object System.Uri(($fontsDir.TrimEnd('\') + '\'))
-        $Script:MonoFontFamily = New-Object System.Windows.Media.FontFamily($fontBaseUri, "./#JetBrains Mono")
+        $candidate = New-Object System.Windows.Media.FontFamily($fontBaseUri, "./#JetBrains Mono")
+        # WPF reads the TTF again (lazily) every time it has to measure glyphs, so a font file that
+        # disappears - or that never decodes - poisons EVERY later text operation with
+        # "Unable to find the specified file." Prove the family can actually render before using
+        # it; otherwise stay on Consolas instead of arming a time bomb for the log window.
+        $probe = New-Object System.Windows.Media.FormattedText(
+            "SETTDash", [System.Globalization.CultureInfo]::InvariantCulture,
+            [System.Windows.FlowDirection]::LeftToRight,
+            (New-Object System.Windows.Media.Typeface($candidate, [System.Windows.FontStyles]::Normal, [System.Windows.FontWeights]::Normal, [System.Windows.FontStretches]::Normal)),
+            12, [System.Windows.Media.Brushes]::Black, 1.0)
+        $null = $probe.Width
+        $Script:MonoFontFamily = $candidate
     }
 } catch { }
 if ($txtLog) { $txtLog.FontFamily = $Script:MonoFontFamily }

@@ -27,7 +27,11 @@ function Backup-RegistryKey {
         $safeName = ($KeyPath -replace '[\\:\s]', '_')
         $file = Join-Path $backupDir ("{0}_{1}.reg" -f $safeName, (Get-Date -Format "yyyyMMddHHmmss"))
         $regPath = $KeyPath -replace '^HKLM:\\', 'HKLM\' -replace '^HKCU:\\', 'HKCU\'
-        Start-Process -FilePath "reg.exe" -ArgumentList @("export", "`"$regPath`"", "`"$file`"", "/y") -WindowStyle Hidden -Wait -ErrorAction SilentlyContinue
+        # reg.exe resolved through Get-SystemToolPath so the backup also works from a 32-bit host
+        # (System32 -> SysWOW64 redirection). Backup is best-effort: never blocks a fix.
+        $regExe = Get-SystemToolPath "reg.exe"
+        if (-not $regExe) { return }
+        Start-Process -FilePath $regExe -ArgumentList @("export", "`"$regPath`"", "`"$file`"", "/y") -WindowStyle Hidden -Wait -ErrorAction SilentlyContinue
     } catch { }
 }
 
@@ -143,6 +147,7 @@ function Get-RegistryCleanerItems {
 # Applies the fix for each selected item, backing up the key first. Returns @{Fixed;Failed}.
 function Invoke-RegistryCleanerFix {
     param([array]$Items)
+    if (-not $Items -or $Items.Count -eq 0) { Write-GuiLog "No items selected." "WARN"; return @{Fixed=0; Failed=0} }
     $total = $Items.Count
     $fixed = 0; $failed = 0
     for ($i = 0; $i -lt $total; $i++) {

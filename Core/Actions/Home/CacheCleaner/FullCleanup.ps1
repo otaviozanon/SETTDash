@@ -9,15 +9,24 @@ function Invoke-CleanAll {
     Set-GuiProgress 5 "Running ADVANCED SYSTEM CLEANUP..."
     Write-GuiLog "Running ADVANCED SYSTEM CLEANUP..." "STEP"
 
-    Invoke-CleanTempFiles
-    Invoke-CleanBrowserCache
-    Invoke-CleanUpdateCache
-    Invoke-CleanPrefetch
-    Invoke-CleanStoreCache
-    Invoke-CleanLogFiles
-    Invoke-CleanMemoryDumps
-    Invoke-CleanDeliveryOpt
-    Invoke-CleanShaderCache
+    # Each category runs isolated: one failing step (missing tool, locked file, service that won't
+    # stop) must not abort the rest of the cleanup. Before this, a single throw here - e.g. the
+    # Store Cache step on a 32-bit host - stopped every category after it.
+    $steps = @(
+        @{ Name = "Temp files";            Action = { Invoke-CleanTempFiles } },
+        @{ Name = "Browser cache";         Action = { Invoke-CleanBrowserCache } },
+        @{ Name = "Windows Update cache";  Action = { Invoke-CleanUpdateCache } },
+        @{ Name = "Prefetch";              Action = { Invoke-CleanPrefetch } },
+        @{ Name = "Store cache";           Action = { Invoke-CleanStoreCache } },
+        @{ Name = "Log files";             Action = { Invoke-CleanLogFiles } },
+        @{ Name = "Memory dumps";          Action = { Invoke-CleanMemoryDumps } },
+        @{ Name = "Delivery Optimization"; Action = { Invoke-CleanDeliveryOpt } },
+        @{ Name = "Shader cache";          Action = { Invoke-CleanShaderCache } }
+    )
+    foreach ($step in $steps) {
+        try { & $step.Action }
+        catch { Write-GuiLog "$($step.Name) step failed: $($_.Exception.Message)" "ERR" }
+    }
 
     Set-GuiProgress 85 "Cleaning extra system paths..."
     $windir = $env:windir
@@ -33,9 +42,14 @@ function Invoke-CleanAll {
 
     Set-GuiProgress 95 "Cleaning event logs..."
     try {
-        $logs = wevtutil el 2>$null
-        if ($logs) { foreach ($log in $logs) { wevtutil cl "$log" 2>$null }; Write-GuiLog "Event logs cleaned" "OK" }
-    } catch { }
+        # wevtutil resolved through Get-SystemToolPath: in a 32-bit host PATH lookup lands in
+        # SysWOW64 first, and a missing binary would otherwise throw a native-command error.
+        $wevtutil = Get-SystemToolPath "wevtutil.exe"
+        if ($wevtutil) {
+            $logs = & $wevtutil el 2>$null
+            if ($logs) { foreach ($log in $logs) { & $wevtutil cl "$log" 2>$null }; Write-GuiLog "Event logs cleaned" "OK" }
+        } else { Write-GuiLog "Event logs skipped: wevtutil.exe was not found" "WARN" }
+    } catch { Write-GuiLog "Event log cleanup failed: $($_.Exception.Message)" "WARN" }
 
     Write-GuiLog "Advanced cleanup completed!" "OK"
     Set-GuiProgress 0

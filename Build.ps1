@@ -48,6 +48,7 @@ $parts = @(
     "Core\Helpers\Cards.ps1",
     "Core\Helpers\RegistryHelpers.ps1",
     "Core\Helpers\FileCleanup.ps1",
+    "Core\Helpers\SystemPaths.ps1",
     "Core\Helpers\InstallHelpers.ps1",
     "Core\Helpers\UpdateChecker.ps1",
     "Core\Actions\Utilities.ps1",

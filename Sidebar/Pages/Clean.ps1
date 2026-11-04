@@ -18,7 +18,9 @@ function Show-PageClean {
         param($p)
         Add-GuiBtn $p "Scan" "RevertButtonStyle" {
             Set-GuiProgress 20 "Scanning system cache/temp locations..."
-            $Script:CleanSystemItems = Get-SystemCleanerItems
+            # @(...): a scan that finds nothing returns $null from PowerShell, and $null.Count
+            # throws "The property 'Count' cannot be found on this object" under StrictMode.
+            $Script:CleanSystemItems = @(Get-SystemCleanerItems)
             Set-GuiProgress 90
             Set-CleanChecklist $Script:pnlCleanSystemList $Script:CleanSystemItems "No cleanable items found." "size"
             Expand-GuiCard $Script:CleanSystemBox
@@ -26,7 +28,7 @@ function Show-PageClean {
             Write-GuiLog "System Cleaner: $($Script:CleanSystemItems.Count) categories scanned" "OK"
         }
         Add-GuiBtn $p "Clean Selected" "ActionButtonStyle" {
-            $selected = Get-CleanSelected $Script:CleanSystemItems
+            $selected = @(Get-CleanSelected $Script:CleanSystemItems)
             if ($selected.Count -eq 0) { Write-GuiLog "No items selected." "WARN"; return }
             Invoke-SystemCleanerClean -Items $selected
         }
@@ -44,7 +46,7 @@ function Show-PageClean {
         param($p)
         Add-GuiBtn $p "Scan" "RevertButtonStyle" {
             Set-GuiProgress 20 "Scanning registry for broken entries..."
-            $Script:CleanRegistryItems = Get-RegistryCleanerItems
+            $Script:CleanRegistryItems = @(Get-RegistryCleanerItems)
             Set-GuiProgress 90
             Set-CleanChecklist $Script:pnlCleanRegistryList $Script:CleanRegistryItems "No registry issues found." "plain"
             Expand-GuiCard $Script:CleanRegistryBox
@@ -52,7 +54,7 @@ function Show-PageClean {
             Write-GuiLog "Registry Cleaner: $($Script:CleanRegistryItems.Count) issues found" "OK"
         }
         Add-GuiBtn $p "Fix Selected" "ActionButtonStyle" {
-            $selected = Get-CleanSelected $Script:CleanRegistryItems
+            $selected = @(Get-CleanSelected $Script:CleanRegistryItems)
             if ($selected.Count -eq 0) { Write-GuiLog "No items selected." "WARN"; return }
             Invoke-RegistryCleanerFix -Items $selected
         }
@@ -71,7 +73,7 @@ function Show-PageClean {
         param($p)
         Add-GuiBtn $p "Scan" "RevertButtonStyle" {
             Set-GuiProgress 20 "Scanning startup entries..."
-            $Script:CleanStartupItems = Get-StartupManagerItems
+            $Script:CleanStartupItems = @(Get-StartupManagerItems)
             Set-GuiProgress 90
             Set-CleanChecklist $Script:pnlCleanStartupList $Script:CleanStartupItems "No startup items found." "toggle" $Script:CleanStartupToggle
             Expand-GuiCard $Script:CleanStartupBox
@@ -79,7 +81,7 @@ function Show-PageClean {
             Write-GuiLog "Startup Manager: $($Script:CleanStartupItems.Count) entries found" "OK"
         }
         Add-GuiBtn $p "Delete Selected" "ActionButtonStyle" {
-            $selected = Get-CleanSelected $Script:CleanStartupItems
+            $selected = @(Get-CleanSelected $Script:CleanStartupItems)
             foreach ($it in $selected) { Remove-StartupItem -Item $it }
         }
     } "&#xE7B5;" -WrapButtons -CollapseTarget $Script:CleanStartupBox

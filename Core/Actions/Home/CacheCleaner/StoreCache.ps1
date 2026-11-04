@@ -5,15 +5,21 @@
 # Used by: Home (Cache Cleaner > "Store Cache"); also called internally by Invoke-CleanAll
 function Invoke-CleanStoreCache {
     Set-GuiProgress 50
-    # Start-Process throws a terminating Win32Exception ("Unable to find the specified file")
-    # when the target executable can't be resolved (e.g. wsreset.exe missing from PATH on some
-    # installs) - this is NOT a normal PowerShell error record, so -ErrorAction SilentlyContinue
-    # does not suppress it, and an uncaught exception here closes the whole app. Wrap in try/catch.
+    # wsreset.exe only exists in the 64-bit System32 folder. In a 32-bit host (e.g. running
+    # SETTDash.ps1 from 32-bit PowerShell) System32 is redirected to SysWOW64 and a bare
+    # Start-Process "wsreset.exe" fails with "The system cannot find the file specified" - the
+    # error that broke Clean > Full Cleanup. Resolve the real 64-bit path via Get-SystemToolPath.
+    $wsreset = Get-SystemToolPath "wsreset.exe"
+    if (-not $wsreset) {
+        Write-GuiLog "Store cache reset skipped: wsreset.exe was not found" "WARN"
+        Set-GuiProgress 0
+        return
+    }
     try {
-        Start-Process "wsreset.exe" -WindowStyle Hidden -ErrorAction Stop
+        Start-Process -FilePath $wsreset -WindowStyle Hidden -ErrorAction Stop
         Write-GuiLog "Store cache reset initiated" "OK"
     } catch {
-        Write-GuiLog "Store cache reset failed: wsreset.exe not found" "ERR"
+        Write-GuiLog "Store cache reset failed: $($_.Exception.Message)" "ERR"
     }
     Set-GuiProgress 0
 }

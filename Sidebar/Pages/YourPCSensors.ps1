@@ -34,10 +34,10 @@ public class SettSensorRow : INotifyPropertyChanged
 # Used by: Sensors page only.
 # Mirrors ResetExplode's SensorMonitor.IsPawnIOInstalled: PawnIO registers this exact
 # uninstall key when installed (used by LibreHardwareMonitor/FanControl too).
-# NOTE: the official release .exe is compiled -x86 (32-bit), so a plain "HKLM:\SOFTWARE\..."
-# path gets silently redirected by WOW64 to "HKLM:\SOFTWARE\WOW6432Node\...", where PawnIO's
-# (64-bit) installer never writes its key - causing "not installed" false negatives on 64-bit
-# Windows even when PawnIO is present. Open the 64-bit registry view explicitly (like
+# NOTE: a plain "HKLM:\SOFTWARE\..." path is silently redirected by WOW64 to
+# "HKLM:\SOFTWARE\WOW6432Node\..." whenever SETTDash runs inside a 32-bit host, and PawnIO's
+# (64-bit) installer never writes its key there - causing "not installed" false negatives on
+# 64-bit Windows even when PawnIO is present. Open the 64-bit registry view explicitly (like
 # LibreHardwareMonitorLib's own PawnIo.cs does) so detection is correct regardless of this
 # process's bitness.
 function Test-PawnIOInstalled {
@@ -273,8 +273,11 @@ function Get-AllSensorRows {
     } catch { & $add "Storage" "Load" "Status" "Disk activity counters unavailable." }
 
     try {
-        $nics = Get-CimInstance Win32_PerfFormattedData_Tcpip_NetworkInterface -ErrorAction Stop |
-            Where-Object { $_.Name -notmatch "isatap|Loopback|Teredo" -and ($_.BytesTotalPersec -gt 0) }
+        # @(...): if every adapter is filtered out the pipeline emits nothing ($null), and
+        # $null.Count throws under StrictMode - which would surface as a bogus "counters
+        # unavailable" error instead of the "no active interface" message below.
+        $nics = @(Get-CimInstance Win32_PerfFormattedData_Tcpip_NetworkInterface -ErrorAction Stop |
+            Where-Object { $_.Name -notmatch "isatap|Loopback|Teredo" -and ($_.BytesTotalPersec -gt 0) })
         foreach ($n in $nics) {
             & $add $n.Name "Throughput" "Upload" "$([math]::Round($n.BytesSentPersec * 8 / 1MB, 2)) Mbps"
             & $add $n.Name "Throughput" "Download" "$([math]::Round($n.BytesReceivedPersec * 8 / 1MB, 2)) Mbps"

@@ -18,10 +18,10 @@
 # redraw - the other symptom reported as "crashing".
 function Get-RamBenchmarkResult {
     param([int]$BufferSizeMB = 512, [double]$DurationSeconds = 30, [scriptblock]$OnWriteSample = $null, [scriptblock]$OnCopySample = $null, [scriptblock]$CancelCheck = $null, [double]$MinPassSeconds = 0.15)
-    # The released .exe is compiled -x86 (32-bit), so this process only has ~2 GB of address
-    # space. Allocating two 512 MB byte[] buffers (1 GB total) back-to-back as contiguous blocks
-    # can throw OutOfMemoryException on a 32-bit process even with plenty of free system RAM, once
-    # the managed heap (especially the Large Object Heap) is fragmented by everything else WPF has
+    # Under a 32-bit host (SETTDash.ps1 in 32-bit PowerShell) this process only has ~2 GB of
+    # address space. Allocating two 512 MB byte[] buffers (1 GB total) back-to-back as contiguous
+    # blocks can throw OutOfMemoryException there even with plenty of free system RAM, once the
+    # managed heap (especially the Large Object Heap) is fragmented by everything else WPF has
     # already allocated - not an actual low-memory condition. Shrink the default buffer on 32-bit
     # processes, and retry with progressively smaller buffers if allocation still fails, instead of
     # letting the whole benchmark crash with an unhelpful .ctor OutOfMemoryException.

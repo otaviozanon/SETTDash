@@ -12,7 +12,7 @@ function Invoke-CheckForUpdates {
     )
     Write-GuiLog "Checking for updates..." "STEP"
     try {
-        # .NET Framework (WinPS 5.1 under the compiled -x86 exe) defaults to older TLS;
+        # .NET Framework (the host WinPS 5.1 the compiled exe runs on) defaults to older TLS;
         # GitHub API/objects require TLS 1.2 or the asset download aborts mid-transfer.
         [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor [System.Net.SecurityProtocolType]::Tls12
         $apiUrl = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest"
@@ -282,9 +282,10 @@ function Invoke-SelfUpdate {
 
     # Synchronous download, scheduled only once the popup has rendered (Add_ContentRendered,
     # so "Blocking..." text is visible while the UI thread is inside the sync request).
-    # Rationale: the async WebClient (DownloadFileAsync) under the compiled exe's WinPS 5.1
-    # x86 stack aborts the 5.4MB asset transfer at ~20% on every attempt; the exact same
-    # URL downloaded synchronously completes fine. TLS 1.2 is forced by Invoke-CheckForUpdates.
+    # Rationale: the async WebClient (DownloadFileAsync) under the compiled exe's WinPS 5.1 host
+    # aborted the 5.4MB asset transfer at ~20% on every attempt back when the exe was built
+    # 32-bit; the exact same URL downloaded synchronously completes fine, so the sync path is
+    # kept (it works under both 32- and 64-bit hosts).
     $progressWin.Add_ContentRendered({
         param($pw, $evt)
         $ok = $false; $lastReason = ''

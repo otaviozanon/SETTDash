@@ -128,8 +128,10 @@ function Get-CpuBenchmarkResult {
 
     # Score off the post-warm-up samples (steady-state throughput) instead of Total/DurationSeconds,
     # which still includes the discarded ramp-up seconds in its denominator and average.
-    $singleScored = Get-CpuScoredSamples $single.Samples
-    $multiScored = Get-CpuScoredSamples $multi.Samples
+    # @(...): Get-CpuScoredSamples unrolls its List, so a cancelled run with fewer samples than
+    # the warm-up window returns nothing ($null), and $null.Count throws under StrictMode.
+    $singleScored = @(Get-CpuScoredSamples $single.Samples)
+    $multiScored = @(Get-CpuScoredSamples $multi.Samples)
     $singleScore = if ($singleScored.Count -gt 0) { [math]::Round(($singleScored | Measure-Object -Average).Average) } else { [math]::Round($single.Total / $DurationSeconds) }
     $multiScore = if ($multiScored.Count -gt 0) { [math]::Round(($multiScored | Measure-Object -Average).Average) } else { [math]::Round($multi.Total / $DurationSeconds) }
 

@@ -51,6 +51,7 @@ function Get-NetworkCleanupItems {
 # Cleans the given Network Cleanup items (array of objects returned by Get-NetworkCleanupItems).
 function Invoke-NetworkCleanupClean {
     param([array]$Items)
+    if (-not $Items -or $Items.Count -eq 0) { Write-GuiLog "No items selected." "WARN"; return @{Cleaned=0; Failed=0} }
     $total = $Items.Count
     $cleaned = 0; $failed = 0
     for ($i = 0; $i -lt $total; $i++) {

@@ -12,9 +12,14 @@ function Invoke-CleanBrowserCache {
         "Opera GX" = "$env:APPDATA\Opera Software\Opera GX Stable\Cache"
     }
     foreach ($b in $browsers.Keys) { Remove-DirContent -Path $browsers[$b] -Desc "$b Cache" }
-    $ffPath = Join-Path $env:ProgramFiles "Mozilla Firefox\firefox.exe"
-    if (Test-Path $ffPath) {
-        try { Start-Process -FilePath $ffPath -ArgumentList '-P "default" -no-remote -safe-mode -clearcache' -Wait -WindowStyle Hidden; Write-GuiLog "Firefox cache cleaned" "OK" } catch { }
+    # $env:ProgramFiles is redirected to "Program Files (x86)" inside a 32-bit host, so the
+    # 64-bit install would never be found; Get-InstalledProgramPath checks both roots.
+    $ffPath = Get-InstalledProgramPath "Mozilla Firefox\firefox.exe"
+    if ($ffPath) {
+        try {
+            Start-Process -FilePath $ffPath -ArgumentList '-P "default" -no-remote -safe-mode -clearcache' -Wait -WindowStyle Hidden -ErrorAction Stop
+            Write-GuiLog "Firefox cache cleaned" "OK"
+        } catch { Write-GuiLog "Firefox cache reset failed: $($_.Exception.Message)" "WARN" }
     }
     Write-GuiLog "Browser caches cleaned" "OK"
     Set-GuiProgress 0
