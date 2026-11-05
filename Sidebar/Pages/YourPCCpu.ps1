@@ -117,9 +117,14 @@ function Show-PageYourPCCpu {
         foreach ($r in $cardRenderers) { & $r }
     }.GetNewClosure())
 
+    # Win32_CacheMemory.Level is 1/2/3; the Info tab reads only L1 from here (L2/L3 come from the
+    # processor's own L2/L3CacheSize properties). This used to filter Level 3 and show the L3 size
+    # in the L1 row. On machines that report no cache memory (CI VMs) Measure-Object produces no
+    # record at all, so the .Sum read must be guarded or StrictMode throws inside the page render.
+    $cacheSum = $allCache | Where-Object { $_.Level -eq 1 } | Measure-Object -Property InstalledSize -Sum
+
     foreach ($c in $cpus) {
-        $l1 = ($allCache | Where-Object { $_.Level -eq 3 } | Measure-Object -Property InstalledSize -Sum).Sum
-        $cacheSizes = @{ L1 = $(if ($l1) { $l1 } else { 0 }) }
+        $cacheSizes = @{ L1 = $(if ($cacheSum) { [int64]$cacheSum.Sum } else { 0 }) }
 
         $card = New-Object System.Windows.Controls.Border
         if ($cardStyle) { $card.Style = $cardStyle }

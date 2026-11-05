@@ -17,6 +17,13 @@ function Invoke-GPUApply {
     Write-GuiLog "Detecting GPU vendor..." "STEP"
     try {
         $gpu = Get-CimInstance Win32_VideoController | Where-Object { $_.AdapterRAM -ne $null } | Select-Object -First 1
+        # A machine without a real adapter (VM, Basic Display Adapter, remote session) used to make
+        # $gpu.Name throw here under StrictMode. Nothing to optimize is not an error.
+        if (-not $gpu -or -not $gpu.Name) {
+            Write-GuiLog "No supported GPU detected - nothing to optimize" "WARN"
+            Set-GuiProgress 0
+            return
+        }
         $nameLow = $gpu.Name.ToLower()
         $vendor = if ($nameLow -match "nvidia") { "NVIDIA" } elseif ($nameLow -match "amd|radeon") { "AMD" } else { "Unknown" }
         Write-GuiLog "Detected GPU vendor: $vendor ($($gpu.Name.Trim()))" "INFO"
@@ -85,6 +92,13 @@ function Invoke-GPURevert {
     Write-GuiLog "Reverting GPU optimizations..." "STEP"
     try {
         $gpu = Get-CimInstance Win32_VideoController | Where-Object { $_.AdapterRAM -ne $null } | Select-Object -First 1
+        # Same guard as Invoke-GPUApply: no detectable adapter means there is nothing this function
+        # could have applied, so it must report that instead of throwing on $gpu.Name.
+        if (-not $gpu -or -not $gpu.Name) {
+            Write-GuiLog "No supported GPU detected - nothing to revert" "WARN"
+            Set-GuiProgress 0
+            return
+        }
         $nameLow = $gpu.Name.ToLower()
         $vendor = if ($nameLow -match "nvidia") { "NVIDIA" } elseif ($nameLow -match "amd|radeon") { "AMD" } else { "Unknown" }
         Write-GuiLog "Detected GPU vendor: $vendor" "INFO"

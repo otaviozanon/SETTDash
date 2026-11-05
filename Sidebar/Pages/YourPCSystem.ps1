@@ -92,7 +92,10 @@ function Show-PageYourPCSystem {
             }
 
             $mods = @(Get-CimInstance Win32_PhysicalMemory)
-            $total = ($mods | Measure-Object -Property Capacity -Sum).Sum
+            # Guarded .Sum: on a machine with no enumerable memory devices Measure-Object produces no
+            # record and reading .Sum off it throws under StrictMode (CI-only failure class).
+            $memInfo = if ($mods) { $mods | Measure-Object -Property Capacity -Sum } else { $null }
+            $total = $(if ($memInfo) { $memInfo.Sum } else { 0 })
             $rows += @{Label="Total Installed"; Value=(Format-ByteSizeAuto $total)}
 
             $slots = 0; $maxBytes = 0

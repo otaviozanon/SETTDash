@@ -31,6 +31,9 @@ $Global:SandboxFsRoot = $null
 $Global:SandboxPathBefore = $null
 $Global:SandboxTempBefore = $null
 $Global:SandboxWindow = $null
+$Global:SandboxRegExists = $null
+$Global:SandboxRegGone = $null
+$Global:SandboxRegValues = $null
 
 # ------------------------------------------------------------------------------------------------
 # Journal
@@ -94,6 +97,89 @@ function Resolve-SandboxTarget {
 }
 
 # ------------------------------------------------------------------------------------------------
+# Virtual registry
+# ------------------------------------------------------------------------------------------------
+# Because the shadows cannot let a real write happen, the app's own reads would otherwise not see
+# what it just wrote: Test-Path on a key the action created returns $false, so every revert branch
+# guarded by "if (Test-Path $key) { Remove-Item ... }" silently does nothing. That is precisely the
+# bug class this suite looks for, so the sandbox models the registry the way the action expects to
+# see it:
+#   SandboxRegExists - keys created during this scenario
+#   SandboxRegGone   - keys deleted during this scenario
+#   SandboxRegValues - values written/removed, per key path
+$Global:SandboxRegExists = $null
+$Global:SandboxRegGone = $null
+$Global:SandboxRegValues = $null
+
+# Every scenario starts from the machine's real registry; the overlay only holds this scenario's
+# changes, so a result never depends on what a previous test happened to write.
+function Reset-SandboxRegistry {
+    $Global:SandboxRegExists = New-Object 'System.Collections.Generic.HashSet[string]'
+    $Global:SandboxRegGone = New-Object 'System.Collections.Generic.HashSet[string]'
+    $Global:SandboxRegValues = @{}
+}
+
+# Normalized ("hklm:\software\x") form of a registry path, or $null when the path is not registry.
+function Get-SandboxRegPath {
+    param([string]$Path)
+    if (-not $Path) { return $null }
+    $p = $Path.Trim()
+    if ($p.StartsWith('Registry::')) { $p = $p.Substring(10) }
+    $p = $p -replace '^HKEY_LOCAL_MACHINE', 'HKLM:'
+    $p = $p -replace '^HKEY_CURRENT_USER', 'HKCU:'
+    $p = $p -replace '^HKEY_CLASSES_ROOT', 'HKCR:'
+    $p = $p -replace '^HKEY_USERS', 'HKU:'
+    $p = $p -replace '^HKEY_CURRENT_CONFIG', 'HKCC:'
+    if ($p -notmatch '^(HKLM|HKCU|HKCR|HKU|HKCC):') { return $null }
+    return $p.TrimEnd('\').ToLowerInvariant()
+}
+
+function Test-SandboxRegGone {
+    param([string]$Reg)
+    foreach ($g in $Global:SandboxRegGone) {
+        if ($Reg -eq $g -or $Reg.StartsWith($g + '\')) { return $true }
+    }
+    return $false
+}
+
+function Test-SandboxRegCreated {
+    param([string]$Reg)
+    if ($Global:SandboxRegExists.Contains($Reg)) { return $true }
+    foreach ($e in $Global:SandboxRegExists) {
+        if ($Reg.StartsWith($e + '\')) { return $true }
+    }
+    return $false
+}
+
+function Set-SandboxRegValue {
+    param([string]$Reg, [string]$Name, $Value)
+    if (-not $Name) { $Name = '(default)' }
+    if (-not $Global:SandboxRegValues.ContainsKey($Reg)) { $Global:SandboxRegValues[$Reg] = @{} }
+    $Global:SandboxRegValues[$Reg][$Name] = $Value
+    [void]$Global:SandboxRegExists.Add($Reg)
+}
+
+function Remove-SandboxRegValue {
+    param([string]$Reg, [string]$Name)
+    if (-not $Name) { $Name = '(default)' }
+    # A value the action removes is recorded as removed even when the key pre-existed, so a later
+    # read in the same scenario does not report the old value as still present.
+    if ($Global:SandboxRegValues.ContainsKey($Reg)) { $Global:SandboxRegValues[$Reg].Remove($Name) }
+    [void]$Global:SandboxRegExists.Add($Reg)
+}
+
+function Remove-SandboxRegKey {
+    param([string]$Reg)
+    [void]$Global:SandboxRegGone.Add($Reg)
+    foreach ($k in @($Global:SandboxRegExists)) {
+        if ($k -eq $Reg -or $k.StartsWith($Reg + '\')) { [void]$Global:SandboxRegExists.Remove($k) }
+    }
+    foreach ($k in @($Global:SandboxRegValues.Keys)) {
+        if ($k -eq $Reg -or $k.StartsWith($Reg + '\')) { $Global:SandboxRegValues.Remove($k) }
+    }
+}
+
+# ------------------------------------------------------------------------------------------------
 # GUI stubs
 # ------------------------------------------------------------------------------------------------
 
@@ -129,6 +215,8 @@ function Remove-Item {
     if (-not $Global:SandboxActive) { Microsoft.PowerShell.Management\Remove-Item @PSBoundParameters; return }
     $target = Resolve-SandboxTarget $Path $LiteralPath
     Add-SandboxEntry "Remove-Item" $target ("recurse=" + [bool]$Recurse)
+    $reg = Get-SandboxRegPath $target
+    if ($reg) { Remove-SandboxRegKey $reg; return }
     if (Test-SandboxPath $target) {
         Microsoft.PowerShell.Management\Remove-Item -Path $target -Recurse -Force -ErrorAction SilentlyContinue
     }
@@ -137,31 +225,46 @@ function Remove-ItemProperty {
     [CmdletBinding(SupportsShouldProcess)]
     param($Path, $Name, $LiteralPath, [switch]$Force)
     if (-not $Global:SandboxActive) { Microsoft.PowerShell.Management\Remove-ItemProperty @PSBoundParameters; return }
-    Add-SandboxEntry "Remove-ItemProperty" (Resolve-SandboxTarget $Path $LiteralPath) ([string]$Name)
+    $target = Resolve-SandboxTarget $Path $LiteralPath
+    Add-SandboxEntry "Remove-ItemProperty" $target ([string]$Name)
+    $reg = Get-SandboxRegPath $target
+    if ($reg) { Remove-SandboxRegValue $reg ([string]$Name) }
 }
 function Set-ItemProperty {
     [CmdletBinding(SupportsShouldProcess)]
     param($Path, $Name, $Value, $Type, $LiteralPath, [switch]$Force, [switch]$PassThru, $InputObject)
     if (-not $Global:SandboxActive) { Microsoft.PowerShell.Management\Set-ItemProperty @PSBoundParameters; return }
-    Add-SandboxEntry "Set-ItemProperty" (Resolve-SandboxTarget $Path $LiteralPath) ("$Name=" + [string]$Value)
+    $target = Resolve-SandboxTarget $Path $LiteralPath
+    Add-SandboxEntry "Set-ItemProperty" $target ("$Name=" + [string]$Value)
+    $reg = Get-SandboxRegPath $target
+    if ($reg) { Set-SandboxRegValue $reg ([string]$Name) $Value }
 }
 function New-ItemProperty {
     [CmdletBinding(SupportsShouldProcess)]
     param($Path, $Name, $Value, $PropertyType, $LiteralPath, [switch]$Force, [switch]$PassThru)
     if (-not $Global:SandboxActive) { Microsoft.PowerShell.Management\New-ItemProperty @PSBoundParameters; return }
-    Add-SandboxEntry "New-ItemProperty" (Resolve-SandboxTarget $Path $LiteralPath) ("$Name=" + [string]$Value)
+    $target = Resolve-SandboxTarget $Path $LiteralPath
+    Add-SandboxEntry "New-ItemProperty" $target ("$Name=" + [string]$Value)
+    $reg = Get-SandboxRegPath $target
+    if ($reg) { Set-SandboxRegValue $reg ([string]$Name) $Value }
 }
 function Set-Item {
     [CmdletBinding(SupportsShouldProcess)]
     param($Path, $Value, $LiteralPath, [switch]$Force, [switch]$PassThru)
     if (-not $Global:SandboxActive) { Microsoft.PowerShell.Management\Set-Item @PSBoundParameters; return }
-    Add-SandboxEntry "Set-Item" (Resolve-SandboxTarget $Path $LiteralPath) ([string]$Value)
+    $target = Resolve-SandboxTarget $Path $LiteralPath
+    Add-SandboxEntry "Set-Item" $target ([string]$Value)
+    $reg = Get-SandboxRegPath $target
+    if ($reg) { Set-SandboxRegValue $reg '(default)' $Value }
 }
 function Clear-Item {
     [CmdletBinding(SupportsShouldProcess)]
     param($Path, $LiteralPath, [switch]$Force)
     if (-not $Global:SandboxActive) { Microsoft.PowerShell.Management\Clear-Item @PSBoundParameters; return }
-    Add-SandboxEntry "Clear-Item" (Resolve-SandboxTarget $Path $LiteralPath)
+    $target = Resolve-SandboxTarget $Path $LiteralPath
+    Add-SandboxEntry "Clear-Item" $target
+    $reg = Get-SandboxRegPath $target
+    if ($reg) { Set-SandboxRegValue $reg '(default)' $null }
 }
 function New-Item {
     [CmdletBinding(SupportsShouldProcess)]
@@ -169,10 +272,50 @@ function New-Item {
     if (-not $Global:SandboxActive) { Microsoft.PowerShell.Management\New-Item @PSBoundParameters; return }
     $target = Resolve-SandboxTarget $Path $LiteralPath
     Add-SandboxEntry "New-Item" $target ([string]$ItemType)
+    $reg = Get-SandboxRegPath $target
+    if ($reg) { [void]$Global:SandboxRegExists.Add($reg); return }
     if (Test-SandboxPath $target) {
         Microsoft.PowerShell.Management\New-Item -Path $target -ItemType $ItemType -Force -ErrorAction SilentlyContinue | Out-Null
     }
 }
+
+# Read side of the overlay: the app checks Test-Path before creating keys and before removing them,
+# so both answers have to come from the virtual registry first.
+function Test-Path {
+    [CmdletBinding()]
+    param($Path, $LiteralPath, $PathType, [switch]$IsValid, $Filter, $Include, $Exclude)
+    if (-not $Global:SandboxActive -or $IsValid) { Microsoft.PowerShell.Management\Test-Path @PSBoundParameters; return }
+    $target = Resolve-SandboxTarget $Path $LiteralPath
+    $reg = Get-SandboxRegPath $target
+    if ($reg) {
+        if (Test-SandboxRegGone $reg) { return $false }
+        if (Test-SandboxRegCreated $reg) { return $true }
+    }
+    return (Microsoft.PowerShell.Management\Test-Path -Path $target)
+}
+
+function Get-ItemProperty {
+    [CmdletBinding()]
+    param($Path, $LiteralPath, $Name)
+    # NOTE: no explicit $ErrorAction parameter - a CmdletBinding function already gets the common
+    # parameters, so the app's -ErrorAction SilentlyContinue passes straight through.
+    if (-not $Global:SandboxActive) { Microsoft.PowerShell.Management\Get-ItemProperty @PSBoundParameters; return }
+    $target = Resolve-SandboxTarget $Path $LiteralPath
+    $reg = Get-SandboxRegPath $target
+    if ($reg -and -not (Test-SandboxRegGone $reg)) {
+        if ($Global:SandboxRegValues.ContainsKey($reg)) {
+            $props = $Global:SandboxRegValues[$reg]
+            $obj = [ordered]@{ PSPath = $target; PSParentPath = ''; PSChildName = ($reg -split '\\')[-1]; PSDrive = ''; PSProvider = '' }
+            foreach ($k in $props.Keys) { $obj[$k] = $props[$k] }
+            return [pscustomobject]$obj
+        }
+        if (Test-SandboxRegCreated $reg) {
+            return [pscustomobject]@{ PSPath = $target; PSParentPath = ''; PSChildName = ($reg -split '\\')[-1]; PSDrive = ''; PSProvider = '' }
+        }
+    }
+    return (Microsoft.PowerShell.Management\Get-ItemProperty @PSBoundParameters)
+}
+
 function Move-Item {
     [CmdletBinding(SupportsShouldProcess)]
     param($Path, $Destination, $LiteralPath, [switch]$Force)
@@ -191,7 +334,8 @@ function Rename-Item {
     if (-not $Global:SandboxActive) { Microsoft.PowerShell.Management\Rename-Item @PSBoundParameters; return }
     Add-SandboxEntry "Rename-Item" (Resolve-SandboxTarget $Path $LiteralPath) ([string]$NewName)
 }
-# File writes: the app persists state (theme, disabled startups, update cache) with Set-Content.# Inside the sandbox a write is real only under tests\.tools\sandbox-fs\, so app state files in
+# File writes: the app persists state (theme, disabled startups, update cache) with Set-Content.
+# Inside the sandbox a write is real only under tests\.tools\sandbox-fs\, so app state files in
 # %LOCALAPPDATA% are never created or clobbered by a test run.
 function Set-Content {
     [CmdletBinding(SupportsShouldProcess)]
@@ -589,6 +733,7 @@ $Global:SandboxInfo = [pscustomobject]@{
 function Start-Sandbox {
     $Global:SandboxActive = $true
     Clear-SandboxJournal
+    Reset-SandboxRegistry
     $Global:SandboxPathBefore = $env:PATH
     $env:PATH = $Global:SandboxStubDir + ";" + $env:PATH
     # Code that bypasses the cmdlet shadows by calling .NET directly (WriteAllText into %TEMP%)

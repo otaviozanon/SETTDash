@@ -372,7 +372,11 @@ function Get-JournalSpots {
     # A journal with no entries comes back as $null; @($null) still yields one null element, so the
     # nulls are dropped before any filter reads a property (StrictMode would throw otherwise).
     $list = @($Entries | Where-Object { $null -ne $_ })
-    return @($list | Where-Object { $_.Target -match '^(HK|HKEY)' } | ForEach-Object {
+    # Only value writes are comparable between apply and revert. New-Item just creates a key, and
+    # whether that key already existed on the host differs between machines (CI lacked
+    # Control Panel\Mouse-around keys, QoS\ValorantPolicy, etc.), so counting key creations made
+    # the symmetry check machine-dependent: it flagged spots like "HKCU:\Control\" with no value.
+    return @($list | Where-Object { $_.Op -match 'ItemProperty$' -and $_.Target -match '^(HK|HKEY)' } | ForEach-Object {
         [pscustomobject]@{
             Path = $_.Target
             Name = ($_.Detail -replace '=.*$', '')
@@ -404,8 +408,10 @@ foreach ($pair in $pairs) {
     }
 
     # A revert covers a spot when it writes/removes exactly that value, or when it deletes a whole
-    # key that contains the value (common for policy keys).
-    $removedKeys = @($reverted | Where-Object { $_.Op -eq 'Remove-Item' } | ForEach-Object { $_.Path })
+    # key that contains the value (common for policy keys). Key removal is read straight from the
+    # raw journal: Get-JournalSpots only contains value writes, and Remove-Item entries have no
+    # "name=value" detail from which a spot could be derived.
+    $removedKeys = @(Get-SandboxJournal | Where-Object { $null -ne $_ -and $_.Op -eq 'Remove-Item' -and $_.Target -match '^(HK|HKEY)' } | ForEach-Object { $_.Target })
     $uncovered = @($applied | Where-Object {
         $spot = $_
         $exact = @($reverted | Where-Object { $_.Path -eq $spot.Path -and $_.Name -eq $spot.Name })

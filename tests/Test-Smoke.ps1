@@ -42,6 +42,12 @@ $logDir = Join-Path $env:LOCALAPPDATA "SETTDash\logs"
 $smokeBlock = @'
 # ---- SMOKE TEST INJECTION (added by tests\Test-Smoke.ps1 - never present in a release) ----
 if ($env:SETTDASH_SMOKE -eq '1') {
+    # Some pages render a blocking modal (ShowDialog) whenever an optional component is missing,
+    # and nothing ever clicks it - the sweep would hang until the test kills the process. This is
+    # exactly what Windows Server CI does with the PawnIO install prompt (no PawnIO driver there),
+    # which stopped the page walk right after navYourPCGpu. Redefining the prompt here in the same
+    # script scope replaces the app's definition for this run only; a release keeps the real one.
+    function Show-PawnIOInstallPrompt { }
     $Window.Dispatcher.BeginInvoke([action]{
         $marker = $env:SETTDASH_SMOKE_MARKER
         $failures = New-Object System.Collections.ArrayList
