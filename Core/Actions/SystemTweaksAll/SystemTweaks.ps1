@@ -155,6 +155,24 @@ function Invoke-TweaksRevert {
         Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control" -Name "WaitToKillServiceTimeout" -Force -ErrorAction SilentlyContinue
         Write-GuiLog "Kernel/performance defaults restored" "OK"
     } catch { }
+    # Values the tweaks above CREATE. Removing them is what restores the Windows default; without
+    # this block a user who reverted still had telemetry/DPC/boot-sound tweaks applied.
+    try {
+        Remove-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\CDP" -Name "CdpSessionUserAuthzPolicy" -Force -ErrorAction SilentlyContinue
+        Remove-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Diagnostics\DiagTrack" -Name "ShowedToastAtLevel" -Force -ErrorAction SilentlyContinue
+        Remove-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Privacy" -Name "TailoredExperiencesWithDiagnosticDataEnabled" -Force -ErrorAction SilentlyContinue
+        Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\Maintenance" -Name "MaintenanceDisabled" -Force -ErrorAction SilentlyContinue
+        Remove-ItemProperty -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Authentication\LogonUI\BootAnimation" -Name "DisableStartupSound" -Force -ErrorAction SilentlyContinue
+        Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" -Name "PriorityControl" -Force -ErrorAction SilentlyContinue
+        Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" -Name "ThreadDpcEnable" -Force -ErrorAction SilentlyContinue
+        # Services the tweaks DISABLE (Start=4). These must be written back to their Windows default
+        # startup type instead of being deleted - a service with no Start value does not boot.
+        Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\FontCache" -Name "Start" -Value 3 -Type DWord -Force -ErrorAction SilentlyContinue
+        Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WdiServiceHost" -Name "Start" -Value 3 -Type DWord -Force -ErrorAction SilentlyContinue
+        Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WdiSystemHost" -Name "Start" -Value 3 -Type DWord -Force -ErrorAction SilentlyContinue
+        Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Spooler" -Name "Start" -Value 2 -Type DWord -Force -ErrorAction SilentlyContinue
+        Write-GuiLog "Diagnostics, kernel and service tweaks restored" "OK"
+    } catch { }
     Set-NavStatus "Tweaks" $false
     Set-GuiProgress 0
     Write-GuiLog "System tweaks reverted to defaults" "OK"

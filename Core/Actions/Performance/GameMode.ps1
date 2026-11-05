@@ -41,6 +41,9 @@ function Invoke-GameModeRevert {
     )
     Invoke-RegistryApply -Settings $settings -Label "Game Mode Revert"
     try {
+        # Written by the apply side only (removes the Game Bar first-run tip); deleting it is the
+        # default state.
+        Remove-ItemProperty -Path "HKCU:\Software\Microsoft\GameBar" -Name "GamePanelStartupTipIndex" -Force -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR" -Name "VKToggleGameBar" -Force -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR" -Name "VKMToggleGameBar" -Force -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR" -Name "VKToggleRecording" -Force -ErrorAction SilentlyContinue

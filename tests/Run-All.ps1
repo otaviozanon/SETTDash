@@ -12,17 +12,40 @@
 param(
     [string]$RepoRoot,
     [switch]$SkipSmoke,
-    [int]$SmokeTimeoutSeconds = 420
+    [int]$SmokeTimeoutSeconds = 420,
+    # Runs the whole suite elevated (one UAC prompt). Some code paths only exist for an
+    # administrator, and the compiled exe behaves differently there - this is how those get
+    # covered locally. CI runners are already elevated, so CI does not need the switch.
+    [switch]$Elevated,
+    [switch]$ElevatedChild
 )
 
 $ErrorActionPreference = "Stop"
 if (-not $RepoRoot) { $RepoRoot = Split-Path $PSScriptRoot -Parent }
 $RepoRoot = (Resolve-Path $RepoRoot).Path
 
+if ($Elevated -and -not $ElevatedChild) {
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+    $isAdmin = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    if (-not $isAdmin) {
+        Write-Host "Relaunching elevated - accept the UAC prompt..." -ForegroundColor Yellow
+        $argList = @(
+            '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"",
+            '-RepoRoot', "`"$RepoRoot`"", '-SmokeTimeoutSeconds', "$SmokeTimeoutSeconds", '-ElevatedChild'
+        )
+        if ($SkipSmoke) { $argList += '-SkipSmoke' }
+        $proc = Start-Process -FilePath 'powershell.exe' -ArgumentList ($argList -join ' ') -Verb RunAs -PassThru -Wait
+        exit $proc.ExitCode
+    }
+    Write-Host "Already elevated - running the suite as administrator." -ForegroundColor Yellow
+}
+
 $suites = @(
     @{ Name = "Build";       File = "Test-Build.ps1";        Timeout = 300;  Description = "Build.ps1 output: parses, contracts, no duplicate functions, no debug leftovers" }
     @{ Name = "StaticGuards";File = "Test-StaticGuards.ps1"; Timeout = 300;  Description = "Regressions from v3.2.31: `$null.Count, .CimClass, ConvertFrom-Json, FirstChance hook" }
     @{ Name = "StrictMode";  File = "Test-StrictMode.ps1";   Timeout = 600;  Description = "Data layer under StrictMode Latest: empty scans, corrupt cache, real machine scans" }
+    @{ Name = "Actions";     File = "Test-Actions.ps1";      Timeout = 900;  Description = "Sandbox: every mutating function swept, deletion, apply/revert symmetry, unshadowed-command guard" }
     @{ Name = "Smoke";       File = "Test-Smoke.ps1";        Timeout = 900;  Description = "Compiled x64 exe: walks all pages, clicks every Scan, asserts no crash and no error report" }
 )
 
@@ -99,9 +122,16 @@ Write-Host ("  total: {0} s" -f $elapsed)
 if ($failed.Count -eq 0) {
     Write-Host ""
     Write-Host "ALL TESTS PASSED - safe to commit / publish." -ForegroundColor Green
-    exit 0
+    $exitCode = 0
+} else {
+    Write-Host ""
+    Write-Host "$($failed.Count) SUITE(S) FAILED - do not publish a release yet." -ForegroundColor Red
+    $exitCode = 1
 }
 
-Write-Host ""
-Write-Host "$($failed.Count) SUITE(S) FAILED - do not publish a release yet." -ForegroundColor Red
-exit 1
+# The elevated child runs in its own window; keep it open so its output can be read.
+if ($ElevatedChild -and -not $env:CI) {
+    Write-Host ""
+    [void](Read-Host "Press Enter to close this elevated window")
+}
+exit $exitCode

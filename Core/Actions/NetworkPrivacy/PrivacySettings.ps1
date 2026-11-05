@@ -31,6 +31,8 @@ function Invoke-PrivacyRevert {
     Invoke-RegistryApply -Settings $revert -Label "Privacy Revert"
     try {
         Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer" -Name "HideRecentlyAddedApps" -Force -ErrorAction SilentlyContinue
+        # Set by the apply side; removing it is the Windows default (suggestions back on).
+        Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" -Name "DisableThirdPartySuggestions" -Force -ErrorAction SilentlyContinue
         Write-GuiLog "Cortana and advertising re-enabled" "OK"
     } catch { }
     Write-GuiLog "Privacy settings reverted" "OK"

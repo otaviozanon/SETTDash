@@ -34,5 +34,7 @@ jobs:
             tests/.tools/smoke-stdout.txt
             tests/.tools/smoke-stderr.txt
             tests/.tools/SETTDash.smoke.ps1
+            tests/.tools/sandbox-native.txt
+            tests/.tools/sandbox-runtime/**
           if-no-files-found: ignore
           retention-days: 7

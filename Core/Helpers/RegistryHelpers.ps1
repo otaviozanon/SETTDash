@@ -3,7 +3,13 @@
 # summary of how many succeeded/failed. Used by most Invoke-*Apply functions in Core/Actions.ps1.
 function Invoke-RegistryApply {
     param([array]$Settings, [string]$Label)
+    # @(...): a missing/empty batch arrives as $null, and $null.Count throws under StrictMode.
+    $Settings = @($Settings)
     $total = $Settings.Count
+    if ($total -eq 0) {
+        Write-GuiLog "$Label : no settings to apply" "WARN"
+        return @{Applied=0; Failed=0}
+    }
     $applied = 0; $failed = 0
     for ($i = 0; $i -lt $total; $i++) {
         $s = $Settings[$i]
