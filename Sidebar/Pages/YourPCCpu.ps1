@@ -57,13 +57,13 @@ function Get-CpuSensorRows {
         $rows += @{Label="Status"; Value=$msg}
         return $rows
     }
-    $matched = Get-LHMSensorRows | Where-Object {
+    $matched = @(Get-LHMSensorRows | Where-Object {
         $_.HardwareType -eq "Cpu" -and ($_.HardwareName -eq $CpuName -or $CpuName -like "*$($_.HardwareName)*" -or $_.HardwareName -like "*$CpuName*")
-    }
+    })
     if (-not $matched -or $matched.Count -eq 0) {
         # Fall back to every Cpu-typed sensor (some boards report a generic hardware name that doesn't
         # match Win32_Processor's Name string, e.g. "AMD Ryzen..." vs a shortened LHM label).
-        $matched = Get-LHMSensorRows | Where-Object { $_.HardwareType -eq "Cpu" }
+        $matched = @(Get-LHMSensorRows | Where-Object { $_.HardwareType -eq "Cpu" })
     }
     if (-not $matched -or $matched.Count -eq 0) {
         $rows += @{Label="Status"; Value="No live sensors exposed by LibreHardwareMonitor for this CPU."}

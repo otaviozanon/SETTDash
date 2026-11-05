@@ -1,6 +1,9 @@
 # Build artifacts
 /SETTDash.exe
 
+# Tests: ps2exe download, injected script, smoke exe and captured output
+/tests/.tools/
+
 # Temp
 *.tmp
 *.log

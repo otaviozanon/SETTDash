@@ -10,7 +10,7 @@ function Show-PageSettings {
 
     # 2x2 tile grid: Theme / Minimize to Tray / Auto-Start / Check for Updates all share the same
     # width AND height (Add-GuiCardGrid), instead of each sizing to its own content.
-    $tiles = Add-GuiCardGrid -Columns 2 -Rows 2
+    $tiles = @(Add-GuiCardGrid -Columns 2 -Rows 2)
     Add-GuiCard "Theme" "Choose the dashboard's visual style. Changes apply instantly and are remembered." {
         param($p)
         Add-GuiBtn $p "Default (Dark)" "InstallButtonStyle" { Set-GuiTheme "Default"; Write-GuiLog "Theme set to Default (Dark)" "OK" }

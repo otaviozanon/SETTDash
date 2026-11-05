@@ -10,12 +10,13 @@
 function Get-NetworkCleanupItems {
     $items = @()
 
-    try {
-        $dnsCount = (Get-DnsClientCache -ErrorAction SilentlyContinue | Measure-Object).Count
-    } catch { $dnsCount = 0 }
-    if ($dnsCount -gt 0) {
-        $items += [pscustomobject]@{ Label="DNS Resolver Cache"; Detail="$dnsCount cached entries"; Selected=$true; Type='dns-cache'; Key='' }
-    }
+    # DNS resolver cache. Get-DnsClientCache needs the DnsClient module, which is missing on some
+    # installs (and cannot always be loaded inside the compiled host): the count is best-effort, but
+    # the entry is always offered because the cache can still be flushed with ipconfig.
+    $dnsCount = 0
+    try { $dnsCount = @(Get-DnsClientCache -ErrorAction SilentlyContinue).Count } catch { $dnsCount = 0 }
+    $dnsDetail = if ($dnsCount -gt 0) { "$dnsCount cached entries" } else { "Flush the resolver cache" }
+    $items += [pscustomobject]@{ Label="DNS Resolver Cache"; Detail=$dnsDetail; Selected=$true; Type='dns-cache'; Key='' }
 
     try {
         $wifiOutput = netsh wlan show profiles 2>$null
@@ -59,7 +60,17 @@ function Invoke-NetworkCleanupClean {
         Set-GuiProgress ([math]::Round(($i+1)/[math]::Max($total,1)*100)) "Cleaning: $($it.Label)"
         try {
             switch ($it.Type) {
-                'dns-cache' { Clear-DnsClientCache -ErrorAction Stop; $cleaned++; Write-GuiLog "DNS cache flushed" "OK" }
+                'dns-cache' {
+                    # Clear-DnsClientCache needs the DnsClient module; ipconfig /flushdns does the
+                    # same thing and ships with Windows, so the flush never silently does nothing.
+                    $flushed = $false
+                    try { Clear-DnsClientCache -ErrorAction Stop; $flushed = $true } catch { $flushed = $false }
+                    if (-not $flushed) {
+                        try { $null = ipconfig /flushdns 2>$null; $flushed = $true } catch { $flushed = $false }
+                    }
+                    if ($flushed) { $cleaned++; Write-GuiLog "DNS cache flushed" "OK" }
+                    else { $failed++; Write-GuiLog "Failed to flush the DNS cache" "ERR" }
+                }
                 'wifi-profile' {
                     $null = netsh wlan delete profile name="$($it.Key)" 2>$null
                     $cleaned++; Write-GuiLog "Wi-Fi profile removed: $($it.Label)" "OK"

@@ -57,9 +57,9 @@ function Get-GpuSensorRows {
     if (-not $LhmOk) {
         $rows += @{Label="Status"; Value="Unavailable: install PawnIO / enable LibreHardwareMonitor for live GPU sensors."}
     } else {
-        $matched = Get-LHMSensorRows | Where-Object {
+        $matched = @(Get-LHMSensorRows | Where-Object {
             $_.HardwareType -like "Gpu*" -and ($_.HardwareName -eq $GpuName -or $GpuName -like "*$($_.HardwareName)*" -or $_.HardwareName -like "*$GpuName*")
-        }
+        })
         if (-not $matched -or $matched.Count -eq 0) {
             $rows += @{Label="Status"; Value="No live sensors exposed by LibreHardwareMonitor for this GPU."}
         } else {

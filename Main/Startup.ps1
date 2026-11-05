@@ -69,24 +69,17 @@ try {
 Add-LogBuffer ("=" * 72)
 Add-LogBuffer ("SETTDash {0} starting | pid {1} | 64-bit process: {2} | admin: {3}" -f $Script:AppVersion, $PID, [Environment]::Is64BitProcess, $isAdmin)
 
-# First-chance hook: catches failures that a try/catch swallows - the "step silently did nothing"
-# case, which leaves no other trace. Missing file/assembly are real breakage, so they write a
-# report immediately; routine denials (Prefetch/Windows Logs without admin) only go to the memory
-# buffer, otherwise every cleanup would produce a report file.
-[AppDomain]::CurrentDomain.add_FirstChanceException({
-    param($sender, $e)
-    try {
-        $ex = $e.Exception
-        if ($ex -is [System.IO.FileNotFoundException] -or $ex -is [System.DllNotFoundException]) {
-            Write-ErrorLog ("FIRST CHANCE " + $ex.GetType().FullName + ": " + $ex.Message)
-            if ($ex.StackTrace) { Write-ErrorLog $ex.StackTrace }
-        } elseif ($ex -is [System.IO.DirectoryNotFoundException] -or
-                  $ex -is [System.UnauthorizedAccessException] -or
-                  $ex -is [System.Management.Automation.ItemNotFoundException]) {
-            Add-LogBuffer ("FIRST CHANCE " + $ex.GetType().FullName + ": " + $ex.Message)
-        }
-    } catch { }
-})
+# NOTE: there is deliberately NO FirstChanceException hook here.
+# One used to live at this spot ("catches failures that a try/catch swallows") and it turned out to
+# be a crash source of its own. .NET raises a first-chance exception for every failed assembly
+# probe - Get-CimInstance on a NON-ADMIN host does this by the hundred - and in the compiled ps2exe
+# host each of those re-enters the PowerShell event handler synchronously. The stack never unwinds
+# and the process dies with "a new guard page for the stack cannot be created", with no managed
+# handler able to run, so no report is written either. Reproduced with a handler whose whole body
+# increments a counter, so it cannot be made safe from script code: do not re-add it.
+# Repro: run the app without elevation and open "Your PC > Disks".
+# The handlers below cover what is actually actionable (unhandled UI/background errors), and the
+# "a step silently did nothing" cases are reported by the code that performed the step.
 
 # Exceptions raised on a thread that is not the UI dispatcher (background runspaces, timers, .NET
 # callbacks) never reach the handler above and terminate the process with no in-app trace at all.

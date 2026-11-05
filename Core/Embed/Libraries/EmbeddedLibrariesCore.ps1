@@ -112,8 +112,8 @@ function Format-LHMSensorValue {
 function Get-LHMCategoryRows {
     param([string[]]$HardwareTypes)
     $rows = @()
-    $all = Get-LHMSensorRows | Where-Object { $HardwareTypes -contains $_.HardwareType }
-    $groups = $all | Group-Object HardwareName
+    $all = @(Get-LHMSensorRows | Where-Object { $HardwareTypes -contains $_.HardwareType })
+    $groups = @($all | Group-Object HardwareName)
     foreach ($g in $groups) {
         if ($groups.Count -gt 1) { $rows += @{IsHeader=$true; Label=$g.Name} }
         foreach ($s in $g.Group) {

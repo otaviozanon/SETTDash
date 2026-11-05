@@ -15,8 +15,16 @@ $Script:StartupDisabledPath = Join-Path $env:LOCALAPPDATA "SETTDash\Backups\disa
 # instead of crashing every caller that touches .Name/.Source on it.
 function Get-StartupDisabledEntries {
     if (-not (Test-Path $Script:StartupDisabledPath)) { return @() }
-    $raw = $null
-    try { $raw = @(Get-Content $Script:StartupDisabledPath -Raw | ConvertFrom-Json) } catch { $raw = @() }
+    $raw = @()
+    try {
+        # ConvertFrom-Json in PowerShell 5.1 emits a top-level JSON array as ONE object, so the
+        # result is assigned first and only then wrapped in @(): writing
+        # @(Get-Content -Raw | ConvertFrom-Json) produces a single-element array whose only
+        # element is the whole record list, every property check below then sees an array instead
+        # of a record, and the entire cache is silently dropped (and rewritten empty).
+        $parsed = ConvertFrom-Json -InputObject (Get-Content $Script:StartupDisabledPath -Raw)
+        if ($null -ne $parsed) { $raw = @($parsed) }
+    } catch { $raw = @() }
     $clean = @($raw | Where-Object { (Get-SafeProp $_ 'Name') -and (Get-SafeProp $_ 'Source') })
     if ($clean.Count -ne $raw.Count) { Set-StartupDisabledEntries -Entries $clean }
     return $clean
@@ -26,7 +34,10 @@ function Set-StartupDisabledEntries {
     param([array]$Entries)
     $dir = Split-Path $Script:StartupDisabledPath -Parent
     if (-not (Test-Path $dir)) { New-Item -Path $dir -ItemType Directory -Force | Out-Null }
-    $Entries | ConvertTo-Json -Depth 4 | Set-Content -Path $Script:StartupDisabledPath -Encoding UTF8
+    # -InputObject (not the pipeline): the cache must always be a JSON array, even with 0 or 1
+    # entries, so the reader above always sees a list.
+    $json = ConvertTo-Json -InputObject @($Entries) -Depth 4
+    Set-Content -Path $Script:StartupDisabledPath -Value $json -Encoding UTF8
 }
 
 # Returns pscustomobjects: Label, Detail, Selected(=enabled), Name, Command, Location, Source
