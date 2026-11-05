@@ -146,7 +146,12 @@ function Test-SandboxRegCreated {
     param([string]$Reg)
     if ($Global:SandboxRegExists.Contains($Reg)) { return $true }
     foreach ($e in $Global:SandboxRegExists) {
-        if ($Reg.StartsWith($e + '\')) { return $true }
+        # Both directions: a created child implies its ancestors exist (New-Item creates them
+        # implicitly), and a key that has a created child below it still exists itself. Without
+        # the ancestor direction, a revert guarded by "if (Test-Path $parentKey)" skipped its
+        # Remove-Item on CI (where the real registry lacked the key) while passing on a machine
+        # that already had it - exactly the false pass this suite must not produce.
+        if ($e.StartsWith($Reg + '\') -or $Reg.StartsWith($e + '\')) { return $true }
     }
     return $false
 }
