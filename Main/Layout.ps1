@@ -1028,7 +1028,7 @@
                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                                 <TextBlock Text="SETT OPTIMIZER" Foreground="{DynamicResource Brush_TextPrimary}"
                                            FontSize="13" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                <TextBlock Text="Dashboard v3.2" Foreground="{DynamicResource Brush_TextMuted}"
+                                <TextBlock Text="Dashboard v4.0.0" Foreground="{DynamicResource Brush_TextMuted}"
                                            FontSize="10" Margin="0,2,0,0" HorizontalAlignment="Center"/>
                             </StackPanel>
                         </StackPanel>

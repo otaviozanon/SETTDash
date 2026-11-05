@@ -3,7 +3,7 @@
 # ================================================
 Set-GuiTheme (Get-GuiThemePref)
 
-Write-GuiLog "SETT OPTIMIZER Dashboard v4.0.3 - Ready" "INFO"
+Write-GuiLog "SETT OPTIMIZER Dashboard v4.0.0 - Ready" "INFO"
 Write-GuiLog "Select a category from the sidebar to begin" "INFO"
 $sysInfo = Get-SystemInfo
 

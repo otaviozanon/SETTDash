@@ -29,7 +29,7 @@ Add-Type -AssemblyName WindowsBase
 # ============================================
 # SETTDash v4.0
 # ============================================
-$Script:AppVersion = "4.0.3"
+$Script:AppVersion = "4.0.0"
 $Script:AppDir = try {
     [System.IO.Path]::GetDirectoryName([System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName)
 } catch { }
