@@ -44,36 +44,23 @@ function Show-PageBenchGpu {
             $info.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextSecondary")
             $Global:BenchGpuResultsStack.AddChild($info)
 
+            # Headline row: the handful of numbers people actually screenshot/compare between runs.
+            # Full detail (ms/frame, min/max, 1st/2nd-half drift, power, load) is still computed and
+            # cached in $Global:BenchGpuLastResult for the Export page - just not cluttering this card.
             $stabilityLabel = if ($result.Throttling) { "Throttling (-$($result.ThrottlePct)%)" } else { "Stable" }
+            $tel = $result.Telemetry
+            $tempText = if ($tel -and $tel.Available -and $null -ne $tel.MaxTemp -and $tel.MaxTemp -ne 0) { "$($tel.MaxTemp) °C" } else { "N/A" }
+            $clockText = if ($tel -and $tel.Available -and $null -ne $tel.MaxClock -and $tel.MaxClock -ne 0) { "$($tel.MaxClock) MHz" } else { "N/A" }
             Add-GuiBenchStatTiles $Global:BenchGpuResultsStack @(
                 @{Label="Composite (FPS)"; Value=$result.CompositeFps}
-                @{Label="Composite (ms/frame)"; Value=$result.CompositeMs}
-                @{Label="Worst 1st/2nd Half Drift"; Value="$($result.ThrottlePct)%"}
                 @{Label="Stability"; Value=$stabilityLabel}
+                @{Label="Max GPU Temp"; Value=$tempText}
+                @{Label="GPU Clock"; Value=$clockText}
             )
 
-            foreach ($test in $result.Tests) {
-                Add-GuiBenchStatTiles $Global:BenchGpuResultsStack @(
-                    @{Label="$($test.Name) FPS"; Value=$test.Fps}
-                    @{Label="$($test.Name) ms/frame"; Value=$test.MedianMs}
-                    @{Label="$($test.Name) min/max FPS"; Value="$($test.MinFps) / $($test.MaxFps)"}
-                    @{Label="$($test.Name) drift 1st/2nd"; Value="$($test.FirstHalfFps) / $($test.SecondHalfFps)"}
-                )
-            }
-
-            if ($result.Telemetry -and $result.Telemetry.Available) {
-                $tel = $result.Telemetry
-                $tempText = if ($null -ne $tel.MaxTemp -and $tel.MaxTemp -ne 0) { "$($tel.MaxTemp) °C" } else { "N/A" }
-                $powerText = if ($null -ne $tel.MaxPower -and $tel.MaxPower -ne 0) { "$($tel.MaxPower) W" } else { "N/A" }
-                $clockText = if ($null -ne $tel.MaxClock -and $tel.MaxClock -ne 0) { "$($tel.MinClock) - $($tel.MaxClock) MHz" } else { "N/A" }
-                $loadText = if ($null -ne $tel.MaxLoad -and $tel.MaxLoad -ne 0) { "$($tel.MaxLoad) %" } else { "N/A" }
-                Add-GuiBenchStatTiles $Global:BenchGpuResultsStack @(
-                    @{Label="Max GPU Temp"; Value=$tempText}
-                    @{Label="Max GPU Power"; Value=$powerText}
-                    @{Label="GPU Clock"; Value=$clockText}
-                    @{Label="Max GPU Load"; Value=$loadText}
-                )
-            }
+            # Per sub-test FPS, one tile each, same row.
+            $subTestTiles = foreach ($test in $result.Tests) { @{Label="$($test.Name) FPS"; Value=$test.Fps} }
+            if ($subTestTiles.Count -gt 0) { Add-GuiBenchStatTiles $Global:BenchGpuResultsStack $subTestTiles }
 
             $Global:BenchGpuResultsCard.Visibility = "Visible"
 

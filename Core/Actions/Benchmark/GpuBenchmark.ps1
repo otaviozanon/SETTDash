@@ -452,7 +452,69 @@ function Get-GpuBenchmarkResult {
         $PreviewTarget.Source = $bitmap
     }
     $previewRect = New-Object System.Windows.Int32Rect(0, 0, $PreviewWidth, $PreviewHeight)
-    $lastPreviewMs = -1000.0
+    # NOTE: everything that needs to persist across separate "& $updatePreview" calls lives in this
+    # hashtable, not in plain scalar variables. $updatePreview is a scriptblock invoked repeatedly
+    # via "&", and each invocation runs in its OWN child scope - a plain "$x = ..." inside it creates
+    # a local shadow that is discarded when the call returns (PowerShell variable writes do not walk
+    # up the scope chain the way reads do), so a scalar "persisted" by GetNewClosure() still resets
+    # every call. A hashtable is a reference type, so mutating its keys is visible on the next call
+    # regardless of scope. (Confirmed bug: Attempts/CopyPending never advanced past 0 - "0/0 frame(s)
+    # painted" every run after refactoring the inline code into this scriptblock.)
+    $previewDiag = @{ Attempts = 0; Hits = 0; LastMs = -1000.0; CopyPending = $false }
+
+    # Extracted so warm-up and calibration blocks can also paint a preview frame, not just the
+    # measured blocks - previously the preview stayed black for the whole warm-up+calibration phase
+    # of the FIRST test (shader JIT, texture/buffer fault-in), which is the single longest stretch
+    # with no visual feedback in the whole run.
+    $updatePreview = {
+        if (-not $bitmap) { return }
+        $nowMs = $runSw.Elapsed.TotalMilliseconds
+        if (($nowMs - $previewDiag.LastMs) -lt 40.0) { return }
+
+        # Read back whatever was copied into $stagingTexture on the PREVIOUS tick, not
+        # the copy issued below in this same tick. A CopyResource is only *recorded*
+        # on the immediate context - nothing actually executes on the GPU until a
+        # Flush() happens. Mapping the staging texture right after issuing its own
+        # copy therefore always raced the GPU and always failed with
+        # DXGI_ERROR_WAS_STILL_DRAWING (confirmed: 0/256 frames painted). By the time
+        # this tick runs, the PREVIOUS tick's copy has already been through a Flush()
+        # and had time to complete, so DoNotWait succeeds here instead.
+        if ($previewDiag.CopyPending) {
+            $previewDiag.Attempts++
+            try {
+                $mapped = $mapMethod.Invoke($context, @($stagingTexture, 0, [Vortice.Direct3D11.MapMode]::Read, [Vortice.Direct3D11.MapFlags]::DoNotWait))
+                if ($mapped -and $mapped.DataPointer -ne [IntPtr]::Zero) {
+                    $bitmap.WritePixels($previewRect, $mapped.DataPointer, ($mapped.RowPitch * $PreviewHeight), $mapped.RowPitch)
+                    $context.Unmap($stagingTexture, 0)
+                    $previewDiag.LastMs = $nowMs
+                    $previewDiag.Hits++
+                }
+            } catch {
+                # DXGI_ERROR_WAS_STILL_DRAWING: the copy from the previous tick genuinely was not
+                # ready yet (happens a few times during warm-up, before the pipeline builds up a
+                # frame or two of slack between a copy and its readback). Expected and harmless -
+                # skip this tick, the next one picks it back up.
+            }
+        }
+
+        # Downscale the full-resolution target into the small preview target and copy
+        # it to the staging texture for the NEXT tick to read back.
+        $context.PSSetShaderResource(0, $null)
+        $context.OMSetRenderTargets($previewRtv)
+        $context.RSSetViewport($previewViewport)
+        $context.IASetPrimitiveTopology([Vortice.Direct3D.PrimitiveTopology]::TriangleList)
+        $context.VSSetShader($vs)
+        $context.PSSetShader($psDownscale)
+        $context.PSSetSampler(0, $sampler)
+        $context.PSSetShaderResource(0, $targetSrv)
+        $context.Draw(3, 0)
+        $context.CopyResource($stagingTexture, $previewTexture)
+        $previewDiag.CopyPending = $true
+        # Leave the full-resolution target unbound from the pixel stage so the next
+        # block can bind it as a render target again ($bindTest re-binds it, and
+        # this also keeps the texture sub-test's SRV binding explicit).
+        $context.PSSetShaderResource(0, $null)
+    }.GetNewClosure()
 
     # Dimensions of the last successful block, re-used to calibrate the next block length.
     $profiles = @()
@@ -502,6 +564,10 @@ function Get-GpuBenchmarkResult {
                 & $bindTest $test.Name
                 & $issueFrames $test.Name $frames
                 $context.Flush()
+                # Warm-up + calibration (below) is the single longest stretch with no scored block
+                # yet - paint a preview frame here too, instead of only once measured blocks start,
+                # so the popup isn't black while the shader JITs on the very first test.
+                & $updatePreview
             }
 
             # ---- calibrate the block length so one block is ~45 ms of GPU work ------------
@@ -518,6 +584,7 @@ function Get-GpuBenchmarkResult {
                 $disc = [Vortice.Direct3D11.QueryDataTimestampDisjoint]::new()
                 $calSw = [System.Diagnostics.Stopwatch]::StartNew()
                 $ok = $false
+                $calPollCount = 0
                 while ($calSw.ElapsedMilliseconds -lt 5000) {
                     $okStart = $context.GetData($queryStart, [ref]$t0)
                     $okEnd = $false; $okDisc = $false
@@ -525,10 +592,10 @@ function Get-GpuBenchmarkResult {
                     if ($okEnd) { $okDisc = $context.GetData($queryDisjoint, [ref]$disc) }
                     if ($okStart -and $okEnd -and $okDisc) { $ok = $true; break }
                     [System.Threading.Thread]::Sleep(0)
+                    $calPollCount++
+                    if (($calPollCount % 64) -eq 0) { & $pump; & $updatePreview }
                 }
-                if ($ok -and $disc.Frequency -gt 0 -and $t1 -gt $t0) {
-                    $calMs = (($t1 - $t0) * 1000.0 / $disc.Frequency) / $calFrames
-                }
+                & $updatePreview
             }
 
             $frames = 1
@@ -589,36 +656,7 @@ function Get-GpuBenchmarkResult {
                 }
 
                 # ---- preview: outside every timestamp window --------------------------------
-                if ($bitmap) {
-                    $nowMs = $runSw.Elapsed.TotalMilliseconds
-                    if (($nowMs - $lastPreviewMs) -ge 40.0) {
-                        # Downscale the full-resolution target into the small preview target.
-                        $context.PSSetShaderResource(0, $null)
-                        $context.OMSetRenderTargets($previewRtv)
-                        $context.RSSetViewport($previewViewport)
-                        $context.IASetPrimitiveTopology([Vortice.Direct3D.PrimitiveTopology]::TriangleList)
-                        $context.VSSetShader($vs)
-                        $context.PSSetShader($psDownscale)
-                        $context.PSSetSampler(0, $sampler)
-                        $context.PSSetShaderResource(0, $targetSrv)
-                        $context.Draw(3, 0)
-                        $context.CopyResource($stagingTexture, $previewTexture)
-                        try {
-                            $mapped = $mapMethod.Invoke($context, @($stagingTexture, 0, [Vortice.Direct3D11.MapMode]::Read, [Vortice.Direct3D11.MapFlags]::DoNotWait))
-                            if ($mapped -and $mapped.DataPointer -ne [IntPtr]::Zero) {
-                                $bitmap.WritePixels($previewRect, $mapped.DataPointer, ($mapped.RowPitch * $PreviewHeight), $mapped.RowPitch)
-                                $context.Unmap($stagingTexture, 0)
-                                $lastPreviewMs = $nowMs
-                            }
-                        } catch {
-                            # DXGI_ERROR_WAS_STILL_DRAWING / not-yet-mapped: skip this preview tick.
-                        }
-                        # Leave the full-resolution target unbound from the pixel stage so the next
-                        # block can bind it as a render target again ($bindTest re-binds it, and
-                        # this also keeps the texture sub-test's SRV binding explicit).
-                        $context.PSSetShaderResource(0, $null)
-                    }
-                }
+                & $updatePreview
 
                 # ---- telemetry, twice a second ---------------------------------------------
                 & $sampleTelemetry
@@ -635,6 +673,12 @@ function Get-GpuBenchmarkResult {
     }
 
     $runSw.Stop()
+
+    if ($bitmap -and $previewDiag.Hits -eq 0) {
+        # Only worth a log line if nothing painted at all - a healthy run always misses a handful of
+        # ticks (warm-up races, slow driver) and that is not worth surfacing to the user.
+        Write-GuiLog "GPU benchmark preview: $($previewDiag.Hits)/$($previewDiag.Attempts) frame(s) painted." "WARN"
+    }
 
     # Composite: geometric mean of the sub-test fps, so one strong test cannot mask a weak one.
     $composite = 0.0
@@ -689,7 +733,7 @@ function Show-GpuBenchmarkPopup {
     $body = @"
         <StackPanel>
             <TextBlock x:Name="txtLive" Text="GPU Temp: -- °C   |   Power: -- W   |   Clock: -- MHz   |   Load: -- %" Foreground="$($t.TextPrimary)" FontFamily="$fontFamily" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" TextAlignment="Center" Margin="0,0,0,8"/>
-            <Border x:Name="renderHost" Height="270" Background="$($t.CardBg)" BorderBrush="$($t.CardBorder)" BorderThickness="1" CornerRadius="$radius" Margin="0,0,0,10"/>
+            <Border x:Name="renderHost" Height="450" Background="$($t.CardBg)" BorderBrush="$($t.CardBorder)" BorderThickness="1" CornerRadius="$radius" Margin="0,0,0,10"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Border x:Name="gaugeHost" Width="64" Height="64" VerticalAlignment="Center"/>
                 <StackPanel Width="420" Margin="14,0,0,0" VerticalAlignment="Center">
