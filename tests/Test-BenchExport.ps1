@@ -140,7 +140,10 @@ foreach ($name in @("CPU", "GPU", "RAM", "Disk")) {
 }
 
 $cpuRows = Get-CategoryRows "CPU"
-Assert-Equal "71.5 °C" (Get-RowValue $cpuRows "Max CPU Temp") "CPU category reports the CPU temperature"
+# The value is rendered with the current culture, so 71.5 becomes "71,5 °C" on a pt-BR machine.
+# Match the shape (either separator) instead of pinning one culture's formatting.
+$cpuTemp = Get-RowValue $cpuRows "Max CPU Temp"
+Assert-True ($cpuTemp -match '^71[.,]5 °C$') "CPU category reports the CPU temperature" "got '$cpuTemp'"
 Assert-Equal "400 Mops/s" (Get-RowValue $cpuRows "Integer Single-Core") "CPU category lists the Integer kernel"
 Assert-Equal "4000 Mflop/s" (Get-RowValue $cpuRows "Float All-Core") "CPU category lists the Float kernel"
 Assert-Equal "4000 MB/s" (Get-RowValue $cpuRows "Hash All-Core") "CPU category lists the Hash kernel"
@@ -148,7 +151,7 @@ Assert-Equal "4000 MB/s" (Get-RowValue $cpuRows "Hash All-Core") "CPU category l
 $gpuRows = Get-CategoryRows "GPU"
 Assert-Equal "72 °C" (Get-RowValue $gpuRows "Max GPU Temp") "GPU category reports the GPU temperature"
 Assert-Equal "Stable" (Get-RowValue $gpuRows "Stability") "GPU category reports stability"
-Assert-Equal "1258.3 FPS (0.795 ms/frame, 63 blocks)" (Get-RowValue $gpuRows "Alu - ALU / fractal") "GPU category lists the ALU sub-test"
+Assert-True ((Get-RowValue $gpuRows "Alu - ALU / fractal") -match '^1258[.,]3 FPS \(0[.,]795 ms/frame, 63 blocks\)$') "GPU category lists the ALU sub-test"
 
 # ---- "All" concatenates the four sections -------------------------------------------------------
 $allRows = Get-CategoryRows "All"
