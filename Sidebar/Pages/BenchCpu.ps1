@@ -22,13 +22,26 @@ function Show-PageBenchCpu {
 
     Add-GuiCard "CPU Benchmark" "Three compiled workloads, each timed single-core and then on every logical CPU: Integer (xorshift/rotate ALU chain with a data-dependent branch), Float (eight independent mul/add chains plus a throughput sqrt) and Hash (64-bit FNV-style mixing over a 4 MB cache-resident buffer). Each pass is split into short individually timed blocks and the reported score is the median block, with threads pinned to one logical CPU each, at high priority and with Windows power throttling disabled - so the number tracks the CPU instead of the scheduler. Compare a workload against itself across machines or runs; the three units are not comparable with each other. This is a relative benchmark, not an absolute/portable score." {
         param($p)
-        $durState = Add-GuiBenchDurationPicker $p -Options @(10, 20, 30) -Default 20
+        $durState = Add-GuiBenchDurationPicker $p -Options @(30, 60, 120, 180, 240) -Default 30
         # $Global:BenchCpuRunning/-Cancel (not locals) so the "Stop" click - which fires in a nested
         # dispatcher pump while this same handler is still blocking the UI thread inside
         # Get-CpuBenchmarkResult - can signal the running loop; see the top-of-file note on why
         # $Global: (not $Script:) is required for GetNewClosure() to see live, not snapshotted, values.
         $Global:BenchCpuRunning = $false
         $Global:BenchCpuCancel = $false
+        # Live telemetry tiles updated while the benchmark runs (not just at the end).
+        $Global:BenchCpuTempText = New-Object System.Windows.Controls.TextBlock
+        $Global:BenchCpuTempText.FontSize = 13; $Global:BenchCpuTempText.FontWeight = "Bold"
+        $Global:BenchCpuTempText.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextPrimary")
+        $Global:BenchCpuPowerText = New-Object System.Windows.Controls.TextBlock
+        $Global:BenchCpuPowerText.FontSize = 13; $Global:BenchCpuPowerText.FontWeight = "Bold"
+        $Global:BenchCpuPowerText.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextPrimary")
+        $Global:BenchCpuClockText = New-Object System.Windows.Controls.TextBlock
+        $Global:BenchCpuClockText.FontSize = 13; $Global:BenchCpuClockText.FontWeight = "Bold"
+        $Global:BenchCpuClockText.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextPrimary")
+        $Global:BenchCpuLoadText = New-Object System.Windows.Controls.TextBlock
+        $Global:BenchCpuLoadText.FontSize = 13; $Global:BenchCpuLoadText.FontWeight = "Bold"
+        $Global:BenchCpuLoadText.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextPrimary")
         $Global:BenchCpuBtn = Add-GuiBtn $p "Run Benchmark" "ActionButtonStyle" {
             if ($Global:BenchCpuRunning) {
                 $Global:BenchCpuCancel = $true
@@ -43,6 +56,41 @@ function Show-PageBenchCpu {
                 $resultsStack = $Global:BenchCpuResultsStack
                 $resultsStack.Children.Clear()
                 Add-GuiIconTitle $resultsStack "&#xE950;" "Results" "#F0883E" -AccentTitle -TitleColor "#F0883E"
+
+                # Live telemetry strip (first item, centered above the charts) - updated every
+                # telemetry sample while the benchmark runs, with no "Live:" prefix label.
+                $telBox = New-Object System.Windows.Controls.Border
+                $telBox.Margin = "0,6,0,10"
+                $telBox.HorizontalAlignment = "Center"
+                $telBox.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, "Brush_CardBg")
+                $telBox.SetResourceReference([System.Windows.Controls.Border]::BorderBrushProperty, "Brush_CardBorder")
+                $telBox.BorderThickness = "1"
+                $telBox.SetResourceReference([System.Windows.Controls.Border]::CornerRadiusProperty, "Theme_CornerRadius")
+                $telBox.Padding = "8,4,8,4"
+                $telStrip = New-Object System.Windows.Controls.StackPanel
+                $telStrip.Orientation = "Horizontal"
+                $telStrip.HorizontalAlignment = "Center"
+                $telBox.Child = $telStrip
+                $telStrip.Children.Add($Global:BenchCpuTempText)
+                $telSep1 = New-Object System.Windows.Controls.TextBlock
+                $telSep1.Text = "   |   "
+                $telSep1.FontSize = 11
+                $telSep1.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextSecondary")
+                $telStrip.Children.Add($telSep1)
+                $telStrip.Children.Add($Global:BenchCpuPowerText)
+                $telSep2 = New-Object System.Windows.Controls.TextBlock
+                $telSep2.Text = "   |   "
+                $telSep2.FontSize = 11
+                $telSep2.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextSecondary")
+                $telStrip.Children.Add($telSep2)
+                $telStrip.Children.Add($Global:BenchCpuClockText)
+                $telSep3 = New-Object System.Windows.Controls.TextBlock
+                $telSep3.Text = "   |   "
+                $telSep3.FontSize = 11
+                $telSep3.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextSecondary")
+                $telStrip.Children.Add($telSep3)
+                $telStrip.Children.Add($Global:BenchCpuLoadText)
+                $resultsStack.AddChild($telBox)
 
                 # One single-core + one multi-core live chart per kernel, keyed by kernel name so the
                 # -OnSingleSample/-OnMultiSample callbacks (which report which kernel is running) can
@@ -75,6 +123,7 @@ function Show-PageBenchCpu {
                 $result = Get-CpuBenchmarkResult -DurationSeconds $durState.Seconds `
                     -OnSingleSample { param($kernel, $v) Add-GuiLiveChartSample $singleCharts[$kernel] $v }.GetNewClosure() `
                     -OnMultiSample { param($kernel, $v) Add-GuiLiveChartSample $multiCharts[$kernel] $v }.GetNewClosure() `
+                    -OnTelemetrySample { param($t) Update-GuiCpuTelemetryTiles $t }.GetNewClosure() `
                     -CancelCheck { $Global:BenchCpuCancel }
 
                 foreach ($chart in $singleCharts.Values) { Complete-GuiLiveChart $chart }
@@ -117,13 +166,13 @@ function Show-PageBenchCpu {
 
                 # Live CPU temperature/power/clock/load captured while the benchmark ran (peak
                 # values). Hidden entirely when LibreHardwareMonitor is unavailable rather than
-                # showing a fake number.
+                # showing a fake number. A reading of 0 means the sensor could not be queried.
                 $tel = $result.Telemetry
                 if ($tel -and $tel.Available) {
-                    $tempText = if ($null -ne $tel.MaxTemp) { "$($tel.MaxTemp) °C" } else { "N/A" }
-                    $powerText = if ($null -ne $tel.MaxPower) { "$($tel.MaxPower) W" } else { "N/A" }
-                    $clockText = if ($null -ne $tel.MaxClock) { "$($tel.MaxClock) MHz" } else { "N/A" }
-                    $loadText = if ($null -ne $tel.MaxLoad) { "$($tel.MaxLoad) %" } else { "N/A" }
+                    $tempText = if ($null -ne $tel.MaxTemp -and $tel.MaxTemp -ne 0) { "$($tel.MaxTemp) °C" } else { "N/A" }
+                    $powerText = if ($null -ne $tel.MaxPower -and $tel.MaxPower -ne 0) { "$($tel.MaxPower) W" } else { "N/A" }
+                    $clockText = if ($null -ne $tel.MaxClock -and $tel.MaxClock -ne 0) { "$($tel.MaxClock) MHz" } else { "N/A" }
+                    $loadText = if ($null -ne $tel.MaxLoad -and $tel.MaxLoad -ne 0) { "$($tel.MaxLoad) %" } else { "N/A" }
                     Add-GuiBenchStatTiles $resultsStack @(
                         @{Label="Max CPU Temp"; Value=$tempText}
                         @{Label="Max CPU Power"; Value=$powerText}
@@ -137,7 +186,7 @@ function Show-PageBenchCpu {
                     if ($prof) { "$($km.Kernel) $($prof.SingleScore)/$($prof.MultiScore) $($km.Unit) (x$($prof.MtStRatio))" }
                 }
                 $logLine = "CPU benchmark - " + ($logParts -join ", ")
-                if ($tel -and $tel.Available -and $null -ne $tel.MaxTemp) { $logLine += " - max temp $($tel.MaxTemp) °C" }
+                if ($tel -and $tel.Available -and $null -ne $tel.MaxTemp -and $tel.MaxTemp -ne 0) { $logLine += " - max temp $($tel.MaxTemp) °C" }
                 if ($result.Cancelled) {
                     Write-GuiLog "$logLine (stopped)" "WARN"
                 } else {
@@ -154,10 +203,10 @@ function Show-PageBenchCpu {
                     Integer         = $kernelResults["Integer"]
                     Float           = $kernelResults["Float"]
                     Hash            = $kernelResults["Hash"]
-                    MaxTemp         = $(if ($tel) { $tel.MaxTemp } else { $null })
-                    MaxPower        = $(if ($tel) { $tel.MaxPower } else { $null })
-                    MaxClock        = $(if ($tel) { $tel.MaxClock } else { $null })
-                    MaxLoad         = $(if ($tel) { $tel.MaxLoad } else { $null })
+                    MaxTemp         = $(if ($tel -and $tel.Available -and $tel.MaxTemp -ne 0) { $tel.MaxTemp } else { $null })
+                    MaxPower        = $(if ($tel -and $tel.Available -and $tel.MaxPower -ne 0) { $tel.MaxPower } else { $null })
+                    MaxClock        = $(if ($tel -and $tel.Available -and $tel.MaxClock -ne 0) { $tel.MaxClock } else { $null })
+                    MaxLoad         = $(if ($tel -and $tel.Available -and $tel.MaxLoad -ne 0) { $tel.MaxLoad } else { $null })
                     Cancelled       = $result.Cancelled
                     Timestamp       = Get-Date
                 }
@@ -169,4 +218,19 @@ function Show-PageBenchCpu {
     } "&#xE950;" -WrapButtons
 
     $pnlContent.AddChild($Global:BenchCpuResultsCard)
+}
+
+# Updates the live telemetry strip from inside Get-CpuBenchmarkResult (called via OnTelemetrySample
+# once per telemetry sample, ~1/s). Runs on the UI dispatcher because Get-CpuBenchmarkResult pumps
+# the dispatcher via Set-GuiProgress between blocks.
+function Update-GuiCpuTelemetryTiles {
+    param($t)
+    $tempText = if ($null -ne $t.MaxTemp -and $t.MaxTemp -ne 0) { "$($t.MaxTemp) °C" } else { "-- °C" }
+    $powerText = if ($null -ne $t.MaxPower -and $t.MaxPower -ne 0) { "$($t.MaxPower) W" } else { "-- W" }
+    $clockText = if ($null -ne $t.MaxClock -and $t.MaxClock -ne 0) { "$($t.MaxClock) MHz" } else { "-- MHz" }
+    $loadText = if ($null -ne $t.MaxLoad -and $t.MaxLoad -ne 0) { "$($t.MaxLoad) %" } else { "-- %" }
+    $Global:BenchCpuTempText.Text  = "CPU Temp: $tempText"
+    $Global:BenchCpuPowerText.Text = "Power: $powerText"
+    $Global:BenchCpuClockText.Text = "Clock: $clockText"
+    $Global:BenchCpuLoadText.Text  = "Load: $loadText"
 }

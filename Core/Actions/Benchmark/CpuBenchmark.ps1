@@ -330,11 +330,11 @@ function New-CpuKernelProfile {
     }
 }
 
-# Orchestrates the whole CPU benchmark. $DurationSeconds is the TOTAL budget (~10/20/30 s), split
-# across the six passes (3 kernels x single/all-core); blocks are ~400 ms each and their count is
-# derived from that budget, so the run never exceeds it by more than one block.
+# Orchestrates the whole CPU benchmark. $DurationSeconds is the TOTAL budget (~30/60/120/180/240 s),
+# split across the <6 passes (3 kernels x single/all-core); blocks are ~400 ms each and their count
+# is derived from that budget, so the run never exceeds it by more than one block.
 function Get-CpuBenchmarkResult {
-    param([double]$DurationSeconds = 20, [scriptblock]$OnSingleSample = $null, [scriptblock]$OnMultiSample = $null, [scriptblock]$CancelCheck = $null)
+    param([double]$DurationSeconds = 30, [scriptblock]$OnSingleSample = $null, [scriptblock]$OnMultiSample = $null, [scriptblock]$OnTelemetrySample = $null, [scriptblock]$CancelCheck = $null)
 
     if (-not (Initialize-CpuKernels)) {
         throw "CPU benchmark kernels are unavailable on this system (see the log for the compiler error)."
@@ -346,11 +346,12 @@ function Get-CpuBenchmarkResult {
     $warmupMs = 120
 
     # Budget per pass minus the one-off warm-up, in blocks of $blockMs. Clamped so a very short
-    # budget still produces 3 samples (enough for a median) and a long one stays under ~30 s total.
+    # budget still produces 3 samples (enough for a median) and a long one (240 s -> ~99 blocks
+    # per pass) does not run past the requested budget.
     $perPassSeconds = $DurationSeconds / ($kernels.Count * 2)
     $blocks = [int][math]::Floor((($perPassSeconds - ($warmupMs / 1000.0)) * 1000.0) / $blockMs)
     if ($blocks -lt 3) { $blocks = 3 }
-    if ($blocks -gt 12) { $blocks = 12 }
+    if ($blocks -gt 120) { $blocks = 120 }
 
     $totalSteps = $kernels.Count * 2 * ($blocks + 1)
     # A hashtable (not a plain counter variable) so the progress state survives the child scope of
@@ -402,6 +403,7 @@ function Get-CpuBenchmarkResult {
         if ($null -ne $reading.Power -and ($null -eq $telemetry.MaxPower -or $reading.Power -gt $telemetry.MaxPower)) { $telemetry.MaxPower = [math]::Round($reading.Power, 1) }
         if ($null -ne $reading.Clock -and ($null -eq $telemetry.MaxClock -or $reading.Clock -gt $telemetry.MaxClock)) { $telemetry.MaxClock = [math]::Round($reading.Clock, 0) }
         if ($null -ne $reading.Load -and ($null -eq $telemetry.MaxLoad -or $reading.Load -gt $telemetry.MaxLoad)) { $telemetry.MaxLoad = [math]::Round($reading.Load, 1) }
+        if ($OnTelemetrySample) { & $OnTelemetrySample $telemetry }
     }.GetNewClosure()
 
     try {
@@ -459,7 +461,7 @@ function Get-CpuBenchmarkResult {
     if ($CancelCheck -and (& $CancelCheck)) { $cancelled = $true }
     $started.Stop()
 
-    $result = [PSCustomObject]@{
+    $result = @{
         Version         = $Script:CpuKernelVersion
         Threads         = $cpus
         Cancelled       = $cancelled

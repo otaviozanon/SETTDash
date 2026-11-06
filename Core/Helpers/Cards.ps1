@@ -632,12 +632,12 @@ function Add-GuiBenchStatTiles {
         $box.SetResourceReference([System.Windows.Controls.Border]::BorderBrushProperty, "Brush_CardBorder")
         $box.BorderThickness = "1"
         $box.SetResourceReference([System.Windows.Controls.Border]::CornerRadiusProperty, "Theme_CornerRadius")
-        $box.Margin = "0,0,8,0"
-        $box.Padding = "10,8,10,8"
+        $box.Margin = "0,0,6,0"
+        $box.Padding = "8,4,8,4"
         $inner = New-Object System.Windows.Controls.StackPanel
         $valueText = New-Object System.Windows.Controls.TextBlock
         $valueText.Text = [string]$tile.Value
-        $valueText.FontSize = 20
+        $valueText.FontSize = 16
         $valueText.FontWeight = "Bold"
         $valueText.HorizontalAlignment = "Center"
         # NOTE: ps2exe's compiled .exe runs with Set-StrictMode enabled (unlike running the .ps1
@@ -667,15 +667,15 @@ function Add-GuiBenchStatTiles {
 # render size automatically - no manual min/max-to-pixel math needed (Y is negated so a larger
 # sample value renders higher on the chart instead of lower, since WPF Y grows downward).
 function Add-GuiBenchChart {
-    param($Panel, [double[]]$Samples, [string]$AccentColor = "#F0883E", [double]$Height = 90, [string]$Unit = "")
+    param($Panel, [double[]]$Samples, [string]$AccentColor = "#F0883E", [double]$Height = 45, [string]$Unit = "")
     if (-not $Samples -or $Samples.Count -eq 0) { return }
     $wrap = New-Object System.Windows.Controls.Border
     $wrap.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, "Brush_CardBg")
     $wrap.SetResourceReference([System.Windows.Controls.Border]::BorderBrushProperty, "Brush_CardBorder")
     $wrap.BorderThickness = "1"
     $wrap.SetResourceReference([System.Windows.Controls.Border]::CornerRadiusProperty, "Theme_CornerRadius")
-    $wrap.Padding = "10,8,10,6"
-    $wrap.Margin = "0,0,0,10"
+    $wrap.Padding = "8,4,8,4"
+    $wrap.Margin = "0,0,0,8"
     $outer = New-Object System.Windows.Controls.StackPanel
     $caption = New-Object System.Windows.Controls.TextBlock
     $caption.Text = "Samples over time" + $(if ($Unit) { " ($Unit)" } else { "" })
@@ -715,14 +715,14 @@ function Add-GuiBenchChart {
 # Add-GuiLiveChartSample and the caller can keep a reference to (e.g. to change the caption once
 # the run completes).
 function New-GuiLiveChart {
-    param($Panel, [string]$AccentColor = "#F0883E", [double]$Height = 90, [string]$Unit = "", [string]$Title = "")
+    param($Panel, [string]$AccentColor = "#F0883E", [double]$Height = 45, [string]$Unit = "", [string]$Title = "")
     $wrap = New-Object System.Windows.Controls.Border
     $wrap.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, "Brush_CardBg")
     $wrap.SetResourceReference([System.Windows.Controls.Border]::BorderBrushProperty, "Brush_CardBorder")
     $wrap.BorderThickness = "1"
     $wrap.SetResourceReference([System.Windows.Controls.Border]::CornerRadiusProperty, "Theme_CornerRadius")
-    $wrap.Padding = "10,8,10,6"
-    $wrap.Margin = "0,0,0,10"
+    $wrap.Padding = "8,4,8,4"
+    $wrap.Margin = "0,0,0,8"
     $outer = New-Object System.Windows.Controls.StackPanel
 
     # Header row: caption (left, "<Title> - Running.../Samples over time (Unit)") + a compact

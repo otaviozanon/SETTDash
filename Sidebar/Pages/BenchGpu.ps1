@@ -19,7 +19,7 @@ function Show-PageBenchGpu {
     Add-GuiCard "GPU Benchmark" "Creates a real Direct3D11 hardware device and times three independent workloads with GPU timestamp queries - ALU (full-screen animated fractal pixel shader), Texture (2048x2048 texture, 16 bilinear taps per pixel) and Compute (4M-element structured buffer, 384 dependent sin/sqrt iterations per element). Each sub-test is split into blocks of about 45 ms of GPU work and scored from the median block time, and the composite is the geometric mean of the three sub-test FPS - so a card cannot hide a weak area behind one fast test. GPU timestamps measure what the GPU executed, not how fast the CPU could issue draw calls. Live GPU temperature, power and clock are sampled during the run. Use the score for before/after comparison (driver, overclock, undervolt), not as a cross-vendor ranking." {
         param($p)
 
-        $durState = Add-GuiBenchDurationPicker $p -Options @(10, 20, 30) -Default 20
+        $durState = Add-GuiBenchDurationPicker $p -Options @(30, 60, 120, 180, 240) -Default 30
 
         Add-GuiBtn $p "Run Benchmark" "ActionButtonStyle" {
             Write-GuiLog "Starting GPU benchmark (total budget $($durState.Seconds)s)..." "STEP"
@@ -63,10 +63,10 @@ function Show-PageBenchGpu {
 
             if ($result.Telemetry -and $result.Telemetry.Available) {
                 $tel = $result.Telemetry
-                $tempText = if ($null -ne $tel.MaxTemp) { "$($tel.MaxTemp) °C" } else { "N/A" }
-                $powerText = if ($null -ne $tel.MaxPower) { "$($tel.MaxPower) W" } else { "N/A" }
-                $clockText = if ($null -ne $tel.MaxClock) { "$($tel.MinClock) - $($tel.MaxClock) MHz" } else { "N/A" }
-                $loadText = if ($null -ne $tel.MaxLoad) { "$($tel.MaxLoad) %" } else { "N/A" }
+                $tempText = if ($null -ne $tel.MaxTemp -and $tel.MaxTemp -ne 0) { "$($tel.MaxTemp) °C" } else { "N/A" }
+                $powerText = if ($null -ne $tel.MaxPower -and $tel.MaxPower -ne 0) { "$($tel.MaxPower) W" } else { "N/A" }
+                $clockText = if ($null -ne $tel.MaxClock -and $tel.MaxClock -ne 0) { "$($tel.MinClock) - $($tel.MaxClock) MHz" } else { "N/A" }
+                $loadText = if ($null -ne $tel.MaxLoad -and $tel.MaxLoad -ne 0) { "$($tel.MaxLoad) %" } else { "N/A" }
                 Add-GuiBenchStatTiles $Global:BenchGpuResultsStack @(
                     @{Label="Max GPU Temp"; Value=$tempText}
                     @{Label="Max GPU Power"; Value=$powerText}
@@ -95,10 +95,10 @@ function Show-PageBenchGpu {
                 CompositeFps    = $result.CompositeFps
                 CompositeMs     = $result.CompositeMs
                 Tests           = $result.Tests
-                MaxTemp         = $(if ($tel) { $tel.MaxTemp } else { $null })
-                MaxPower        = $(if ($tel) { $tel.MaxPower } else { $null })
-                MaxClock        = $(if ($tel) { $tel.MaxClock } else { $null })
-                MaxLoad         = $(if ($tel) { $tel.MaxLoad } else { $null })
+                MaxTemp         = $(if ($tel -and $tel.Available -and $tel.MaxTemp -ne 0) { $tel.MaxTemp } else { $null })
+                MaxPower        = $(if ($tel -and $tel.Available -and $tel.MaxPower -ne 0) { $tel.MaxPower } else { $null })
+                MaxClock        = $(if ($tel -and $tel.Available -and $tel.MaxClock -ne 0) { $tel.MaxClock } else { $null })
+                MaxLoad         = $(if ($tel -and $tel.Available -and $tel.MaxLoad -ne 0) { $tel.MaxLoad } else { $null })
                 ThrottlePct     = $result.ThrottlePct
                 Throttling      = $result.Throttling
                 Cancelled       = $result.Cancelled

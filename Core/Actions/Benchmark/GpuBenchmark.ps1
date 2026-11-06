@@ -232,6 +232,7 @@ function Get-GpuBenchmarkResult {
         [int]$PreviewHeight = 270,
         [System.Windows.Controls.Image]$PreviewTarget = $null,
         [scriptblock]$OnStatus = $null,
+        [scriptblock]$OnTelemetrySample = $null,
         [scriptblock]$CancelCheck = $null
     )
 
@@ -485,6 +486,7 @@ function Get-GpuBenchmarkResult {
             if ($null -eq $telemetry.MaxClock -or $reading.Clock -gt $telemetry.MaxClock) { $telemetry.MaxClock = [math]::Round($reading.Clock, 0) }
         }
         if ($null -ne $reading.Load -and ($null -eq $telemetry.MaxLoad -or $reading.Load -gt $telemetry.MaxLoad)) { $telemetry.MaxLoad = [math]::Round($reading.Load, 1) }
+        if ($OnTelemetrySample) { try { & $OnTelemetrySample $telemetry } catch { } }
     }.GetNewClosure()
 
     try {
@@ -686,7 +688,8 @@ function Show-GpuBenchmarkPopup {
 
     $body = @"
         <StackPanel>
-            <Border x:Name="renderHost" Height="420" Background="$($t.CardBg)" BorderBrush="$($t.CardBorder)" BorderThickness="1" CornerRadius="$radius" Margin="0,0,0,14"/>
+            <TextBlock x:Name="txtLive" Text="GPU Temp: -- °C   |   Power: -- W   |   Clock: -- MHz   |   Load: -- %" Foreground="$($t.TextPrimary)" FontFamily="$fontFamily" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" TextAlignment="Center" Margin="0,0,0,8"/>
+            <Border x:Name="renderHost" Height="270" Background="$($t.CardBg)" BorderBrush="$($t.CardBorder)" BorderThickness="1" CornerRadius="$radius" Margin="0,0,0,10"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Border x:Name="gaugeHost" Width="64" Height="64" VerticalAlignment="Center"/>
                 <StackPanel Width="420" Margin="14,0,0,0" VerticalAlignment="Center">
@@ -708,6 +711,7 @@ function Show-GpuBenchmarkPopup {
     $gaugeHost = $dlg.FindName("gaugeHost")
     $txtStatus = $dlg.FindName("txtStatus")
     $txtResult = $dlg.FindName("txtResult")
+    $txtLive = $dlg.FindName("txtLive")
     $btnAction = $dlg.FindName("btnAction")
     Register-UpdatePopupDrag -PopupWindow $dlg -TitleBar $titleBar
 
@@ -777,13 +781,22 @@ function Show-GpuBenchmarkPopup {
 
     $cancelCheck = { $popupState.Cancelled }.GetNewClosure()
 
+    $onTelemetry = {
+        param($telemetry)
+        $tempText = if ($null -ne $telemetry.MaxTemp -and $telemetry.MaxTemp -ne 0) { "$($telemetry.MaxTemp) °C" } else { "-- °C" }
+        $powerText = if ($null -ne $telemetry.MaxPower -and $telemetry.MaxPower -ne 0) { "$($telemetry.MaxPower) W" } else { "-- W" }
+        $clockText = if ($null -ne $telemetry.MaxClock -and $telemetry.MaxClock -ne 0) { "$($telemetry.MaxClock) MHz" } else { "-- MHz" }
+        $loadText = if ($null -ne $telemetry.MaxLoad -and $telemetry.MaxLoad -ne 0) { "$($telemetry.MaxLoad) %" } else { "-- %" }
+        $txtLive.Text = "GPU Temp: $tempText   |   Power: $powerText   |   Clock: $clockText   |   Load: $loadText"
+    }.GetNewClosure()
+
     $dlg.Add_ContentRendered({
         # NOTE: this handler runs on a WPF event callback - in the compiled exe (ps2exe, no console
         # host) an unhandled exception here is invisible, so wrap it and surface the message in the
         # popup instead of leaving it stuck at "Starting...".
         try {
             $result = Get-GpuBenchmarkResult -DurationSeconds $DurationSeconds -PreviewTarget $previewImage `
-                -OnStatus $onStatus -CancelCheck $cancelCheck
+                -OnStatus $onStatus -OnTelemetrySample $onTelemetry -CancelCheck $cancelCheck
             $popupState.Result = $result
             $popupState.Done = $true
             if ($result.Cancelled) {
