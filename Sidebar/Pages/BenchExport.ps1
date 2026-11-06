@@ -10,16 +10,21 @@ function Show-PageBenchExport {
     $fmtStatus = { param($r) if ($r.Cancelled) { "Stopped (partial)" } else { "Complete" } }
     $fmtTime = { param($r) $r.Timestamp.ToString("yyyy-MM-dd HH:mm:ss") }
 
-    $categories = [ordered]@{
-        "All" = {
-            $all = @()
-            foreach ($name in @("CPU", "GPU", "RAM", "Disk")) {
-                $all += @{IsHeader=$true; Label=$name}
-                $all += (& $categories[$name])
-            }
-            $all
+    # Each category is a scriptblock that OUTLIVES this function: the pill click handler and the
+    # HTML export invoke it long after Show-PageBenchExport returned. A plain scriptblock only keeps
+    # its own scope, so the outer locals were already gone by then and every click on a category with
+    # data threw "The variable '$fmtStatus' cannot be retrieved because it has not been set" (and the
+    # "All" pill the same for $categories). GetNewClosure() gives each one a private snapshot.
+    $categories = [ordered]@{}
+    $categories["All"] = {
+        $all = @()
+        foreach ($name in @("CPU", "GPU", "RAM", "Disk")) {
+            $all += @{IsHeader=$true; Label=$name}
+            $all += (& $categories[$name])
         }
-        "CPU" = {
+        $all
+    }.GetNewClosure()
+    $categories["CPU"] = {
             $r = $Global:BenchCpuLastResult
             if (-not $r) { return @(@{Label="Status"; Value="No data - run the CPU benchmark first"}) }
             $rows = @(
@@ -46,8 +51,8 @@ function Show-PageBenchExport {
             if ($r.ContainsKey('MaxClock') -and $null -ne $r.MaxClock) { $rows += @{Label="Max CPU Clock"; Value="$($r.MaxClock) MHz"} }
             if ($r.ContainsKey('MaxLoad') -and $null -ne $r.MaxLoad) { $rows += @{Label="Max CPU Load"; Value="$($r.MaxLoad) %"} }
             $rows
-        }
-        "GPU" = {
+        }.GetNewClosure()
+    $categories["GPU"] = {
             $r = $Global:BenchGpuLastResult
             if (-not $r) { return @(@{Label="Status"; Value="No data - run the GPU benchmark first"}) }
             $rows = @(
@@ -70,8 +75,8 @@ function Show-PageBenchExport {
             if ($r.ContainsKey('MaxClock') -and $null -ne $r.MaxClock) { $rows += @{Label="Max GPU Clock"; Value="$($r.MaxClock) MHz"} }
             if ($r.ContainsKey('MaxLoad') -and $null -ne $r.MaxLoad) { $rows += @{Label="Max GPU Load"; Value="$($r.MaxLoad) %"} }
             $rows
-        }
-        "RAM" = {
+        }.GetNewClosure()
+    $categories["RAM"] = {
             $r = $Global:BenchRamLastResult
             if (-not $r) { return @(@{Label="Status"; Value="No data - run the RAM benchmark first"}) }
             @(
@@ -86,8 +91,8 @@ function Show-PageBenchExport {
                 @{Label="Latency"; Value=$(if ($r.ContainsKey('LatencyNs') -and $r.LatencyNs) { "$($r.LatencyNs) ns" } else { "N/A" })}
                 @{Label="Multi-Thread Bandwidth"; Value=$(if ($r.ContainsKey('MtBandwidthMBs') -and $r.MtBandwidthMBs) { "$($r.MtBandwidthMBs) MB/s ($($r.MtThreads) threads)" } else { "N/A" })}
             )
-        }
-        "Disk" = {
+        }.GetNewClosure()
+    $categories["Disk"] = {
             $r = $Global:BenchDiskLastResult
             if (-not $r) { return @(@{Label="Status"; Value="No data - run the Disk benchmark first"}) }
             @(
@@ -102,8 +107,7 @@ function Show-PageBenchExport {
                 @{Label="4K Random Read"; Value=$(if ($r.ContainsKey('Read4kIops') -and $r.Read4kIops) { "$($r.Read4kIops) IOPS" } else { "N/A" })}
                 @{Label="4K Random Read (Queue Depth)"; Value=$(if ($r.ContainsKey('QdReadIops') -and $r.QdReadIops) { "$($r.QdReadIops) IOPS ($($r.QdThreads) threads)" } else { "N/A" })}
             )
-        }
-    }
+        }.GetNewClosure()
 
     Show-GuiCategoryDetailPage "Benchmark Results" $categories
 }

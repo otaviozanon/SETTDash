@@ -44,6 +44,7 @@ if ($Elevated -and -not $ElevatedChild) {
 $suites = @(
     @{ Name = "Build";       File = "Test-Build.ps1";        Timeout = 300;  Description = "Build.ps1 output: parses, contracts, no duplicate functions, no debug leftovers" }
     @{ Name = "StaticGuards";File = "Test-StaticGuards.ps1"; Timeout = 300;  Description = "Regressions from v3.2.31: `$null.Count, .CimClass, ConvertFrom-Json, FirstChance hook" }
+    @{ Name = "BenchExport"; File = "Test-BenchExport.ps1";  Timeout = 300;  Description = "Benchmark Export page: category pills and HTML report still work after the page function returned" }
     @{ Name = "StrictMode";  File = "Test-StrictMode.ps1";   Timeout = 600;  Description = "Data layer under StrictMode Latest: empty scans, corrupt cache, real machine scans" }
     @{ Name = "Actions";     File = "Test-Actions.ps1";      Timeout = 900;  Description = "Sandbox: every mutating function swept, deletion, apply/revert symmetry, unshadowed-command guard" }
     @{ Name = "Smoke";       File = "Test-Smoke.ps1";        Timeout = 900;  Description = "Compiled x64 exe: walks all pages, clicks every Scan, asserts no crash and no error report" }
