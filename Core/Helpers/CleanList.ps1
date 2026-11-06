@@ -199,6 +199,62 @@ function Set-CleanChecklist {
     }
 }
 
+# Builds a compact inline search box (icon + TextBox in a bordered pill) meant to be dropped
+# into a card's button row (the $p WrapPanel passed into Add-GuiCard's -Content scriptblock),
+# next to its Scan/Delete buttons. Returns the outer Border; the TextBox itself is stashed on
+# Border.Tag so the caller can read .Text / wire Add_TextChanged without a second lookup.
+function New-CleanSearchBox {
+    param([string]$Placeholder = "Search...")
+    $border = New-Object System.Windows.Controls.Border
+    $border.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, "Brush_CardBg")
+    $border.SetResourceReference([System.Windows.Controls.Border]::BorderBrushProperty, "Brush_CardBorder")
+    $border.BorderThickness = "1"
+    $border.SetResourceReference([System.Windows.Controls.Border]::CornerRadiusProperty, "Theme_CornerRadius")
+    $border.Padding = "8,4,8,4"
+    $border.Width = 170
+    $border.Margin = "0,0,8,0"
+    $border.VerticalAlignment = "Center"
+    $stack = New-Object System.Windows.Controls.StackPanel
+    $stack.Orientation = "Horizontal"
+    $icon = New-Object System.Windows.Controls.TextBlock
+    $icon.Text = [char]0xE721
+    $icon.FontFamily = "Segoe MDL2 Assets"
+    $icon.FontSize = 12
+    $icon.VerticalAlignment = "Center"
+    $icon.Margin = "0,0,6,0"
+    $icon.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextMuted")
+    $stack.AddChild($icon)
+    $box = New-Object System.Windows.Controls.TextBox
+    $box.Width = 120
+    $box.Background = "Transparent"
+    $box.BorderThickness = "0"
+    $box.ToolTip = $Placeholder
+    $box.SetResourceReference([System.Windows.Controls.TextBox]::ForegroundProperty, "Brush_TextPrimary")
+    $box.SetResourceReference([System.Windows.Controls.TextBox]::CaretBrushProperty, "Brush_Accent")
+    $box.SetResourceReference([System.Windows.Controls.TextBox]::FontFamilyProperty, "Theme_FontFamily")
+    $stack.AddChild($box)
+    $border.Child = $stack
+    $border.Tag = $box
+    return $border
+}
+
+# Shows/hides rows already rendered by Set-CleanChecklist in $Panel, based on whether the
+# item's Label or Detail contains $Text (case-insensitive). Does not touch $Items/Selected -
+# purely a visual filter, so toggling a hidden row's checkbox state is unaffected if it's
+# revealed again later.
+function Set-CleanFilter {
+    param($Panel, [string]$Text)
+    if (-not $Panel) { return }
+    $f = $Text.Trim().ToLowerInvariant()
+    foreach ($row in $Panel.Children) {
+        if ($row -is [System.Windows.Controls.Border] -and $row.Tag -and $row.Tag.Item) {
+            $it = $row.Tag.Item
+            $hay = ("$($it.Label) $($it.Detail)").ToLowerInvariant()
+            $row.Visibility = if ($f -eq "" -or $hay.Contains($f)) { "Visible" } else { "Collapsed" }
+        }
+    }
+}
+
 # Returns only the items in $Items whose Selected flag is currently true.
 # NOTE: like every other collection-returning function here, an empty result comes back as
 # $null (PowerShell unrolls the empty array). Callers must normalize with @(...) before

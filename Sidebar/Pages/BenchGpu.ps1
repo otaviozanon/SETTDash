@@ -17,7 +17,7 @@ function Show-PageBenchGpu {
     $Global:BenchGpuResultsStack = New-Object System.Windows.Controls.StackPanel
     $Global:BenchGpuResultsCard.Child = $Global:BenchGpuResultsStack
 
-    Add-GuiCard "Rendering Stress Test" "Opens a popup that animates either a grid of rotating 2D shapes or a lit, rotating 3D mesh scene via WPF's hardware-accelerated compositor for the selected test length - long enough to ride out compositor/driver warmup - sampling FPS every second on a live gauge. This exercises the GPU driver/compositor rendering path, not a raw shader/compute workload - use the score for before/after comparison (e.g. after a driver update), not as a cross-vendor benchmark." {
+    Add-GuiCard "Rendering Stress Test" "Opens a popup that creates a real Direct3D11 hardware device and renders an animated fractal pixel shader off-screen as fast as the GPU/driver can retire frames, with a live preview, for the selected test length. This measures genuine GPU/driver shader throughput - use the score for before/after comparison (e.g. after a driver update), not as a cross-vendor benchmark." {
         param($p)
 
         # Test length dropdown (replaces the pill picker used by CPU/RAM/Disk - Add-GuiBenchDurationPicker
@@ -40,35 +40,13 @@ function Show-PageBenchGpu {
         }.GetNewClosure())
         $p.AddChild($durCombo)
 
-        # Test type dropdown (2D Compositor / 3D Viewport) - also a ComboBox per request.
-        $modeLabel = New-Object System.Windows.Controls.TextBlock
-        $modeLabel.Text = "Test type:"
-        $modeLabel.FontSize = 12
-        $modeLabel.VerticalAlignment = "Center"
-        $modeLabel.Margin = "16,0,8,0"
-        $modeLabel.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextSecondary")
-        $p.AddChild($modeLabel)
-
-        $modeOptions = @(
-            @{ Key = "2D"; Text = "2D Compositor" },
-            @{ Key = "3D"; Text = "3D Viewport" }
-        )
-        $modeState = [PSCustomObject]@{ Mode = $modeOptions[0].Key }
-        $modeCombo = New-GuiThemedComboBox -Width 150
-        foreach ($opt in $modeOptions) { $modeCombo.Items.Add($opt.Text) | Out-Null }
-        $modeCombo.SelectedIndex = 0
-        $modeCombo.Add_SelectionChanged({
-            if ($modeCombo.SelectedIndex -ge 0) { $modeState.Mode = $modeOptions[$modeCombo.SelectedIndex].Key }
-        }.GetNewClosure())
-        $p.AddChild($modeCombo)
-
         Add-GuiBtn $p "Run Benchmark" "ActionButtonStyle" {
-            $modeName = if ($modeState.Mode -eq "3D") { "3D Viewport" } else { "2D Compositor" }
+            $modeName = "D3D11 Hardware"
             Write-GuiLog "Starting GPU render benchmark - $modeName ($($durState.Seconds)s)..." "STEP"
 
             # Show-GpuBenchmarkPopup blocks (ShowDialog) until the user closes the popup, which
             # only becomes possible once the run completes or is stopped - see that function.
-            $result = Show-GpuBenchmarkPopup -Mode $modeState.Mode -DurationSeconds $durState.Seconds
+            $result = Show-GpuBenchmarkPopup -Mode "D3D11" -DurationSeconds $durState.Seconds
 
             if ($result) {
                 $Global:BenchGpuResultsStack.Children.Clear()

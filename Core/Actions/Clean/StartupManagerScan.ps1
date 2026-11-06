@@ -3,9 +3,9 @@
 #region CLEAN TAB - STARTUP MANAGER (list/enable/disable/delete)
 # ================================================
 # Recreates Kudu's "Startup Manager" (startup-manager.ipc.ts) as native PowerShell:
-# lists Run/RunOnce (HKCU+HKLM), Startup folder shortcuts, and Task Scheduler logon-trigger
-# tasks; supports Enable/Disable (registry delete + re-add from stored command) and Delete.
-# Used by: Sidebar\Pages\Clean.ps1
+# lists Run/RunOnce (HKCU+HKLM), Startup folder shortcuts, logon-trigger tasks, and all
+# other Task Scheduler entries; supports Enable/Disable (registry delete + re-add from
+# stored command) and Delete. Used by: Sidebar\Pages\Startup.ps1 (all 4 categories).
 
 $Script:StartupDisabledPath = Join-Path $env:LOCALAPPDATA "SETTDash\Backups\disabled-startups.json"
 
@@ -43,8 +43,12 @@ function Set-StartupDisabledEntries {
 # Returns pscustomobjects: Label, Detail, Selected(=enabled), Name, Command, Location, Source
 # Source: 'registry-hkcu' | 'registry-hklm' | 'startup-folder' | 'task-scheduler'
 function Get-StartupManagerItems {
-    $items = @()
+    return @(Get-StartupRegistryItems) + @(Get-StartupFolderItems) + @(Get-StartupLogonTaskItems)
+}
 
+# Category 1 (Startup page): MSConfig-style Run/RunOnce registry entries (HKCU+HKLM).
+function Get-StartupRegistryItems {
+    $items = @()
     $runKeys = @(
         @{ Path='HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run'; Source='registry-hkcu' }
         @{ Path='HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run'; Source='registry-hklm' }
@@ -61,7 +65,27 @@ function Get-StartupManagerItems {
             }
         }
     }
+    # Merge in registry-based entries the user disabled previously (Remove-ItemProperty took
+    # them out of the live Run key, so they would otherwise vanish from the list entirely).
+    # They are re-shown here as unchecked/disabled rows, using the command saved at disable
+    # time, so the user can still find and re-enable them on a later scan/session.
+    foreach ($stored in (Get-StartupDisabledEntries)) {
+        $name = Get-SafeProp $stored 'Name'
+        $source = Get-SafeProp $stored 'Source'
+        if (-not $name -or -not $source -or $source -ne 'registry-hkcu' -and $source -ne 'registry-hklm') { continue }
+        $already = $items | Where-Object { $_.Name -eq $name -and $_.Source -eq $source }
+        if ($already) { continue }
+        $items += [pscustomobject]@{
+            Label=$name; Detail=(Get-SafeProp $stored 'Command'); Selected=$false
+            Name=$name; Command=(Get-SafeProp $stored 'Command'); Location=(Get-SafeProp $stored 'Location'); Source=$source
+        }
+    }
+    return $items
+}
 
+# Category 2 (Startup page): Startup folder shortcuts (current user).
+function Get-StartupFolderItems {
+    $items = @()
     $startupDir = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Startup'
     if (Test-Path $startupDir) {
         Get-ChildItem $startupDir -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne 'desktop.ini' } | ForEach-Object {
@@ -71,22 +95,31 @@ function Get-StartupManagerItems {
             }
         }
     }
+    return $items
+}
 
-    # Task Scheduler entries with a logon trigger.
-    # Deliberately a plain foreach over the task list (NOT `Get-ScheduledTask | ForEach-Object`):
-    # driving nested Where-Object pipelines from inside a pipeline stage made every strict-mode
-    # property error (below) blow the stack - the process died with "a new guard page for the
-    # stack cannot be created" and no managed handler could run, so no error report was written.
-    # Triggers/actions are read through Get-SafeProp because some of them really do not expose
-    # CimClass/Execute, and a missing property must be "skip", not an exception.
+# Category 3 (Startup page): Task Scheduler entries with a logon or boot trigger (excludes
+# Microsoft's own built-in tasks). Boot trigger is included alongside logon trigger to match
+# what Sysinternals Autoruns' "Logon" tab and the original optimizerDuck's
+# ScheduledTaskService.GetStartupTasks() consider "startup-related" (HasLogonTrigger ||
+# HasBootTrigger), instead of only logon-trigger tasks. Deliberately a plain foreach over the
+# task list (NOT `Get-ScheduledTask | ForEach-Object`): driving nested Where-Object pipelines
+# from inside a pipeline stage made every strict-mode property error (below) blow the stack -
+# the process died with "a new guard page for the stack cannot be created" and no managed
+# handler could run, so no error report was written. Triggers/actions are read through
+# Get-SafeProp because some of them really do not expose CimClass/Execute, and a missing
+# property must be "skip", not an exception.
+function Get-StartupLogonTaskItems {
+    $items = @()
     try {
         foreach ($task in @(Get-ScheduledTask -ErrorAction SilentlyContinue)) {
-            $hasLogon = $false
+            $hasLogonOrBoot = $false
             foreach ($trigger in @(Get-SafeProp $task 'Triggers')) {
                 $cim = Get-SafeProp $trigger 'CimClass'
-                if ($cim -and (Get-SafeProp $cim 'CimClassName') -eq 'MSFT_TaskLogonTrigger') { $hasLogon = $true; break }
+                $cimName = if ($cim) { Get-SafeProp $cim 'CimClassName' } else { $null }
+                if ($cimName -eq 'MSFT_TaskLogonTrigger' -or $cimName -eq 'MSFT_TaskBootTrigger') { $hasLogonOrBoot = $true; break }
             }
-            if (-not $hasLogon) { continue }
+            if (-not $hasLogonOrBoot) { continue }
             if ((Get-SafeProp $task 'TaskPath') -match '^\\Microsoft\\') { continue }
 
             $action = $null
@@ -106,24 +139,63 @@ function Get-StartupManagerItems {
             }
         }
     } catch { }
-
-    # Merge in registry-based entries the user disabled previously (Remove-ItemProperty took
-    # them out of the live Run key, so they would otherwise vanish from the list entirely).
-    # They are re-shown here as unchecked/disabled rows, using the command saved at disable
-    # time, so the user can still find and re-enable them on a later scan/session.
-    foreach ($stored in (Get-StartupDisabledEntries)) {
-        $name = Get-SafeProp $stored 'Name'
-        $source = Get-SafeProp $stored 'Source'
-        if (-not $name -or -not $source -or $source -eq 'task-scheduler' -or $source -eq 'startup-folder') { continue }
-        $already = $items | Where-Object { $_.Name -eq $name -and $_.Source -eq $source }
-        if ($already) { continue }
-        $items += [pscustomobject]@{
-            Label=$name; Detail=(Get-SafeProp $stored 'Command'); Selected=$false
-            Name=$name; Command=(Get-SafeProp $stored 'Command'); Location=(Get-SafeProp $stored 'Location'); Source=$source
-        }
-    }
-
     return $items
+}
+
+# Category 4 (Startup page): ALL scheduled tasks (not just logon-trigger ones). By default
+# Microsoft's own built-in tasks (\Microsoft\...) are excluded; -IncludeMicrosoft shows them too
+# (wired to the page's show/hide toggle).
+# Returns pscustomobjects: Label, Detail, Selected(=enabled), Name, Command, Location, Source='task-scheduler'.
+function Get-ScheduledTaskItems {
+    param([switch]$IncludeMicrosoft)
+    $items = @()
+    try {
+        foreach ($task in @(Get-ScheduledTask -ErrorAction SilentlyContinue)) {
+            if (-not $IncludeMicrosoft -and (Get-SafeProp $task 'TaskPath') -match '^\\Microsoft\\') { continue }
+
+            $action = $null
+            foreach ($candidate in @(Get-SafeProp $task 'Actions')) {
+                $cim = Get-SafeProp $candidate 'CimClass'
+                if ($cim -and (Get-SafeProp $cim 'CimClassName') -eq 'MSFT_TaskExecAction') { $action = $candidate; break }
+            }
+            $execute = if ($action) { Get-SafeProp $action 'Execute' } else { '' }
+            $arguments = if ($action) { Get-SafeProp $action 'Arguments' } else { '' }
+            $cmd = if ($arguments) { "$execute $arguments" } else { $execute }
+            $taskPath = Get-SafeProp $task 'TaskPath'
+            $taskName = Get-SafeProp $task 'TaskName'
+            $state = Get-SafeProp $task 'State'
+            $items += [pscustomobject]@{
+                Label=$taskName; Detail="$taskPath  |  $cmd"; Selected=($state -eq 'Ready' -or $state -eq 'Running')
+                Name=$taskName; Command=$cmd; Location=$taskPath; Source='task-scheduler'
+            }
+        }
+    } catch { }
+    return $items
+}
+
+# Toggles enabled/disabled for a single Scheduled Tasks page item (Task Scheduler only).
+function Set-ScheduledTaskEnabled {
+    param($Item, [bool]$Enabled)
+    try {
+        if ($Enabled) { Enable-ScheduledTask -TaskName $Item.Name -TaskPath $Item.Location -ErrorAction Stop | Out-Null }
+        else { Disable-ScheduledTask -TaskName $Item.Name -TaskPath $Item.Location -ErrorAction Stop | Out-Null }
+        return $true
+    } catch {
+        Write-GuiLog "Failed to toggle $($Item.Name): $_" "ERR"
+        return $false
+    }
+}
+
+# Permanently removes a scheduled task (Scheduled Tasks page).
+function Remove-ScheduledTaskItem {
+    param($Item)
+    try {
+        Unregister-ScheduledTask -TaskName $Item.Name -TaskPath $Item.Location -Confirm:$false -ErrorAction Stop
+        return $true
+    } catch {
+        Write-GuiLog "Failed to delete $($Item.Name): $_" "ERR"
+        return $false
+    }
 }
 
 # Toggles enabled/disabled for a single startup item. $Enabled=$false disables.

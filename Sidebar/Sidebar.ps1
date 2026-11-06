@@ -26,6 +26,7 @@ $navHandlers = @{
     "navAll"          = { Clear-GuiLog; Update-GuiNavActive "pageAll"; Show-PageAll }
     "navClean"        = { Clear-GuiLog; Update-GuiNavActive "pageClean"; Show-PageClean }
     "navNetwork"      = { Clear-GuiLog; Update-GuiNavActive "pageNetwork"; Show-PageNetwork }
+    "navStartup"      = { Clear-GuiLog; Update-GuiNavActive "pageStartup"; Show-PageStartup }
     "navSettings"     = { Clear-GuiLog; Update-GuiNavActive "pageSettings"; Show-PageSettings }
 }
 

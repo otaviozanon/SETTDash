@@ -8,6 +8,55 @@ $Script:LHMAvailable = $false
 $Script:LHMInitFailed = $false
 $Script:LHMComputer = $null
 
+# Used by: Start-GpuD3D11Benchmark. Vortice.Direct3D11/DXGI (MIT) + SharpGen.Runtime wrap the raw
+# D3D11 COM API with managed types, letting us create a real hardware device and off-screen render
+# target instead of relying on WPF's software-only RenderTargetBitmap compositor.
+$Script:Vortice3DAvailable = $false
+$Script:Vortice3DInitFailed = $false
+
+# Order matters: each later DLL depends on the ones before it (transitive .NET Standard 2.0 deps
+# first, then SharpGen's COM interop runtime, then Vortice's math/DXGI/Direct3D11 wrappers).
+$Script:Vortice3DLibraryOrder = @(
+    "System.Numerics.Vectors.dll",
+    "System.Memory.dll",
+    "System.Runtime.CompilerServices.Unsafe.dll",
+    "SharpGen.Runtime.dll",
+    "SharpGen.Runtime.COM.dll",
+    "Vortice.Mathematics.dll",
+    "Vortice.DirectX.dll",
+    "Vortice.DXGI.dll",
+    "Vortice.Direct3D11.dll"
+)
+
+# Extracts (once) and loads the Vortice/SharpGen DLL chain required for real Direct3D11 GPU
+# rendering. Safe to call multiple times (no-op after the first success/failure).
+function Initialize-Vortice3D {
+    if ($Script:Vortice3DAvailable) { return $true }
+    if ($Script:Vortice3DInitFailed) { return $false }
+    try {
+        $libDir = Join-Path $Script:TempDir "Libraries"
+        if (-not (Test-Path $libDir)) { New-Item -Path $libDir -ItemType Directory -Force | Out-Null }
+        foreach ($key in $Script:Vortice3DLibraryOrder) {
+            $outPath = Join-Path $libDir $key
+            if (-not (Test-Path $outPath)) {
+                $bytes = [Convert]::FromBase64String($Script:EmbeddedLibraries[$key])
+                $ms = New-Object System.IO.MemoryStream(,$bytes)
+                $gs = New-Object System.IO.Compression.GZipStream($ms, [System.IO.Compression.CompressionMode]::Decompress)
+                $fs = New-Object System.IO.FileStream($outPath, [System.IO.FileMode]::Create)
+                $gs.CopyTo($fs)
+                $fs.Close(); $gs.Close(); $ms.Close()
+            }
+            Add-Type -Path $outPath -ErrorAction Stop
+        }
+        $Script:Vortice3DAvailable = $true
+        return $true
+    } catch {
+        $Script:Vortice3DInitFailed = $true
+        Write-GuiLog "Vortice Direct3D11 init failed: $_" "WARN"
+        return $false
+    }
+}
+
 # Used by: Show-PageYourPCSensors. Extracts the embedded DLLs to $Script:TempDir\Libraries (once),
 # loads them via Add-Type and opens a LibreHardwareMonitor.Hardware.Computer instance with the same
 # flags SensorMonitor.cs uses. Safe to call multiple times (no-op after the first success/failure).

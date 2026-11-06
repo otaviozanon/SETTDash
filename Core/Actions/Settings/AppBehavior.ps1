@@ -77,6 +77,7 @@ $Script:StartupPageOptions = [ordered]@{
     "Windows Tweaks"     = "navWindows"
     "Clean"              = "navClean"
     "Network"            = "navNetwork"
+    "Startup"            = "navStartup"
     "Settings"           = "navSettings"
 }
 

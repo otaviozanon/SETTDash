@@ -22,16 +22,24 @@ function Show-PageBenchExport {
         "CPU" = {
             $r = $Global:BenchCpuLastResult
             if (-not $r) { return @(@{Label="Status"; Value="No data - run the CPU benchmark first"}) }
-            @(
+            $rows = @(
                 @{Label="Status"; Value=(& $fmtStatus $r)}
                 @{Label="Device"; Value=$(if ($r.ContainsKey('DeviceName') -and $r.DeviceName) { $r.DeviceName } else { "Unknown" })}
                 @{Label="Run At"; Value=(& $fmtTime $r)}
-                @{Label="Test Length"; Value="$($r.DurationSeconds)s"}
+                @{Label="Test Length"; Value="$($r.DurationSeconds)s per profile"}
                 @{Label="Logical Threads"; Value=$r.Threads}
-                @{Label="Single-Core Avg"; Value="$($r.SingleScore) it/s"}
-                @{Label="Multi-Core Avg"; Value="$($r.MultiScore) it/s"}
-                @{Label="MT/ST Ratio"; Value=$(if ($r.ContainsKey('MtStRatio') -and $r.MtStRatio) { "$($r.MtStRatio)x" } else { "N/A" })}
             )
+            # Each profile reports its own unit (Integer: primes/s, Float/Memory: units/s - not
+            # comparable across profiles), so the three are listed as separate labeled rows instead
+            # of a single Single/Multi pair like the old one-workload version of this benchmark.
+            foreach ($type in @("Integer", "Float", "Memory")) {
+                $prof = $r[$type]
+                if (-not $prof) { continue }
+                $rows += @{Label="$type Single-Core Avg"; Value="$($prof.SingleScore) units/s"}
+                $rows += @{Label="$type Multi-Core Avg"; Value="$($prof.MultiScore) units/s"}
+                $rows += @{Label="$type MT/ST Ratio"; Value="$($prof.MtStRatio)x"}
+            }
+            $rows
         }
         "GPU" = {
             $r = $Global:BenchGpuLastResult

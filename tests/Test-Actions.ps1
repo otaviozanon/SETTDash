@@ -234,6 +234,8 @@ $sweepFixtures = @{
     }
     'Remove-StartupItem'     = @{ Item = $sweepStartupItem }
     'Set-StartupItemEnabled' = @{ Item = $sweepStartupItem }
+    'Remove-ScheduledTaskItem'  = @{ Item = $sweepStartupItem }
+    'Set-ScheduledTaskEnabled'  = @{ Item = $sweepStartupItem }
 }
 
 $sweepList = @($mutatingFunctions | Where-Object { $sweepExclusions -notcontains $_ -and $_ -notmatch '^Show-' })

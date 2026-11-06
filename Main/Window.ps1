@@ -95,7 +95,7 @@ $trayExitItem.Add_Click({ $Script:ForceExit = $true; $Window.Close() })
 #endregion
 
 $navNames = @("navPerformance","navNetworkPrivacy","navSystemTweaks","navWindows",
-    "navPlaybooks","navAll","navClean","navNetwork","navSettings","navHome","navInstallers","navGpuProgs","navCpuProgs","navAllInstallers","navUtilities","navWinShortcuts",
+    "navPlaybooks","navAll","navClean","navNetwork","navStartup","navSettings","navHome","navInstallers","navGpuProgs","navCpuProgs","navAllInstallers","navUtilities","navWinShortcuts",
     "navYourPCSystem","navYourPCSensors","navYourPCGpu","navYourPCCpu","navYourPCDisks","navYourPCEnergy",
     "navBenchCpu","navBenchGpu","navBenchRam","navBenchDisk","navBenchExport")
 foreach ($n in $navNames) { $navButtons[$n] = $Window.FindName($n) }

@@ -1,51 +1,293 @@
-# GPU benchmark: SETTDash has no bundled DirectX/CUDA interop to drive the GPU directly, so this
-# stresses WPF's own hardware-accelerated compositor instead - a grid of continuously rotating/
-# scaling shapes (2D mode) or a heavy lit 3D mesh scene (3D mode), reporting per-second FPS
-# samples plus min/max/avg. This is a rendering-pipeline proxy (exercises the same GPU
-# driver/compositor path as any WPF app), not a raw shader/compute benchmark - treat the score as
-# relative (before/after driver or tweak changes), not as a cross-vendor number.
+# GPU benchmark: creates a real Direct3D11 hardware device (DriverType.Hardware) via the embedded
+# Vortice.Direct3D11/SharpGen chain and drives an animated fractal pixel-shader draw call against
+# an off-screen render target as fast as the GPU/driver can retire it, reporting per-second FPS
+# samples plus min/max/avg - see Start-GpuD3D11Benchmark below. Earlier revisions also had 2D/3D
+# modes that stressed WPF's own compositor via RenderTargetBitmap (CPU-side software
+# rasterization, not the GPU directly) - those were removed since they didn't measure real GPU
+# throughput.
+
+# Shared "score the collected per-second FPS samples" logic used by the Direct3D11 hardware loop
+# (Start-GpuD3D11Benchmark) so results report a consistent Avg/Min/Max/throttle-detection shape.
+function Get-GpuBenchmarkScoreResult {
+    param([System.Collections.Generic.List[double]]$Samples, [long]$Frames, [double]$ElapsedSeconds, [bool]$Cancelled)
+
+    $warmupSeconds = [math]::Min(2, [math]::Max(0, $Samples.Count - 1))
+    $scored = $Samples
+    if ($Samples.Count -gt $warmupSeconds) {
+        $scored = [System.Collections.Generic.List[double]]::new($Samples.GetRange($warmupSeconds, $Samples.Count - $warmupSeconds))
+    }
+
+    $avgFps = if ($scored.Count -gt 0) { [math]::Round(($scored | Measure-Object -Average).Average, 1) } else { [math]::Round($Frames / [math]::Max($ElapsedSeconds, 0.001), 1) }
+    $minFps = if ($scored.Count -gt 0) { [math]::Round(($scored | Measure-Object -Minimum).Minimum, 1) } else { $avgFps }
+    $maxFps = if ($scored.Count -gt 0) { [math]::Round(($scored | Measure-Object -Maximum).Maximum, 1) } else { $avgFps }
+
+    $half = [int][math]::Floor($scored.Count / 2)
+    $firstHalfAvg = $avgFps; $secondHalfAvg = $avgFps; $throttlePct = 0
+    if ($half -ge 2) {
+        $firstHalfAvg = [math]::Round((($scored.GetRange(0, $half)) | Measure-Object -Average).Average, 1)
+        $secondHalfAvg = [math]::Round((($scored.GetRange($scored.Count - $half, $half)) | Measure-Object -Average).Average, 1)
+        if ($firstHalfAvg -gt 0) { $throttlePct = [math]::Round((($firstHalfAvg - $secondHalfAvg) / $firstHalfAvg) * 100, 1) }
+    }
+
+    return [PSCustomObject]@{
+        Cancelled      = $Cancelled
+        AvgFps         = $avgFps
+        MinFps         = $minFps
+        MaxFps         = $maxFps
+        Samples        = $Samples
+        FirstHalfFps   = $firstHalfAvg
+        SecondHalfFps  = $secondHalfAvg
+        ThrottlePct    = $throttlePct
+        Throttling     = ($throttlePct -ge 10)
+    }
+}
+
+# Raw D3DCompile interop (plain P/Invoke + COM, no extra embedded DLL - d3dcompiler_47.dll ships
+# with Windows itself) used to turn the HLSL stress shader below into bytecode Vortice's
+# CreateVertexShader/CreatePixelShader can consume. Defined once via Add-Type; safe to call
+# Initialize-D3DShaderCompiler repeatedly (no-op after the type exists).
+function Initialize-D3DShaderCompiler {
+    if ("D3DShaderCompiler" -as [type]) { return $true }
+    try {
+        Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+
+public static class D3DShaderCompiler {
+    [DllImport("d3dcompiler_47.dll", CharSet = CharSet.Ansi)]
+    private static extern int D3DCompile(
+        [MarshalAs(UnmanagedType.LPStr)] string pSrcData, UIntPtr srcDataSize,
+        string pSourceName, IntPtr pDefines, IntPtr pInclude,
+        [MarshalAs(UnmanagedType.LPStr)] string pEntrypoint,
+        [MarshalAs(UnmanagedType.LPStr)] string pTarget,
+        uint flags1, uint flags2, out IntPtr ppCode, out IntPtr ppErrorMsgs);
+
+    [ComImport, Guid("8BA5FB08-5195-40E2-AC58-0D989C3A0102"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface ID3DBlobCOM {
+        [PreserveSig] IntPtr GetBufferPointer();
+        [PreserveSig] UIntPtr GetBufferSize();
+    }
+
+    public static byte[] Compile(string hlsl, string entryPoint, string target) {
+        IntPtr code = IntPtr.Zero, errors = IntPtr.Zero;
+        int hr = D3DCompile(hlsl, (UIntPtr)hlsl.Length, "shader.hlsl", IntPtr.Zero, IntPtr.Zero, entryPoint, target, 0, 0, out code, out errors);
+        if (hr != 0) {
+            string msg = "D3DCompile failed (HRESULT 0x" + hr.ToString("X8") + ")";
+            if (errors != IntPtr.Zero) {
+                var blobErr = (ID3DBlobCOM)Marshal.GetObjectForIUnknown(errors);
+                IntPtr p = blobErr.GetBufferPointer();
+                int len = (int)blobErr.GetBufferSize();
+                msg = Marshal.PtrToStringAnsi(p, len) + " (HRESULT 0x" + hr.ToString("X8") + ")";
+                Marshal.Release(errors);
+            }
+            throw new Exception(msg);
+        }
+        var blob = (ID3DBlobCOM)Marshal.GetObjectForIUnknown(code);
+        IntPtr bufPtr = blob.GetBufferPointer();
+        int bufLen = (int)blob.GetBufferSize();
+        byte[] result = new byte[bufLen];
+        Marshal.Copy(bufPtr, result, 0, bufLen);
+        Marshal.Release(code);
+        return result;
+    }
+}
+"@ -ErrorAction Stop
+        return $true
+    } catch {
+        Write-GuiLog "D3DShaderCompiler init failed: $_" "WARN"
+        return $false
+    }
+}
+
+# HLSL stress shader: a full-screen triangle (generated in the vertex shader purely from
+# SV_VertexID - no vertex/index buffer needed) whose pixel shader iterates an animated Julia-set
+# escape-time fractal ~96 times per pixel. This is deliberately GPU-bound (one Draw(3,0) call per
+# frame, all the work is per-pixel math) so the interop/call overhead of driving D3D11 from managed
+# PowerShell code stays negligible next to the actual shader cost - unlike many small per-frame
+# draw calls, which would mostly measure API/marshaling overhead instead of the GPU.
+$Script:GpuStressVertexShaderHlsl = @"
+struct VSOut { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; };
+VSOut main(uint id : SV_VertexID) {
+    VSOut o;
+    float2 p = float2((id << 1) & 2, id & 2);
+    o.uv = p;
+    o.pos = float4(p * float2(2.0, -2.0) + float2(-1.0, 1.0), 0.0, 1.0);
+    return o;
+}
+"@
+$Script:GpuStressPixelShaderHlsl = @"
+cbuffer CB : register(b0) { float Time; float3 Pad; };
+float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
+    float2 p = uv * 3.0 - float2(1.5, 1.5);
+    float v = 0.0;
+    [loop]
+    for (int i = 0; i < 96; i++) {
+        p = float2(p.x * p.x - p.y * p.y, 2.0 * p.x * p.y) + float2(sin(Time * 0.3), cos(Time * 0.37)) * 0.7;
+        v += sin(length(p) + Time + i * 0.05);
+    }
+    float3 col = 0.5 + 0.5 * cos(v + Time + float3(0.0, 2.0, 4.0));
+    return float4(col, 1.0);
+}
+"@
+
+# Real Direct3D11 hardware benchmark ("Opcao B" follow-up): unlike Start-GpuUncappedFrameLoop
+# above (which measures WPF's own software/hardware compositor via RenderTargetBitmap - CPU
+# rasterization, not the GPU directly), this creates an actual ID3D11Device (DriverType.Hardware)
+# via the embedded Vortice.Direct3D11/SharpGen chain (Initialize-Vortice3D) and drives a real
+# fractal-shader draw call against an off-screen render target as fast as the GPU/driver can
+# retire it - same "frames per second" concept, but measuring genuine GPU/driver throughput
+# (thermal/power throttling shows up here even when WPF's compositor path would mask it, since
+# RenderTargetBitmap is capped by the CPU-side software rasterizer, not the GPU).
 #
-# IMPORTANT - no vsync cap: both modes used to count frames via CompositionTarget.Rendering,
-# which only fires once per on-screen compositor frame - i.e. it's hard-capped at the monitor's
-# refresh rate (~60Hz), so a GPU that could push 300 FPS and one that barely holds 60 FPS both
-# report "60". To actually differentiate GPU throughput, frames are instead rendered as fast as
-# possible to an off-screen RenderTargetBitmap (Start-GpuUncappedFrameLoop below) in a tight
-# Dispatcher.BeginInvoke(Background) loop - that path is not tied to the display's swap chain, so
-# the measured FPS reflects how fast the GPU/driver can actually rasterize the scene.
-function Start-GpuUncappedFrameLoop {
-    param($Visual, [int]$Width = 960, [int]$Height = 540, [double]$DurationSeconds, [scriptblock]$OnComplete, [scriptblock]$OnSample = $null, [scriptblock]$CancelCheck = $null)
+# Live preview without D3DImage/D3D9 interop: instead of wiring the D3D11 swapchain directly into
+# the WPF visual tree (which would need that extra interop layer), each throttled preview tick
+# copies the render target into a CPU-readable staging texture (CopyResource + Map(Read)) and
+# blits the raw BGRA bytes into a WriteableBitmap shown in an Image control - slower than a true
+# swapchain present, but gives real visual feedback that the fractal is actually rendering/animating.
+#
+# NOTE: this used to spawn a raw System.Threading.Thread (MTA by default) to drive the render
+# loop off the WPF Dispatcher thread (STA), since there is no WPF rendering involved. That crashed
+# the whole compiled exe outright (no managed exception, no error report - the process just died)
+# instead of hitting any try/catch: SharpGen's dynamic COM proxy generation for the D3D11 device
+# apparently doesn't tolerate being created/driven from a thread with a different COM apartment
+# state than the one WPF itself runs on. Driving the loop via the same self-requeuing
+# Dispatcher.BeginInvoke(Background) pattern as Start-GpuUncappedFrameLoop above (same STA thread,
+# just not synced to vsync) avoids the apartment mismatch entirely and matches the existing pattern.
+function Start-GpuD3D11Benchmark {
+    param([double]$DurationSeconds = 30, [int]$Width = 1920, [int]$Height = 1080, [scriptblock]$OnComplete, [scriptblock]$OnSample = $null, [scriptblock]$CancelCheck = $null, [System.Windows.Controls.Image]$PreviewImage = $null)
+
+    if (-not (Initialize-Vortice3D)) {
+        throw "Vortice/Direct3D11 runtime could not be initialized (see log for details)."
+    }
+    if (-not (Initialize-D3DShaderCompiler)) {
+        throw "D3DCompile (d3dcompiler_47.dll) could not be initialized (see log for details)."
+    }
+
+    $device = $null; $context = $null; $texture = $null; $rtv = $null
+    $vs = $null; $ps = $null; $cb = $null
+    $hr = [Vortice.Direct3D11.D3D11]::D3D11CreateDevice(
+        [IntPtr]::Zero,
+        [Vortice.Direct3D.DriverType]::Hardware,
+        [Vortice.Direct3D11.DeviceCreationFlags]::BgraSupport,
+        $null,
+        [ref]$device,
+        [ref]$context
+    )
+    if ($hr.Failure -or -not $device) {
+        throw "D3D11CreateDevice failed (HRESULT $hr) - no hardware D3D11 driver available."
+    }
+
+    $texDesc = New-Object Vortice.Direct3D11.Texture2DDescription
+    $texDesc.Width = $Width; $texDesc.Height = $Height
+    $texDesc.MipLevels = 1; $texDesc.ArraySize = 1
+    $texDesc.Format = [Vortice.DXGI.Format]::B8G8R8A8_UNorm
+    $texDesc.SampleDescription = New-Object Vortice.DXGI.SampleDescription(1, 0)
+    $texDesc.Usage = [Vortice.Direct3D11.ResourceUsage]::Default
+    $texDesc.BindFlags = [Vortice.Direct3D11.BindFlags]::RenderTarget
+    $texture = $device.CreateTexture2D($texDesc)
+    $rtv = $device.CreateRenderTargetView($texture)
+
+    # CPU-readable staging copy of the render target, used only to blit a throttled preview into
+    # $PreviewImage (see the comment above this function) - kept separate from $texture because the
+    # render target itself (BindFlags=RenderTarget, Usage=Default) cannot be Map()'d directly.
+    $staging = $null
+    $bmp = $null
+    if ($PreviewImage) {
+        $stagingDesc = New-Object Vortice.Direct3D11.Texture2DDescription
+        $stagingDesc.Width = $Width; $stagingDesc.Height = $Height
+        $stagingDesc.MipLevels = 1; $stagingDesc.ArraySize = 1
+        $stagingDesc.Format = [Vortice.DXGI.Format]::B8G8R8A8_UNorm
+        $stagingDesc.SampleDescription = New-Object Vortice.DXGI.SampleDescription(1, 0)
+        $stagingDesc.Usage = [Vortice.Direct3D11.ResourceUsage]::Staging
+        $stagingDesc.BindFlags = [Vortice.Direct3D11.BindFlags]::None
+        $stagingDesc.CPUAccessFlags = [Vortice.Direct3D11.CpuAccessFlags]::Read
+        $staging = $device.CreateTexture2D($stagingDesc)
+        $bmp = New-Object System.Windows.Media.Imaging.WriteableBitmap($Width, $Height, 96, 96, [System.Windows.Media.PixelFormats]::Bgra32, $null)
+        $PreviewImage.Source = $bmp
+    }
+
+    # Real GPU workload: compile the full-screen fractal stress shader (see the HLSL strings and
+    # the comment above this function) and build the minimal D3D11 pipeline needed to run it - a
+    # vertex shader (no input layout/vertex buffer: positions come from SV_VertexID), a pixel
+    # shader doing the actual heavy per-pixel math, and a small dynamic constant buffer carrying
+    # elapsed time so the fractal animates frame to frame.
+    $vsBytecode = [D3DShaderCompiler]::Compile($Script:GpuStressVertexShaderHlsl, "main", "vs_4_0")
+    $psBytecode = [D3DShaderCompiler]::Compile($Script:GpuStressPixelShaderHlsl, "main", "ps_4_0")
+    $vs = $device.CreateVertexShader($vsBytecode)
+    $ps = $device.CreatePixelShader($psBytecode)
+
+    # CreateBuffer has several overloads (by-description-struct, by-description+ref-out-param,
+    # generic-with-initial-data, etc.) that PowerShell's overload binder cannot disambiguate
+    # reliably from a single BufferDescription object (same overload-ambiguity root cause as the
+    # ClearRenderTargetView/Thread issues noted above) - using the plain scalar-parameter overload
+    # (size/bind/usage/cpuAccess/misc/stride) sidesteps the binder entirely.
+    $cb = $device.CreateBuffer(16, [Vortice.Direct3D11.BindFlags]::ConstantBuffer, [Vortice.Direct3D11.ResourceUsage]::Dynamic, [Vortice.Direct3D11.CpuAccessFlags]::Write, [Vortice.Direct3D11.ResourceOptionFlags]::None, 0)
+
+    # ID3D11DeviceContext.Map has two overloads differing only in whether the trailing parameter
+    # is by-value vs by-ref (the managed-friendly convenience shape vs. the raw COM out-param
+    # shape) - PowerShell can't disambiguate a plain argument/call against both and throws
+    # "Multiple ambiguous overloads found" (same root cause as the earlier System.Threading.Thread
+    # ctor and ClearRenderTargetView issues above). Resolving the by-value overload once via
+    # reflection and invoking it directly sidesteps PowerShell's overload binder entirely.
+    $ctxType = [Vortice.Direct3D11.ID3D11DeviceContext]
+    $mapMethod = ($ctxType.GetMethods() | Where-Object {
+        $_.Name -eq "Map" -and $_.GetParameters().Count -eq 4 -and -not $_.GetParameters()[3].ParameterType.IsByRef
+    } | Select-Object -First 1)
 
     $state = [PSCustomObject]@{
         Frames = 0L; LastSecondFrames = 0L; LastSecond = 0; Completed = $false
+        LastPreviewMs = -1000.0
         Samples = [System.Collections.Generic.List[double]]::new()
         Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     }
-    # NOTE: self-requeuing via a $Script:-scoped variable (the previous approach) resolved to
-    # $null by the time the closure ran as an async [Action] delegate off the Dispatcher queue
-    # ("Value cannot be null. Parameter name: method" on the recursive BeginInvoke call) - script
-    # scope lookup from inside a delegate invoked later off the WPF message pump isn't reliable
-    # here. A $holder object (reference type) captured once by .GetNewClosure() sidesteps that:
-    # mutating $holder.Tick after the closure is created is still visible through the same shared
-    # reference every time the closure (which also captured $holder) runs.
+
+    # Same $holder self-requeuing-closure trick as Start-GpuUncappedFrameLoop above (see the NOTE
+    # there) - a plain recursive $Script:-scoped closure resolves to $null once invoked as an
+    # async [Action] off the Dispatcher queue.
     $holder = [PSCustomObject]@{ Tick = $null }
+    $cleanup = {
+        if ($cb) { $cb.Dispose() }
+        if ($ps) { $ps.Dispose() }
+        if ($vs) { $vs.Dispose() }
+        if ($staging) { $staging.Dispose() }
+        if ($rtv) { $rtv.Dispose() }
+        if ($texture) { $texture.Dispose() }
+        if ($context) { $context.Dispose() }
+        if ($device) { $device.Dispose() }
+    }.GetNewClosure()
+
     $holder.Tick = {
         if ($state.Completed) { return }
 
-        # Defensive try/catch: a single failed frame render (e.g. a transient GPU/driver hiccup)
-        # used to kill this self-requeuing loop silently (BeginInvoke has no app-level
-        # DispatcherUnhandledException handler - see Main/Startup.ps1's Window.Add_Closing note),
-        # leaving the popup stuck forever at "Running... 0/Ns" with Stop/Close unresponsive since
-        # $OnComplete was never reached. Now a bad frame is just skipped and the loop keeps going;
-        # only requeuing itself is what matters for the run to actually finish.
         try {
-            # Fresh bitmap every frame (a reused target would just accumulate/overwrite the same
-            # buffer without forcing the GPU to redo the rasterization work) - forces a full,
-            # uncapped re-render of the current animated scene each iteration.
-            $rtb = New-Object System.Windows.Media.Imaging.RenderTargetBitmap($Width, $Height, 96, 96, [System.Windows.Media.PixelFormats]::Pbgra32)
-            $rtb.Render($Visual)
+            $time = [float]$state.Stopwatch.Elapsed.TotalSeconds
+
+            $mapped = $mapMethod.Invoke($context, @($cb, 0, [Vortice.Direct3D11.MapMode]::WriteDiscard, [Vortice.Direct3D11.MapFlags]::None))
+            [System.Runtime.InteropServices.Marshal]::WriteInt32($mapped.DataPointer, 0, [BitConverter]::ToInt32([BitConverter]::GetBytes($time), 0))
+            $context.Unmap($cb, 0)
+
+            $context.OMSetRenderTargets($rtv)
+            $context.RSSetViewport((New-Object Vortice.Mathematics.Viewport(0, 0, $Width, $Height)))
+            $context.IASetPrimitiveTopology([Vortice.Direct3D.PrimitiveTopology]::TriangleList)
+            $context.VSSetShader($vs)
+            $context.PSSetShader($ps)
+            $context.PSSetConstantBuffer(0, $cb)
+            $context.Draw(3, 0)
+            $context.Flush()
             $state.Frames++
+
+            # Throttled preview blit (see the comment above this function) - copying/mapping every
+            # single frame would tank the measured FPS, so this only runs a few times per second,
+            # independent of the frame-count/FPS accounting above.
+            if ($bmp -and ($time * 1000.0 - $state.LastPreviewMs) -ge 100.0) {
+                $state.LastPreviewMs = $time * 1000.0
+                $context.CopyResource($staging, $texture)
+                $mappedTex = $mapMethod.Invoke($context, @($staging, 0, [Vortice.Direct3D11.MapMode]::Read, [Vortice.Direct3D11.MapFlags]::None))
+                $bmp.WritePixels((New-Object System.Windows.Int32Rect(0, 0, $Width, $Height)), $mappedTex.DataPointer, ($mappedTex.RowPitch * $Height), $mappedTex.RowPitch)
+                $context.Unmap($staging, 0)
+            }
         } catch {
-            Write-GuiLog "GPU benchmark frame render error: $($_.Exception.Message)" "WARN"
+            Write-GuiLog "GPU D3D11 benchmark frame error: $($_.Exception.Message)" "WARN"
         }
 
         $elapsed = $state.Stopwatch.Elapsed.TotalSeconds
@@ -56,220 +298,23 @@ function Start-GpuUncappedFrameLoop {
             $state.LastSecondFrames = $state.Frames
             $state.LastSecond = $curSecond
             if ($OnSample) {
-                try { & $OnSample $sample } catch { Write-GuiLog "GPU benchmark sample callback error: $($_.Exception.Message)" "WARN" }
+                try { & $OnSample $sample } catch { Write-GuiLog "GPU D3D11 benchmark sample callback error: $($_.Exception.Message)" "WARN" }
             }
         }
+
         $cancelled = [bool]($CancelCheck -and (& $CancelCheck))
         if ($elapsed -ge $DurationSeconds -or $cancelled) {
             $state.Completed = $true
-
-            # Discard the first ~1-2s of samples before scoring - same rationale as the CPU
-            # benchmark's Get-CpuScoredSamples: the first second(s) include shader/pipeline
-            # "cold start" (driver JIT-compiling shaders, allocating GPU resources for the
-            # RenderTargetBitmap/scene) which FurMark/3DMark don't count toward the final score,
-            # and which otherwise drags the Min (and sometimes Avg) down artificially.
-            $warmupSeconds = [math]::Min(2, [math]::Max(0, $state.Samples.Count - 1))
-            # NOTE: must NOT use "$scored = if (...) {...} else {...}" here - assigning from an
-            # if/else expression captures the branch's output through the pipeline, and PowerShell
-            # auto-enumerates any IEnumerable (List[double]) passing through it. With exactly one
-            # sample (e.g. Stop clicked almost immediately), that collapses the 1-item list into a
-            # bare [double] instead of a List - $scored.GetRange(...) below then fails with
-            # "System.Double does not contain a method named 'GetRange'". A plain imperative
-            # assignment (no stream capture) keeps the List[double] type intact regardless of count.
-            $scored = $state.Samples
-            if ($state.Samples.Count -gt $warmupSeconds) {
-                $scored = [System.Collections.Generic.List[double]]::new($state.Samples.GetRange($warmupSeconds, $state.Samples.Count - $warmupSeconds))
-            }
-
-            $avgFps = if ($scored.Count -gt 0) { [math]::Round(($scored | Measure-Object -Average).Average, 1) } else { [math]::Round($state.Frames / $elapsed, 1) }
-            $minFps = if ($scored.Count -gt 0) { [math]::Round(($scored | Measure-Object -Minimum).Minimum, 1) } else { $avgFps }
-            $maxFps = if ($scored.Count -gt 0) { [math]::Round(($scored | Measure-Object -Maximum).Maximum, 1) } else { $avgFps }
-
-            # Thermal/driver-throttling indicator: FurMark-style stability runs compare FPS over
-            # time to see if it decays. Here, split the scored (post-warmup) samples into first vs
-            # second half and compare averages - a meaningful drop signals throttling/instability
-            # rather than a flat, sustained render rate.
-            $half = [int][math]::Floor($scored.Count / 2)
-            $firstHalfAvg = $avgFps; $secondHalfAvg = $avgFps; $throttlePct = 0
-            if ($half -ge 2) {
-                $firstHalfAvg = [math]::Round((($scored.GetRange(0, $half)) | Measure-Object -Average).Average, 1)
-                $secondHalfAvg = [math]::Round((($scored.GetRange($scored.Count - $half, $half)) | Measure-Object -Average).Average, 1)
-                if ($firstHalfAvg -gt 0) { $throttlePct = [math]::Round((($firstHalfAvg - $secondHalfAvg) / $firstHalfAvg) * 100, 1) }
-            }
-
-            $result = [PSCustomObject]@{
-                Cancelled      = $cancelled
-                AvgFps         = $avgFps
-                MinFps         = $minFps
-                MaxFps         = $maxFps
-                Samples        = $state.Samples
-                FirstHalfFps   = $firstHalfAvg
-                SecondHalfFps  = $secondHalfAvg
-                ThrottlePct    = $throttlePct
-                Throttling     = ($throttlePct -ge 10)
-            }
+            & $cleanup
+            $result = Get-GpuBenchmarkScoreResult -Samples $state.Samples -Frames $state.Frames -ElapsedSeconds $elapsed -Cancelled $cancelled
             if ($OnComplete) { & $OnComplete $result }
             return
         }
-        # Background priority: not synced to the compositor's per-frame ("Render" priority)
-        # queue, so this re-queues as fast as the dispatcher can drain it - uncapped by vsync.
-        # NOTE: must cast the scriptblock to [Action] explicitly - Dispatcher.BeginInvoke has
-        # several overloads taking a bare Delegate, and PowerShell can't pick one for an
-        # unconverted scriptblock + enum arg pair ("Cannot find an overload for 'BeginInvoke' and
-        # the argument count: 2"), which silently aborted this closure (swallowed by the WPF event
-        # pump in the compiled exe) before a single frame/requeue ever happened.
+
         $Window.Dispatcher.BeginInvoke([System.Windows.Threading.DispatcherPriority]::Background, [Action]$holder.Tick) | Out-Null
     }.GetNewClosure()
+
     $Window.Dispatcher.BeginInvoke([System.Windows.Threading.DispatcherPriority]::Background, [Action]$holder.Tick) | Out-Null
-}
-
-function Start-GpuRenderBenchmark {
-    param($Panel, [double]$DurationSeconds = 30, [int]$GridCols = 16, [int]$GridRows = 9, [scriptblock]$OnComplete, [scriptblock]$OnSample = $null, [scriptblock]$CancelCheck = $null)
-
-    $Panel.Children.Clear()
-    $Panel.Rows = $GridRows
-    $Panel.Columns = $GridCols
-
-    $colors = @("#1F6FEB","#F0883E","#3FB950","#A371F7","#F85149","#D29922")
-    for ($i = 0; $i -lt ($GridCols * $GridRows); $i++) {
-        $cell = New-Object System.Windows.Shapes.Rectangle
-        $cell.Width = 22; $cell.Height = 22; $cell.Margin = "3"
-        $cell.Fill = $colors[$i % $colors.Count]
-        $cell.RadiusX = 4; $cell.RadiusY = 4
-        $transform = New-Object System.Windows.Media.RotateTransform
-        $transform.CenterX = 11; $transform.CenterY = 11
-        $cell.RenderTransform = $transform
-
-        $anim = New-Object System.Windows.Media.Animation.DoubleAnimation
-        $anim.From = 0; $anim.To = 360
-        $anim.Duration = [System.Windows.Duration]::new([timespan]::FromSeconds(1.2 + ($i % 5) * 0.2))
-        $anim.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
-        $transform.BeginAnimation([System.Windows.Media.RotateTransform]::AngleProperty, $anim)
-
-        $Panel.Children.Add($cell) | Out-Null
-    }
-
-    # Uncapped (no vsync) frame driver - see Start-GpuUncappedFrameLoop above.
-    Start-GpuUncappedFrameLoop -Visual $Panel -Width 960 -Height 540 -DurationSeconds $DurationSeconds `
-        -OnSample $OnSample -CancelCheck $CancelCheck -OnComplete $OnComplete
-}
-
-# Builds a UV-sphere MeshGeometry3D with $Segments longitude/latitude subdivisions (far more
-# triangles than a cube: 2*Segments^2 vs 12) - used by Start-Gpu3DRenderBenchmark below to make
-# the 3D test an actually heavy workload (Opcao A) instead of ~50 flat cubes.
-function New-GpuSphereMesh {
-    param([int]$Segments = 14)
-    $mesh = New-Object System.Windows.Media.Media3D.MeshGeometry3D
-    $pts = New-Object System.Windows.Media.Media3D.Point3DCollection
-    $normals = New-Object System.Windows.Media.Media3D.Vector3DCollection
-    for ($lat = 0; $lat -le $Segments; $lat++) {
-        $theta = [math]::PI * $lat / $Segments
-        $sinT = [math]::Sin($theta); $cosT = [math]::Cos($theta)
-        for ($lon = 0; $lon -le $Segments; $lon++) {
-            $phi = 2 * [math]::PI * $lon / $Segments
-            $x = $sinT * [math]::Cos($phi); $y = $cosT; $z = $sinT * [math]::Sin($phi)
-            $pts.Add((New-Object System.Windows.Media.Media3D.Point3D(($x * 0.5), ($y * 0.5), ($z * 0.5)))) | Out-Null
-            $normals.Add((New-Object System.Windows.Media.Media3D.Vector3D($x, $y, $z))) | Out-Null
-        }
-    }
-    $mesh.Positions = $pts
-    $mesh.Normals = $normals
-    $triIdx = New-Object System.Windows.Media.Int32Collection
-    for ($lat = 0; $lat -lt $Segments; $lat++) {
-        for ($lon = 0; $lon -lt $Segments; $lon++) {
-            $a = $lat * ($Segments + 1) + $lon
-            $b = $a + $Segments + 1
-            $triIdx.Add($a) | Out-Null; $triIdx.Add($b) | Out-Null; $triIdx.Add($a + 1) | Out-Null
-            $triIdx.Add($a + 1) | Out-Null; $triIdx.Add($b) | Out-Null; $triIdx.Add($b + 1) | Out-Null
-        }
-    }
-    $mesh.TriangleIndices = $triIdx
-    return $mesh
-}
-
-# Second GPU test mode - "Opcao A": a much heavier lit 3D scene than before. Each instance is now
-# a ~14-segment UV sphere (~390 triangles vs. a cube's 12), there are more instances, each has a
-# diffuse + specular material (specular highlights force the GPU to recompute lighting per-pixel
-# as the view/normals change every frame, instead of a flat-shaded cube face), and the scene is
-# lit by one ambient + two directional + one point light (4 light passes instead of 2). Framing
-# (frame counting / FPS) is handled by the shared uncapped loop in Start-GpuUncappedFrameLoop -
-# see the no-vsync note at the top of this file.
-function Start-Gpu3DRenderBenchmark {
-    param($Viewport, [double]$DurationSeconds = 30, [int]$MeshCount = 90, [scriptblock]$OnComplete, [scriptblock]$OnSample = $null, [scriptblock]$CancelCheck = $null)
-
-    $Viewport.Children.Clear()
-
-    $camera = New-Object System.Windows.Media.Media3D.PerspectiveCamera
-    $camera.Position = New-Object System.Windows.Media.Media3D.Point3D(0, 0, 18)
-    $camera.LookDirection = New-Object System.Windows.Media.Media3D.Vector3D(0, 0, -1)
-    $camera.FieldOfView = 60
-    $Viewport.Camera = $camera
-
-    $lightModel = New-Object System.Windows.Media.Media3D.Model3DGroup
-    $lightModel.Children.Add((New-Object System.Windows.Media.Media3D.AmbientLight "#303030")) | Out-Null
-    $dirLight1 = New-Object System.Windows.Media.Media3D.DirectionalLight
-    $dirLight1.Color = "#FFFFFF"
-    $dirLight1.Direction = New-Object System.Windows.Media.Media3D.Vector3D(-1, -1, -2)
-    $lightModel.Children.Add($dirLight1) | Out-Null
-    $dirLight2 = New-Object System.Windows.Media.Media3D.DirectionalLight
-    $dirLight2.Color = "#8080FF"
-    $dirLight2.Direction = New-Object System.Windows.Media.Media3D.Vector3D(1, 0.5, 1)
-    $lightModel.Children.Add($dirLight2) | Out-Null
-    $pointLight = New-Object System.Windows.Media.Media3D.PointLight
-    $pointLight.Color = "#FFE0A0"
-    $pointLight.Position = New-Object System.Windows.Media.Media3D.Point3D(0, 0, 10)
-    $pointLight.Range = 40
-    $lightModel.Children.Add($pointLight) | Out-Null
-    $lightVisual = New-Object System.Windows.Media.Media3D.ModelVisual3D
-    $lightVisual.Content = $lightModel
-    $Viewport.Children.Add($lightVisual) | Out-Null
-
-    $colors = @("#1F6FEB","#F0883E","#3FB950","#A371F7","#F85149","#D29922")
-    $cols = [int][math]::Ceiling([math]::Sqrt($MeshCount))
-    $sharedMesh = New-GpuSphereMesh -Segments 14
-    for ($i = 0; $i -lt $MeshCount; $i++) {
-        $color = [System.Windows.Media.ColorConverter]::ConvertFromString($colors[$i % $colors.Count])
-        $matGroup = New-Object System.Windows.Media.Media3D.MaterialGroup
-        $matGroup.Children.Add((New-Object System.Windows.Media.Media3D.DiffuseMaterial((New-Object System.Windows.Media.SolidColorBrush($color))))) | Out-Null
-        $specular = New-Object System.Windows.Media.Media3D.SpecularMaterial((New-Object System.Windows.Media.SolidColorBrush([System.Windows.Media.Colors]::White)), 48)
-        $matGroup.Children.Add($specular) | Out-Null
-        $geom = New-Object System.Windows.Media.Media3D.GeometryModel3D($sharedMesh, $matGroup)
-
-        $row = [math]::Floor($i / $cols); $col = $i % $cols
-        $translate = New-Object System.Windows.Media.Media3D.TranslateTransform3D((($col - $cols / 2.0) * 1.6), (($row - $cols / 2.0) * 1.6), 0)
-        $rotation = New-Object System.Windows.Media.Media3D.AxisAngleRotation3D((New-Object System.Windows.Media.Media3D.Vector3D(0.4, 1, 0.2)), 0)
-        $rotateTransform = New-Object System.Windows.Media.Media3D.RotateTransform3D($rotation)
-        $scaleTransform = New-Object System.Windows.Media.Media3D.ScaleTransform3D(1, 1, 1)
-        $group = New-Object System.Windows.Media.Media3D.Transform3DGroup
-        $group.Children.Add($rotateTransform) | Out-Null
-        $group.Children.Add($scaleTransform) | Out-Null
-        $group.Children.Add($translate) | Out-Null
-        $geom.Transform = $group
-
-        $anim = New-Object System.Windows.Media.Animation.DoubleAnimation
-        $anim.From = 0; $anim.To = 360
-        $anim.Duration = [System.Windows.Duration]::new([timespan]::FromSeconds(1.5 + ($i % 5) * 0.2))
-        $anim.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
-        $rotation.BeginAnimation([System.Windows.Media.Media3D.AxisAngleRotation3D]::AngleProperty, $anim)
-
-        # Pulsing scale on top of the rotation - extra per-frame transform/lighting recompute work.
-        $scaleAnim = New-Object System.Windows.Media.Animation.DoubleAnimation
-        $scaleAnim.From = 0.8; $scaleAnim.To = 1.3
-        $scaleAnim.Duration = [System.Windows.Duration]::new([timespan]::FromSeconds(0.8 + ($i % 7) * 0.15))
-        $scaleAnim.AutoReverse = $true
-        $scaleAnim.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
-        $scaleTransform.BeginAnimation([System.Windows.Media.Media3D.ScaleTransform3D]::ScaleXProperty, $scaleAnim)
-        $scaleTransform.BeginAnimation([System.Windows.Media.Media3D.ScaleTransform3D]::ScaleYProperty, $scaleAnim)
-        $scaleTransform.BeginAnimation([System.Windows.Media.Media3D.ScaleTransform3D]::ScaleZProperty, $scaleAnim)
-
-        $visual = New-Object System.Windows.Media.Media3D.ModelVisual3D
-        $visual.Content = $geom
-        $Viewport.Children.Add($visual) | Out-Null
-    }
-
-    # Uncapped (no vsync) frame driver - see Start-GpuUncappedFrameLoop above.
-    Start-GpuUncappedFrameLoop -Visual $Viewport -Width 960 -Height 540 -DurationSeconds $DurationSeconds `
-        -OnSample $OnSample -CancelCheck $CancelCheck -OnComplete $OnComplete
 }
 
 # Runs the GPU benchmark (2D or 3D mode) inside its own modal popup window instead of in the
@@ -285,10 +330,9 @@ function Start-Gpu3DRenderBenchmark {
 # was closed before a result was produced (shouldn't normally happen - Close only becomes
 # available once the run completes).
 function Show-GpuBenchmarkPopup {
-    param([string]$Mode = "2D", [double]$DurationSeconds = 30)
+    param([string]$Mode = "D3D11", [double]$DurationSeconds = 30)
 
-    $is3D = ($Mode -eq "3D")
-    $modeName = if ($is3D) { "3D Viewport" } else { "2D Compositor" }
+    $modeName = "Direct3D11 Hardware"
     $t = Get-CurrentThemeColors
     $fontFamily = if ($t.FontFamily -eq "MONO") { "Consolas" } else { "Segoe UI" }
     $radius = $t.CornerRadius
@@ -320,14 +364,13 @@ function Show-GpuBenchmarkPopup {
     $btnAction = $dlg.FindName("btnAction")
     Register-UpdatePopupDrag -PopupWindow $dlg -TitleBar $titleBar
 
-    # Render surface: only the active mode's control is created/attached to renderHost.
-    if ($is3D) {
-        $viewport = New-Object System.Windows.Controls.Viewport3D
-        $renderHost.Child = $viewport
-    } else {
-        $renderPanel = New-Object System.Windows.Controls.Primitives.UniformGrid
-        $renderHost.Child = $renderPanel
-    }
+    # Render surface: D3D11 mode has no live swapchain wired into the WPF visual tree (see
+    # Start-GpuD3D11Benchmark's comment - that would need D3DImage/D3D9 interop) - instead an
+    # Image control is bound to a WriteableBitmap that Start-GpuD3D11Benchmark blits a throttled
+    # preview into, so the fractal is still visible.
+    $d3d11PreviewImage = New-Object System.Windows.Controls.Image
+    $d3d11PreviewImage.Stretch = "Uniform"
+    $renderHost.Child = $d3d11PreviewImage
 
     # Literal-color circular gauge (track + arc + center value) - mirrors New-GuiCircularGauge's
     # structure (Core/Gauges/GuiGauges.ps1) but with baked colors instead of SetResourceReference,
@@ -391,7 +434,6 @@ function Show-GpuBenchmarkPopup {
 
     $onComplete = {
         param($result)
-        if ($is3D) { $viewport.Children.Clear() } else { $renderPanel.Children.Clear() }
         $popupState.Done = $true
         $popupState.Result = $result
         if ($result.Cancelled) {
@@ -428,13 +470,8 @@ function Show-GpuBenchmarkPopup {
         # a scene-building failure is visible in the log and the popup becomes closable instead
         # of hanging forever.
         try {
-            if ($is3D) {
-                Start-Gpu3DRenderBenchmark -Viewport $viewport -DurationSeconds $DurationSeconds `
-                    -OnSample $onSample -CancelCheck $cancelCheck -OnComplete $onComplete
-            } else {
-                Start-GpuRenderBenchmark -Panel $renderPanel -DurationSeconds $DurationSeconds `
-                    -OnSample $onSample -CancelCheck $cancelCheck -OnComplete $onComplete
-            }
+            Start-GpuD3D11Benchmark -DurationSeconds $DurationSeconds -PreviewImage $d3d11PreviewImage `
+                -OnSample $onSample -CancelCheck $cancelCheck -OnComplete $onComplete
         } catch {
             Write-GuiLog "GPU benchmark failed to start: $($_.Exception.Message)" "ERR"
             $popupState.Done = $true

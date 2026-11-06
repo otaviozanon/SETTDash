@@ -1069,6 +1069,12 @@
                             <TextBlock Text="Network" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
+                    <Button x:Name="navStartup" Style="{StaticResource NavButtonStyle}" Tag="pageStartup">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE7B5;" FontFamily="Segoe MDL2 Assets" FontSize="14" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Startup" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                         <!-- YOUR PC section (collapsible) -->
                         <Button x:Name="hdrYourPC" Style="{StaticResource NavHeaderStyle}">
                             <StackPanel Orientation="Horizontal">
