@@ -247,6 +247,9 @@ try {
 
     $env:SETTDASH_SMOKE = "1"
     $env:SETTDASH_SMOKE_MARKER = $markerFile
+    # Never let the startup update check run here: a release newer than the local build opens a
+    # blocking "update available" modal and the unattended sweep would hang until the timeout.
+    $env:SETTDASH_NO_UPDATE_CHECK = "1"
     $process = $null
     $timedOut = $false
     $stdout = ""
@@ -275,6 +278,7 @@ try {
     } finally {
         Remove-Item Env:\SETTDASH_SMOKE -ErrorAction SilentlyContinue
         Remove-Item Env:\SETTDASH_SMOKE_MARKER -ErrorAction SilentlyContinue
+        Remove-Item Env:\SETTDASH_NO_UPDATE_CHECK -ErrorAction SilentlyContinue
         if ($process) { try { $process.Dispose() } catch { } }
         Set-Content -Path $stdoutFile -Value $stdout -Encoding UTF8
         Set-Content -Path $stderrFile -Value $stderr -Encoding UTF8

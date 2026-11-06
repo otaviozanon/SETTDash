@@ -1,7 +1,6 @@
 # "Benchmark > GPU" page: "Run Benchmark" opens a dedicated modal popup (Show-GpuBenchmarkPopup in
-# Core/Actions/Benchmark/GpuBenchmark.ps1) that hosts the actual render surface + a live FPS gauge
-# while the test runs; this page only shows the mode/duration pickers and the final Avg FPS result
-# tile once the popup closes - a WPF-compositor rendering proxy, not a raw GPU shader/compute benchmark.
+# Core/Actions/Benchmark/GpuBenchmark.ps1) that hosts the live preview + progress gauge while the
+# test runs; this page shows only the duration picker and the final result tiles once it closes.
 function Show-PageBenchGpu {
     Clear-GuiContent
     Add-GuiPageTitle "GPU Benchmark"
@@ -17,66 +16,93 @@ function Show-PageBenchGpu {
     $Global:BenchGpuResultsStack = New-Object System.Windows.Controls.StackPanel
     $Global:BenchGpuResultsCard.Child = $Global:BenchGpuResultsStack
 
-    Add-GuiCard "Rendering Stress Test" "Opens a popup that creates a real Direct3D11 hardware device and renders an animated fractal pixel shader off-screen as fast as the GPU/driver can retire frames, with a live preview, for the selected test length. This measures genuine GPU/driver shader throughput - use the score for before/after comparison (e.g. after a driver update), not as a cross-vendor benchmark." {
+    Add-GuiCard "GPU Benchmark" "Creates a real Direct3D11 hardware device and times three independent workloads with GPU timestamp queries - ALU (full-screen animated fractal pixel shader), Texture (2048x2048 texture, 16 bilinear taps per pixel) and Compute (4M-element structured buffer, 384 dependent sin/sqrt iterations per element). Each sub-test is split into blocks of about 45 ms of GPU work and scored from the median block time, and the composite is the geometric mean of the three sub-test FPS - so a card cannot hide a weak area behind one fast test. GPU timestamps measure what the GPU executed, not how fast the CPU could issue draw calls. Live GPU temperature, power and clock are sampled during the run. Use the score for before/after comparison (driver, overclock, undervolt), not as a cross-vendor ranking." {
         param($p)
 
-        # Test length dropdown (replaces the pill picker used by CPU/RAM/Disk - Add-GuiBenchDurationPicker
-        # in Core/Helpers/Cards.ps1 - with a ComboBox, per request for this page specifically).
-        $durLabel = New-Object System.Windows.Controls.TextBlock
-        $durLabel.Text = "Test length:"
-        $durLabel.FontSize = 12
-        $durLabel.VerticalAlignment = "Center"
-        $durLabel.Margin = "0,0,8,0"
-        $durLabel.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextSecondary")
-        $p.AddChild($durLabel)
-
-        $durOptions = @(30, 60, 120)
-        $durState = [PSCustomObject]@{ Seconds = $durOptions[0] }
-        $durCombo = New-GuiThemedComboBox -Width 100
-        foreach ($opt in $durOptions) { $durCombo.Items.Add("${opt}s") | Out-Null }
-        $durCombo.SelectedIndex = 0
-        $durCombo.Add_SelectionChanged({
-            if ($durCombo.SelectedIndex -ge 0) { $durState.Seconds = $durOptions[$durCombo.SelectedIndex] }
-        }.GetNewClosure())
-        $p.AddChild($durCombo)
+        $durState = Add-GuiBenchDurationPicker $p -Options @(10, 20, 30) -Default 20
 
         Add-GuiBtn $p "Run Benchmark" "ActionButtonStyle" {
-            $modeName = "D3D11 Hardware"
-            Write-GuiLog "Starting GPU render benchmark - $modeName ($($durState.Seconds)s)..." "STEP"
+            Write-GuiLog "Starting GPU benchmark (total budget $($durState.Seconds)s)..." "STEP"
 
-            # Show-GpuBenchmarkPopup blocks (ShowDialog) until the user closes the popup, which
-            # only becomes possible once the run completes or is stopped - see that function.
-            $result = Show-GpuBenchmarkPopup -Mode "D3D11" -DurationSeconds $durState.Seconds
+            # Show-GpuBenchmarkPopup blocks (ShowDialog) until the user closes the popup, which only
+            # becomes possible once the run completes or is stopped - see that function.
+            $result = Show-GpuBenchmarkPopup -DurationSeconds $durState.Seconds
 
-            if ($result) {
-                $Global:BenchGpuResultsStack.Children.Clear()
-                Add-GuiIconTitle $Global:BenchGpuResultsStack "&#xE950;" "Results" "#F0883E" -AccentTitle -TitleColor "#F0883E"
-                $stabilityLabel = if ($result.Throttling) { "Throttling (-$($result.ThrottlePct)%)" } else { "Stable" }
+            if (-not $result) {
+                Write-GuiLog "GPU benchmark closed before producing a result." "WARN"
+                return
+            }
+
+            $Global:BenchGpuResultsStack.Children.Clear()
+            Add-GuiIconTitle $Global:BenchGpuResultsStack "&#xE950;" "Results" "#F0883E" -AccentTitle -TitleColor "#F0883E"
+
+            $info = New-Object System.Windows.Controls.TextBlock
+            $info.FontSize = 12
+            $info.Margin = "0,0,0,8"
+            $info.TextWrapping = "Wrap"
+            $info.Text = "Render $($result.Width)x$($result.Height) - $($result.FeatureLevel), shader model $($result.ShaderModel) - elapsed $($result.ElapsedSeconds)s"
+            $info.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextSecondary")
+            $Global:BenchGpuResultsStack.AddChild($info)
+
+            $stabilityLabel = if ($result.Throttling) { "Throttling (-$($result.ThrottlePct)%)" } else { "Stable" }
+            Add-GuiBenchStatTiles $Global:BenchGpuResultsStack @(
+                @{Label="Composite (FPS)"; Value=$result.CompositeFps}
+                @{Label="Composite (ms/frame)"; Value=$result.CompositeMs}
+                @{Label="Worst 1st/2nd Half Drift"; Value="$($result.ThrottlePct)%"}
+                @{Label="Stability"; Value=$stabilityLabel}
+            )
+
+            foreach ($test in $result.Tests) {
                 Add-GuiBenchStatTiles $Global:BenchGpuResultsStack @(
-                    @{Label="Avg FPS"; Value=$result.AvgFps}
-                    @{Label="1st/2nd Half"; Value="$($result.FirstHalfFps) / $($result.SecondHalfFps)"}
-                    @{Label="Stability"; Value=$stabilityLabel}
+                    @{Label="$($test.Name) FPS"; Value=$test.Fps}
+                    @{Label="$($test.Name) ms/frame"; Value=$test.MedianMs}
+                    @{Label="$($test.Name) min/max FPS"; Value="$($test.MinFps) / $($test.MaxFps)"}
+                    @{Label="$($test.Name) drift 1st/2nd"; Value="$($test.FirstHalfFps) / $($test.SecondHalfFps)"}
                 )
-                $Global:BenchGpuResultsCard.Visibility = "Visible"
-                if ($result.Cancelled) {
-                    Write-GuiLog "GPU render benchmark stopped ($modeName) - average FPS: $($result.AvgFps)" "WARN"
-                } else {
-                    Write-GuiLog "GPU render benchmark complete ($modeName) - average FPS: $($result.AvgFps) ($stabilityLabel)" "OK"
-                }
+            }
 
-                # Cache the result (kept until the program closes) so the Export page can include it.
-                $Global:BenchGpuLastResult = @{
-                    DeviceName      = (Get-BenchDeviceName "GPU")
-                    DurationSeconds = $durState.Seconds
-                    Mode            = $modeName
-                    AvgFps          = $result.AvgFps
-                    FirstHalfFps    = $result.FirstHalfFps
-                    SecondHalfFps   = $result.SecondHalfFps
-                    ThrottlePct     = $result.ThrottlePct
-                    Throttling      = $result.Throttling
-                    Cancelled       = $result.Cancelled
-                    Timestamp       = Get-Date
-                }
+            if ($result.Telemetry -and $result.Telemetry.Available) {
+                $tel = $result.Telemetry
+                $tempText = if ($null -ne $tel.MaxTemp) { "$($tel.MaxTemp) °C" } else { "N/A" }
+                $powerText = if ($null -ne $tel.MaxPower) { "$($tel.MaxPower) W" } else { "N/A" }
+                $clockText = if ($null -ne $tel.MaxClock) { "$($tel.MinClock) - $($tel.MaxClock) MHz" } else { "N/A" }
+                $loadText = if ($null -ne $tel.MaxLoad) { "$($tel.MaxLoad) %" } else { "N/A" }
+                Add-GuiBenchStatTiles $Global:BenchGpuResultsStack @(
+                    @{Label="Max GPU Temp"; Value=$tempText}
+                    @{Label="Max GPU Power"; Value=$powerText}
+                    @{Label="GPU Clock"; Value=$clockText}
+                    @{Label="Max GPU Load"; Value=$loadText}
+                )
+            }
+
+            $Global:BenchGpuResultsCard.Visibility = "Visible"
+
+            $parts = foreach ($test in $result.Tests) { "$($test.Name)=$($test.Fps) fps ($($test.MedianMs) ms)" }
+            $logLine = "GPU benchmark - composite $($result.CompositeFps) fps [$($parts -join ', ')] - $stabilityLabel"
+            if ($result.Cancelled) {
+                Write-GuiLog "$logLine (stopped, partial)" "WARN"
+            } else {
+                Write-GuiLog $logLine "OK"
+            }
+
+            # Cache the result (kept until the program closes) so the Export page can include it.
+            $tel = $result.Telemetry
+            $Global:BenchGpuLastResult = @{
+                DeviceName      = (Get-BenchDeviceName "GPU")
+                DurationSeconds = $durState.Seconds
+                ElapsedSeconds  = $result.ElapsedSeconds
+                Mode            = "Direct3D11 ($($result.FeatureLevel), SM $($result.ShaderModel))"
+                CompositeFps    = $result.CompositeFps
+                CompositeMs     = $result.CompositeMs
+                Tests           = $result.Tests
+                MaxTemp         = $(if ($tel) { $tel.MaxTemp } else { $null })
+                MaxPower        = $(if ($tel) { $tel.MaxPower } else { $null })
+                MaxClock        = $(if ($tel) { $tel.MaxClock } else { $null })
+                MaxLoad         = $(if ($tel) { $tel.MaxLoad } else { $null })
+                ThrottlePct     = $result.ThrottlePct
+                Throttling      = $result.Throttling
+                Cancelled       = $result.Cancelled
+                Timestamp       = Get-Date
             }
         }.GetNewClosure()
     } "&#xE950;" -WrapButtons

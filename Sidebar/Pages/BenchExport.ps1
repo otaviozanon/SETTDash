@@ -26,34 +26,50 @@ function Show-PageBenchExport {
                 @{Label="Status"; Value=(& $fmtStatus $r)}
                 @{Label="Device"; Value=$(if ($r.ContainsKey('DeviceName') -and $r.DeviceName) { $r.DeviceName } else { "Unknown" })}
                 @{Label="Run At"; Value=(& $fmtTime $r)}
-                @{Label="Test Length"; Value="$($r.DurationSeconds)s per profile"}
+                @{Label="Test Length"; Value="$($r.DurationSeconds)s (total budget)"}
                 @{Label="Logical Threads"; Value=$r.Threads}
+                @{Label="Blocks per Pass"; Value=$(if ($r.ContainsKey('Blocks') -and $r.Blocks) { $r.Blocks } else { "N/A" })}
+                @{Label="Elapsed"; Value=$(if ($r.ContainsKey('ElapsedSeconds') -and $r.ElapsedSeconds) { "$($r.ElapsedSeconds)s" } else { "N/A" })}
             )
-            # Each profile reports its own unit (Integer: primes/s, Float/Memory: units/s - not
-            # comparable across profiles), so the three are listed as separate labeled rows instead
-            # of a single Single/Multi pair like the old one-workload version of this benchmark.
-            foreach ($type in @("Integer", "Float", "Memory")) {
+            # Each kernel reports in its own unit (Integer: Mops/s, Float: Mflop/s, Hash: MB/s - not
+            # comparable across kernels), so they are listed as separate labeled rows instead of a
+            # single Single/Multi pair like the old one-workload version of this benchmark.
+            foreach ($type in @("Integer", "Float", "Hash")) {
                 $prof = $r[$type]
                 if (-not $prof) { continue }
-                $rows += @{Label="$type Single-Core Avg"; Value="$($prof.SingleScore) units/s"}
-                $rows += @{Label="$type Multi-Core Avg"; Value="$($prof.MultiScore) units/s"}
+                $rows += @{Label="$type Single-Core"; Value="$($prof.SingleScore) $($prof.Unit)"}
+                $rows += @{Label="$type All-Core"; Value="$($prof.MultiScore) $($prof.Unit)"}
                 $rows += @{Label="$type MT/ST Ratio"; Value="$($prof.MtStRatio)x"}
             }
+            if ($r.ContainsKey('MaxTemp') -and $null -ne $r.MaxTemp) { $rows += @{Label="Max CPU Temp"; Value="$($r.MaxTemp) °C"} }
+            if ($r.ContainsKey('MaxPower') -and $null -ne $r.MaxPower) { $rows += @{Label="Max CPU Power"; Value="$($r.MaxPower) W"} }
+            if ($r.ContainsKey('MaxClock') -and $null -ne $r.MaxClock) { $rows += @{Label="Max CPU Clock"; Value="$($r.MaxClock) MHz"} }
+            if ($r.ContainsKey('MaxLoad') -and $null -ne $r.MaxLoad) { $rows += @{Label="Max CPU Load"; Value="$($r.MaxLoad) %"} }
             $rows
         }
         "GPU" = {
             $r = $Global:BenchGpuLastResult
             if (-not $r) { return @(@{Label="Status"; Value="No data - run the GPU benchmark first"}) }
-            @(
+            $rows = @(
                 @{Label="Status"; Value=(& $fmtStatus $r)}
                 @{Label="Device"; Value=$(if ($r.ContainsKey('DeviceName') -and $r.DeviceName) { $r.DeviceName } else { "Unknown" })}
                 @{Label="Run At"; Value=(& $fmtTime $r)}
-                @{Label="Test Length"; Value="$($r.DurationSeconds)s"}
-                @{Label="Test Type"; Value=$r.Mode}
-                @{Label="Average FPS"; Value=$r.AvgFps}
-                @{Label="1st/2nd Half FPS"; Value=$(if ($r.ContainsKey('FirstHalfFps') -and $r.FirstHalfFps) { "$($r.FirstHalfFps) / $($r.SecondHalfFps)" } else { "N/A" })}
-                @{Label="Stability"; Value=$(if ($r.ContainsKey('Throttling')) { if ($r.Throttling) { "Throttling (-$($r.ThrottlePct)%)" } else { "Stable" } } else { "N/A" })}
+                @{Label="Test Length"; Value="$($r.DurationSeconds)s (total budget)"}
+                @{Label="Elapsed"; Value=$(if ($r.ContainsKey('ElapsedSeconds') -and $r.ElapsedSeconds) { "$($r.ElapsedSeconds)s" } else { "N/A" })}
+                @{Label="Pipeline"; Value=$r.Mode}
+                @{Label="Composite Score"; Value="$($r.CompositeFps) FPS ($($r.CompositeMs) ms/frame)"}
             )
+            foreach ($t in @($r.Tests)) {
+                if (-not $t) { continue }
+                $rows += @{Label="$($t.Name) - $($t.Label)"; Value="$($t.Fps) FPS ($($t.MedianMs) ms/frame, $($t.Blocks) blocks)"}
+                $rows += @{Label="$($t.Name) 1st/2nd Half FPS"; Value="$($t.FirstHalfFps) / $($t.SecondHalfFps)"}
+            }
+            $rows += @{Label="Stability"; Value=$(if ($r.ContainsKey('Throttling')) { if ($r.Throttling) { "Throttling (-$($r.ThrottlePct)%)" } else { "Stable" } } else { "N/A" })}
+            if ($r.ContainsKey('MaxTemp') -and $null -ne $r.MaxTemp) { $rows += @{Label="Max GPU Temp"; Value="$($r.MaxTemp) °C"} }
+            if ($r.ContainsKey('MaxPower') -and $null -ne $r.MaxPower) { $rows += @{Label="Max GPU Power"; Value="$($r.MaxPower) W"} }
+            if ($r.ContainsKey('MaxClock') -and $null -ne $r.MaxClock) { $rows += @{Label="Max GPU Clock"; Value="$($r.MaxClock) MHz"} }
+            if ($r.ContainsKey('MaxLoad') -and $null -ne $r.MaxLoad) { $rows += @{Label="Max GPU Load"; Value="$($r.MaxLoad) %"} }
+            $rows
         }
         "RAM" = {
             $r = $Global:BenchRamLastResult

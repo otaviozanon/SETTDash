@@ -191,7 +191,7 @@ $mutatingFunctions = @($mutatingFunctions | Sort-Object)
 # network. None of them is a system mutation the sandbox could get wrong. The three disk
 # benchmarks write and read gigabytes of a real disk, so they are out of the sweep on purpose.
 $sweepExclusions = @(
-    'Invoke-CpuWorkload', 'Invoke-CpuWorkloadMultiThread',   # minutes-long benchmarks
+    'Get-CpuBenchmarkResult', 'Get-GpuBenchmarkResult',     # multi-second real benchmarks
     'Get-DiskBenchmarkResult', 'Get-Disk4kRandomResult',     # real GBs of disk I/O
     'Get-DiskQueueDepthResult',
     'Invoke-SelfUpdate',                                     # opens a WPF progress dialog

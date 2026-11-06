@@ -152,6 +152,49 @@ foreach ($file in $sourceFiles) {
 Assert-Equal 0 $tempViolations.Count "`$Script:TempDir is not created under %TEMP%"
 foreach ($v in $tempViolations) { Write-Host "         $v" -ForegroundColor DarkYellow }
 
+Write-Section "Test-StaticGuards: benchmark telemetry"
+
+# The CPU and GPU benchmarks report the silicon temperature (and power/clock/load) captured while
+# they ran. These assertions keep that wiring intact:
+#   - both benchmark cores expose a telemetry reader and put a Telemetry object on the result;
+#   - the GPU reader matches its hardware through the "Gpu*" hardware type (LibreHardwareMonitor
+#     reports GpuAti/GpuNvidia/GpuIntel, never a literal "Gpu"), so it can never silently report the
+#     CPU temperature as the GPU temperature;
+#   - both benchmark pages render a temperature tile and the export page emits the rows.
+$benchDir = Join-Path $RepoRoot "Core\Actions\Benchmark"
+$cpuBenchText = Get-Content -Path (Join-Path $benchDir "CpuBenchmark.ps1") -Raw -Encoding UTF8
+$gpuBenchText = Get-Content -Path (Join-Path $benchDir "GpuBenchmark.ps1") -Raw -Encoding UTF8
+$cpuPageText = Get-Content -Path (Join-Path $RepoRoot "Sidebar\Pages\BenchCpu.ps1") -Raw -Encoding UTF8
+$gpuPageText = Get-Content -Path (Join-Path $RepoRoot "Sidebar\Pages\BenchGpu.ps1") -Raw -Encoding UTF8
+$exportPageText = Get-Content -Path (Join-Path $RepoRoot "Sidebar\Pages\BenchExport.ps1") -Raw -Encoding UTF8
+
+Assert-True ($cpuBenchText -match 'function Get-CpuTelemetryReading') "CPU benchmark exposes Get-CpuTelemetryReading"
+Assert-True ($cpuBenchText -match 'Telemetry\s*=\s*\$telemetry') "CPU benchmark result carries a Telemetry object"
+Assert-True ($cpuBenchText -match 'HardwareType -eq "Cpu"') "CPU telemetry only reads Cpu hardware"
+Assert-True ($gpuBenchText -match 'function Get-GpuTelemetryReading') "GPU benchmark exposes Get-GpuTelemetryReading"
+Assert-True ($gpuBenchText -match 'Telemetry\s*=\s*\$telemetry') "GPU benchmark result carries a Telemetry object"
+Assert-True ($gpuBenchText -match 'HardwareType -like "Gpu\*"') "GPU telemetry matches GpuAti/GpuNvidia/GpuIntel (not a literal 'Gpu')"
+Assert-True ($gpuBenchText -notmatch '\$gpuRows\s*=\s*@\(\$rows\s*\|\s*Where-Object\s*\{\s*\$null -ne \$_.Value') "GPU telemetry does not fall back to non-GPU sensors"
+# The samplers are invoked with '&' (child scope), so the rate-limit timestamp must live in a
+# hashtable; a plain variable assignment inside the scriptblock is discarded and the throttle
+# never applies (it sampled once per block instead of once per second).
+Assert-True ($cpuBenchText -notmatch '\$lastTelemetryMs\s*=') "CPU telemetry rate limit uses hashtable state, not a closure-scoped variable"
+Assert-True ($gpuBenchText -notmatch '\$lastTelemetryMs\s*=') "GPU telemetry rate limit uses hashtable state, not a closure-scoped variable"
+Assert-True ($cpuPageText -match 'Max CPU Temp') "CPU page shows a CPU temperature tile"
+Assert-True ($gpuPageText -match 'Max GPU Temp') "GPU page shows a GPU temperature tile"
+Assert-True ($exportPageText -match 'Max CPU Temp') "Export page reports the CPU temperature"
+Assert-True ($exportPageText -match 'Max GPU Temp') "Export page reports the GPU temperature"
+
+Write-Section "Test-StaticGuards: unattended update check"
+
+# The smoke suite runs the compiled app with nobody at the keyboard. If GitHub has a release newer
+# than the local build, the startup update prompt is a blocking modal and the sweep hangs until the
+# timeout - so the switch must exist in the app and be set by the test.
+$updateText = Get-Content -Path (Join-Path $RepoRoot "Core\Helpers\UpdateChecker.ps1") -Raw -Encoding UTF8
+$smokeText = Get-Content -Path (Join-Path $RepoRoot "tests\Test-Smoke.ps1") -Raw -Encoding UTF8
+Assert-True ($updateText -match '\$env:SETTDASH_NO_UPDATE_CHECK') "Update checker honours SETTDASH_NO_UPDATE_CHECK"
+Assert-True ($smokeText -match '\$env:SETTDASH_NO_UPDATE_CHECK\s*=\s*"1"') "Smoke run disables the blocking update check"
+
 Write-Section "Test-StaticGuards: FirstChanceException"
 
 $firstChanceViolations = @()

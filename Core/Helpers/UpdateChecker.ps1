@@ -10,6 +10,11 @@ function Invoke-CheckForUpdates {
         [string]$RepoOwner = "otaviozanon",
         [string]$RepoName  = "SETTDash"
     )
+    # Unattended runs (tests\Test-Smoke.ps1 walks every page in the compiled exe) must not depend on
+    # GitHub state: when a release newer than the local build exists, the "update available" dialog
+    # below is a blocking modal with nobody to answer it, so the whole sweep hangs until the test
+    # times out. The switch skips only this check - nothing else in the app behaves differently.
+    if ($env:SETTDASH_NO_UPDATE_CHECK -eq '1') { return }
     Write-GuiLog "Checking for updates..." "STEP"
     try {
         # .NET Framework (the host WinPS 5.1 the compiled exe runs on) defaults to older TLS;
