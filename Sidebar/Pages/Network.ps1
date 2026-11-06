@@ -1,9 +1,54 @@
 # Network tab page: Network Cleanup (moved from Clean) + Network Optimizer (moved from Home).
+# Shown as category pills (same pattern as Sidebar\Pages\Startup.ps1 / Clean.ps1).
 function Show-PageNetwork {
     Clear-GuiContent
     Add-GuiPageTitle "Network"
 
-    # --- Network Cleanup ---
+    # ---- Category pills (icon + label, same style as Startup/Clean) ----
+    $pillsCard = New-Object System.Windows.Controls.Border
+    $cardStyle = $Window.FindResource("CardStyle"); if ($cardStyle) { $pillsCard.Style = $cardStyle }
+    $pillsCard.Padding = "8"
+    $pillsCard.Margin = "0,0,0,14"
+    $pillsStack = New-Object System.Windows.Controls.WrapPanel
+    $pillsStack.Orientation = "Horizontal"
+    $pillsStack.HorizontalAlignment = "Center"
+    $pillsCard.Child = $pillsStack
+    $pnlContent.AddChild($pillsCard)
+
+    $activeStyle = $Window.FindResource("CategoryPillActiveStyle")
+    $normalStyle = $Window.FindResource("CategoryPillStyle")
+    $pillButtons = @{}
+    $categoryPanels = @{}
+
+    function New-NetworkPill {
+        param([string]$Icon, [string]$Label)
+        $btn = New-Object System.Windows.Controls.Button
+        $btn.Style = $normalStyle
+        $content = New-Object System.Windows.Controls.StackPanel
+        $content.Orientation = "Horizontal"
+        $iconBlock = New-Object System.Windows.Controls.TextBlock
+        $iconBlock.Text = [regex]::Replace($Icon, '&#x([0-9A-Fa-f]+);', { param($m) [char][Convert]::ToInt32($m.Groups[1].Value, 16) })
+        $iconBlock.FontFamily = "Segoe MDL2 Assets"
+        $iconBlock.FontSize = 13
+        $iconBlock.Margin = "0,0,8,0"
+        $iconBlock.VerticalAlignment = "Center"
+        $content.AddChild($iconBlock)
+        $textBlock = New-Object System.Windows.Controls.TextBlock
+        $textBlock.Text = $Label
+        $textBlock.VerticalAlignment = "Center"
+        $content.AddChild($textBlock)
+        $btn.Content = $content
+        return $btn
+    }
+
+    $setActiveCategory = {
+        param($name)
+        foreach ($bn in $pillButtons.Keys) { $pillButtons[$bn].Style = if ($bn -eq $name) { $activeStyle } else { $normalStyle } }
+        foreach ($cn in $categoryPanels.Keys) { $categoryPanels[$cn].Visibility = if ($cn -eq $name) { "Visible" } else { "Collapsed" } }
+    }.GetNewClosure()
+
+    # --- Category 1: Network Cleanup ---
+    $panelCleanup = New-Object System.Windows.Controls.StackPanel
     $Script:CleanNetworkItems = @()
     $Script:pnlCleanNetworkList = New-Object System.Windows.Controls.StackPanel
     $Script:CleanNetworkBox = New-CleanListContainer $Script:pnlCleanNetworkList
@@ -24,21 +69,46 @@ function Show-PageNetwork {
             if ($selected.Count -eq 0) { Write-GuiLog "No items selected." "WARN"; return }
             Invoke-NetworkCleanupClean -Items $selected
         }
-    } "&#xE968;" -WrapButtons -CollapseTarget $Script:CleanNetworkBox
-    $pnlContent.AddChild($Script:CleanNetworkBox)
+    } "&#xE968;" -WrapButtons -CollapseTarget $Script:CleanNetworkBox -TargetPanel $panelCleanup
+    $panelCleanup.AddChild($Script:CleanNetworkBox)
+    $panelCleanup.Visibility = "Collapsed"
+    $pnlContent.AddChild($panelCleanup)
+    $categoryPanels["Network Cleanup"] = $panelCleanup
 
-    # --- Network Optimizer (moved from Home) ---
+    # --- Category 2: Network Optimizer (moved from Home) ---
+    $panelOptimizer = New-Object System.Windows.Controls.StackPanel
     Add-GuiCard "Network Optimizer" "Apply or revert network adapter tweaks for Ethernet and Wi-Fi to improve throughput and reduce latency." {
         param($p)
         Add-GuiBtn $p "Optimize Ethernet" "ActionButtonStyle" { Invoke-NetworkOptimize "Ethernet" }
         Add-GuiBtn $p "Optimize Wi-Fi" "ActionButtonStyle" { Invoke-NetworkOptimize "WiFi" }
         Add-GuiBtn $p "Revert Ethernet" "RevertButtonStyle" { Invoke-NetworkRestoreDefaults "Ethernet" }
         Add-GuiBtn $p "Revert Wi-Fi" "RevertButtonStyle" { Invoke-NetworkRestoreDefaults "WiFi" }
-    } "&#xE839;" -WrapButtons
+    } "&#xE839;" -WrapButtons -TargetPanel $panelOptimizer
+    $panelOptimizer.Visibility = "Collapsed"
+    $pnlContent.AddChild($panelOptimizer)
+    $categoryPanels["Network Optimizer"] = $panelOptimizer
 
-    # --- DNS Jumper (moved from Home > Tools) ---
+    # --- Category 3: DNS Jumper (moved from Home > Tools) ---
+    $panelDns = New-Object System.Windows.Controls.StackPanel
     Add-GuiCard "DNS Jumper" "Switch DNS servers quickly (Google, Cloudflare, OpenDNS, etc)." {
         param($p)
         Add-GuiBtn $p "Open DNS Jumper" "InstallButtonStyle" { Invoke-DNSTool }
-    } "&#xE968;" -WrapButtons
+    } "&#xE968;" -WrapButtons -TargetPanel $panelDns
+    $panelDns.Visibility = "Collapsed"
+    $pnlContent.AddChild($panelDns)
+    $categoryPanels["DNS Jumper"] = $panelDns
+
+    # ---- Wire pills + default selection ----
+    $pillDefs = @(
+        @{ Icon = "&#xE968;"; Label = "Network Cleanup" },
+        @{ Icon = "&#xE839;"; Label = "Network Optimizer" },
+        @{ Icon = "&#xE968;"; Label = "DNS Jumper" }
+    )
+    foreach ($def in $pillDefs) {
+        $btn = New-NetworkPill $def.Icon $def.Label
+        $btn.Add_Click({ & $setActiveCategory $def.Label }.GetNewClosure())
+        $pillButtons[$def.Label] = $btn
+        $pillsStack.AddChild($btn)
+    }
+    & $setActiveCategory "Network Cleanup"
 }
