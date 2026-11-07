@@ -34,6 +34,15 @@ $Script:Themes = @{
         Danger        = "#6E2C2C"
         DangerHover   = "#F85149"
         DangerPressed = "#A32D2A"
+        AccentWarm    = "#F0883E"
+        AccentGreen   = "#3FB950"
+        AccentAmber   = "#D29922"
+        AccentRed     = "#F85149"
+        AccentBlue    = "#58A6FF"
+        AccentCyan    = "#39C5CF"
+        AccentPurple  = "#A371F7"
+        AccentPink    = "#DB61A2"
+        Shadow        = "#000000"
         CornerRadius  = 6
         FontFamily    = "Segoe UI"
         Retro         = $false
@@ -68,6 +77,15 @@ $Script:Themes = @{
         Danger        = "#B23A2E"
         DangerHover   = "#FF5A3C"
         DangerPressed = "#7A2219"
+        AccentWarm    = "#FF8C00"
+        AccentGreen   = "#3FB950"
+        AccentAmber   = "#D29922"
+        AccentRed     = "#FF5A3C"
+        AccentBlue    = "#58A6FF"
+        AccentCyan    = "#39C5CF"
+        AccentPurple  = "#A371F7"
+        AccentPink    = "#DB61A2"
+        Shadow        = "#000000"
         CornerRadius  = 0
         FontFamily    = "MONO"
         Retro         = $true
@@ -75,8 +93,22 @@ $Script:Themes = @{
 }
 
 # Converts a hex color string into a SolidColorBrush usable as a resource value.
-function ConvertTo-GuiBrush { param([string]$Hex)
-    New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString($Hex))
+# $Alpha < 255 produces a translucent brush (used e.g. for the accent-tinted selected-row
+# background, which must follow the current theme's accent instead of a fixed hex value).
+function ConvertTo-GuiBrush { param([string]$Hex, [int]$Alpha = 255)
+    $c = [System.Windows.Media.ColorConverter]::ConvertFromString($Hex)
+    if ($Alpha -lt 255) { $c = [System.Windows.Media.Color]::FromArgb($Alpha, $c.R, $c.G, $c.B) }
+    New-Object System.Windows.Media.SolidColorBrush $c
+}
+
+# Applies a color to a WPF dependency property. A "Brush_*" name binds the theme resource (so the
+# element repaints when the theme changes); any other value is treated as a literal color, which
+# callers only use for one-off accents that are intentionally not part of the palette.
+function Set-GuiColor {
+    param($Element, [System.Windows.DependencyProperty]$Property, [string]$Color)
+    if (-not $Element -or -not $Color) { return }
+    if ($Color -like 'Brush_*') { $Element.SetResourceReference($Property, $Color) }
+    else { $Element.SetValue($Property, (ConvertTo-GuiBrush $Color)) }
 }
 
 # Builds a tiled "LED segments" DrawingBrush drawn on top of the progress bar fill, simulating a
@@ -170,6 +202,7 @@ function Set-GuiTheme {
     Set-GuiResource "Brush_TextSecondary" (ConvertTo-GuiBrush $t.TextSecondary)
     Set-GuiResource "Brush_TextMuted"     (ConvertTo-GuiBrush $t.TextMuted)
     Set-GuiResource "Brush_Accent"        (ConvertTo-GuiBrush $t.Accent)
+    Set-GuiResource "Brush_AccentMuted"   (ConvertTo-GuiBrush $t.Accent 64)
     Set-GuiResource "Brush_NavActiveBg"   (ConvertTo-GuiBrush $t.NavActiveBg)
     Set-GuiResource "Brush_TitleBarBg"    (ConvertTo-GuiBrush $t.TitleBarBg)
     Set-GuiResource "Brush_LogBg"         (ConvertTo-GuiBrush $t.LogBg)
@@ -186,6 +219,14 @@ function Set-GuiTheme {
     Set-GuiResource "Brush_Danger"        (ConvertTo-GuiBrush $t.Danger)
     Set-GuiResource "Brush_DangerHover"   (ConvertTo-GuiBrush $t.DangerHover)
     Set-GuiResource "Brush_DangerPressed" (ConvertTo-GuiBrush $t.DangerPressed)
+    Set-GuiResource "Brush_AccentWarm"    (ConvertTo-GuiBrush $t.AccentWarm)
+    Set-GuiResource "Brush_AccentGreen"   (ConvertTo-GuiBrush $t.AccentGreen)
+    Set-GuiResource "Brush_AccentAmber"   (ConvertTo-GuiBrush $t.AccentAmber)
+    Set-GuiResource "Brush_AccentRed"     (ConvertTo-GuiBrush $t.AccentRed)
+    Set-GuiResource "Brush_AccentBlue"    (ConvertTo-GuiBrush $t.AccentBlue)
+    Set-GuiResource "Brush_AccentCyan"    (ConvertTo-GuiBrush $t.AccentCyan)
+    Set-GuiResource "Brush_AccentPurple"  (ConvertTo-GuiBrush $t.AccentPurple)
+    Set-GuiResource "Brush_AccentPink"    (ConvertTo-GuiBrush $t.AccentPink)
     Set-GuiResource "Brush_ProgressOverlay" (New-GuiProgressOverlayBrush -Retro:$t.Retro)
     Set-GuiResource "Theme_CornerRadius"  (New-Object System.Windows.CornerRadius($t.CornerRadius))
     Set-GuiResource "Theme_IsRetro"       [bool]$t.Retro

@@ -132,7 +132,7 @@ function Show-PageYourPCCpu {
 
         $stack = New-Object System.Windows.Controls.StackPanel
         $titlePanel = New-Object System.Windows.Controls.StackPanel
-        Add-GuiIconTitle $titlePanel "&#xE950;" $c.Name.Trim() "#F0883E" -AccentTitle
+        Add-GuiIconTitle $titlePanel "&#xE950;" $c.Name.Trim() "Brush_AccentWarm" -AccentTitle
         $stack.AddChild($titlePanel)
 
         $pillsStack = New-Object System.Windows.Controls.WrapPanel

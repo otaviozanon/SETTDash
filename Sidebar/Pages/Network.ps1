@@ -54,20 +54,25 @@ function Show-PageNetwork {
     $Script:CleanNetworkBox = New-CleanListContainer $Script:pnlCleanNetworkList
     Add-GuiCard "Network Cleanup" "Flush DNS resolver cache, clear ARP cache, remove saved Wi-Fi profiles and stale network history entries." {
         param($p)
-        Add-GuiBtn $p "Scan" "RevertButtonStyle" {
-            Set-GuiProgress 20 "Scanning network cache and profiles..."
+        Add-GuiBackgroundBtn $p "Scan" { Get-NetworkCleanupItems } @('Get-NetworkCleanupItems') {
+            param($items)
             # Same $null-vs-empty-array trap as the Clean page: wrap so .Count is always valid.
-            $Script:CleanNetworkItems = @(Get-NetworkCleanupItems)
+            $Script:CleanNetworkItems = @($items)
             Set-GuiProgress 90
             Set-CleanChecklist $Script:pnlCleanNetworkList $Script:CleanNetworkItems "Nothing to clean." "plain"
             Expand-GuiCard $Script:CleanNetworkBox
             Set-GuiProgress 0
             Write-GuiLog "Network Cleanup: $($Script:CleanNetworkItems.Count) items found" "OK"
-        }
+        } -Style "RevertButtonStyle"
+        Add-CleanSelectAllBtn $p $Script:pnlCleanNetworkList "ActionButtonStyle" { $Script:CleanNetworkItems } | Out-Null
         Add-GuiBtn $p "Clean Selected" "ActionButtonStyle" {
             $selected = @(Get-CleanSelected $Script:CleanNetworkItems)
             if ($selected.Count -eq 0) { Write-GuiLog "No items selected." "WARN"; return }
             Invoke-NetworkCleanupClean -Items $selected
+            # Rescan so removed profiles/history disappear without a manual Scan.
+            Update-CleanChecklist $Script:pnlCleanNetworkList { Get-NetworkCleanupItems } {
+                param($items) $Script:CleanNetworkItems = @($items)
+            } @('Get-NetworkCleanupItems') "Nothing to clean." "plain"
         }
     } "&#xE968;" -WrapButtons -CollapseTarget $Script:CleanNetworkBox -TargetPanel $panelCleanup
     $panelCleanup.AddChild($Script:CleanNetworkBox)

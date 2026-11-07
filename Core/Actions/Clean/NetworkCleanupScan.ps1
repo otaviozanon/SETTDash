@@ -16,7 +16,7 @@ function Get-NetworkCleanupItems {
     $dnsCount = 0
     try { $dnsCount = @(Get-DnsClientCache -ErrorAction SilentlyContinue).Count } catch { $dnsCount = 0 }
     $dnsDetail = if ($dnsCount -gt 0) { "$dnsCount cached entries" } else { "Flush the resolver cache" }
-    $items += [pscustomobject]@{ Label="DNS Resolver Cache"; Detail=$dnsDetail; Selected=$true; Type='dns-cache'; Key='' }
+    $items += [pscustomobject]@{ Label="DNS Resolver Cache"; Detail=$dnsDetail; Selected=$false; Type='dns-cache'; Key='' }
 
     try {
         $wifiOutput = netsh wlan show profiles 2>$null
@@ -33,7 +33,7 @@ function Get-NetworkCleanupItems {
         $arpCount = @($arpLines).Count
     } catch { $arpCount = 0 }
     if ($arpCount -gt 0) {
-        $items += [pscustomobject]@{ Label="ARP Cache"; Detail="$arpCount entries"; Selected=$true; Type='arp-cache'; Key='' }
+        $items += [pscustomobject]@{ Label="ARP Cache"; Detail="$arpCount entries"; Selected=$false; Type='arp-cache'; Key='' }
     }
 
     $profilesKey = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\NetworkList\Profiles'

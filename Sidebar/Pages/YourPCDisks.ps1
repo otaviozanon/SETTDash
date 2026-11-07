@@ -1,4 +1,4 @@
-﻿# Converts a byte count into a human-readable string, matching DiskHealth.cs/DriveMap.cs's Fmt/FmtSize.
+# Converts a byte count into a human-readable string, matching DiskHealth.cs/DriveMap.cs's Fmt/FmtSize.
 function Format-DiskBytes {
     param([double]$Bytes)
     if ($null -eq $Bytes -or $Bytes -le 0) { return "0 B" }
@@ -50,7 +50,7 @@ function Get-DiskHealthCards {
                 Letters = ""
             }
         }
-    } catch { return @([PSCustomObject]@{Title="Could not read disks"; Verdict="Unknown"; AccentColor="#8B949E"; Rows=@(@{Label="Error"; Value="$_"})}) }
+    } catch { return @([PSCustomObject]@{Title="Could not read disks"; Verdict="Unknown"; AccentColor="Brush_TextSecondary"; Rows=@(@{Label="Error"; Value="$_"})}) }
 
     # Storage API: media type, overall health, reliability counters (temp/wear/hours/errors).
     try {
@@ -177,7 +177,7 @@ function Get-DiskHealthCards {
             $reasons += if ($verdict -eq "Good") { "No problems found in the available readings." } else { "This disk doesn't report health data (common on pen drives and some external HDDs)." }
         }
 
-        $accent = switch ($verdict) { "Good" { "#3FB950" } "Warning" { "#D29922" } "Critical" { "#F85149" } default { "#8B949E" } }
+        $accent = switch ($verdict) { "Good" { "Brush_AccentGreen" } "Warning" { "Brush_AccentAmber" } "Critical" { "Brush_AccentRed" } default { "Brush_TextSecondary" } }
 
         $kind = if ($r.Media.Length -gt 0) { $r.Media } elseif ($isSsd) { "SSD" } else { "" }
         $metaParts = @($kind, $r.Bus, (Format-DiskBytes $r.Size), $(if ($r.Letters.Length -gt 0) { "Drives: $($r.Letters)" } else { "" })) | Where-Object { $_ }

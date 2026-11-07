@@ -2,7 +2,7 @@
 # used for Home dashboard metrics (CPU/RAM/GPU). Returns a hashtable with Panel/Bar/Text so the
 # caller can add it to the layout and later update it via Set-GuiMetricBarValue.
 function New-GuiMetricBar {
-    param([string]$Label, [string]$AccentColor = "#1F6FEB")
+    param([string]$Label, [string]$AccentColor = "Brush_Accent")
     $wrap = New-Object System.Windows.Controls.StackPanel
     $wrap.Margin = "0,0,0,10"
 
@@ -46,7 +46,7 @@ function New-GuiMetricBar {
     if ($isRetro) {
         $bar.SetResourceReference([System.Windows.Controls.Control]::ForegroundProperty, "Brush_Accent")
     } else {
-        $bar.Foreground = $AccentColor
+        Set-GuiColor $bar ([System.Windows.Controls.Control]::ForegroundProperty) $AccentColor
     }
     $wrap.AddChild($bar)
 
@@ -101,7 +101,7 @@ function New-GuiGaugeArcGeometry {
 # center + label below) used on the Home dashboard. Returns a pscustomobject with the Arc/Text
 # elements and geometry info (Radius/Cx/Cy) needed by Set-GuiGaugeValue to redraw the arc.
 function New-GuiCircularGauge {
-    param([string]$Label, [string]$AccentColor = "#1F6FEB", [int]$Size = 86, [int]$Thickness = 8)
+    param([string]$Label, [string]$AccentColor = "Brush_Accent", [int]$Size = 86, [int]$Thickness = 8)
     $radius = ($Size - $Thickness) / 2
     $wrap = New-Object System.Windows.Controls.StackPanel
     $wrap.HorizontalAlignment = "Center"
@@ -145,7 +145,7 @@ function New-GuiCircularGauge {
     if ($isRetro) {
         $arc.SetResourceReference([System.Windows.Shapes.Shape]::StrokeProperty, "Brush_Accent")
     } else {
-        $arc.Stroke = $AccentColor
+        Set-GuiColor $arc ([System.Windows.Shapes.Shape]::StrokeProperty) $AccentColor
     }
     $arc.StrokeThickness = $Thickness
     if ($isRetro) {

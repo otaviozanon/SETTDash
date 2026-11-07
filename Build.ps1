@@ -60,6 +60,8 @@ $parts = @(
     "Core\Helpers\SystemPaths.ps1",
     "Core\Helpers\InstallHelpers.ps1",
     "Core\Helpers\UpdateChecker.ps1",
+    "Core\Helpers\ConfirmDialog.ps1",
+    "Core\Helpers\BackgroundJob.ps1",
     "Core\Actions\Utilities.ps1",
     "Core\Actions\NetworkPrivacy\InternetQoS.ps1",
     "Core\Actions\NetworkPrivacy\PrivacySettings.ps1",

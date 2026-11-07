@@ -87,15 +87,19 @@ function Write-GuiLog {
     if ($Type -eq "ERR") { try { $reportCreated = Write-ErrorLog "[ERR] $Message" } catch { } }
     else { try { Add-LogBuffer "[$Type] $Message" } catch { } }
     $prefix = switch ($Type) { "OK" { "[OK]  " } "ERR" { "[ERR] " } "WARN" { "[WRN] " } "STEP" { "[>]   " } default { "[i]   " } }
-    $color = switch ($Type) { "OK" { "#3FB950" } "ERR" { "#F85149" } "WARN" { "#D29922" } "STEP" { "#A371F7" } default { "#8B949E" } }
+    # Colors come from the active theme (same Brush_* resources the rest of the UI uses), so the
+    # log follows Default/Terminal Retro instead of freezing one palette into the runs.
+    $colorKey = switch ($Type) { "OK" { "Brush_AccentGreen" } "ERR" { "Brush_AccentRed" } "WARN" { "Brush_AccentAmber" } "STEP" { "Brush_AccentPurple" } default { "Brush_TextSecondary" } }
+    $brush = $null
+    try { $brush = $Window.FindResource($colorKey) } catch { }
+    if (-not $brush) { $brush = [System.Windows.Media.Brushes]::Gray }
 
     try {
         $para = New-Object System.Windows.Documents.Paragraph
         $para.Margin = "0"
         $para.LineHeight = 16
         $run = New-Object System.Windows.Documents.Run("$prefix$Message")
-        $colorObj = [System.Windows.Media.ColorConverter]::ConvertFromString($color)
-        $run.Foreground = New-Object System.Windows.Media.SolidColorBrush($colorObj)
+        $run.Foreground = $brush
         $para.Inlines.Add($run)
         $txtLog.Document.Blocks.Add($para)
     } catch {

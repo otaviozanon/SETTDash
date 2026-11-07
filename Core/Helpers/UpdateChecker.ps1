@@ -44,7 +44,7 @@ function Invoke-CheckForUpdates {
             return
         }
 
-        Invoke-SelfUpdate -DownloadUrl $asset.browser_download_url -NewVersion $latestTag -ExpectedSize ([long]$asset.size)
+        Invoke-SelfUpdate -DownloadUrl $asset.browser_download_url -NewVersion $latestTag -ExpectedSize ([long]$asset.size) -ExpectedSha256 ([string](Get-SafeProp $asset 'digest'))
     } catch {
         Write-GuiLog "Update check failed: $_" "WARN"
     }
@@ -141,7 +141,7 @@ function script:Get-UpdatePopupXaml {
     </Window.Resources>
     <Border x:Name="rootBorder" Background="$($t.WindowBg)" BorderBrush="$($t.Border)" BorderThickness="1" CornerRadius="$radius">
         <Border.Effect>
-            <DropShadowEffect Color="#000000" BlurRadius="22" ShadowDepth="4" Opacity="0.45"/>
+            <DropShadowEffect Color="$($t.Shadow)" BlurRadius="22" ShadowDepth="4" Opacity="0.45"/>
         </Border.Effect>
         <Grid>
             <Grid.RowDefinitions>
@@ -243,7 +243,17 @@ function Show-UpdateConfirmDialog {
 # helper PowerShell process that waits for this process to exit, overwrites
 # the current executable in place, relaunches it, and cleans up after itself.
 function Invoke-SelfUpdate {
-    param([string]$DownloadUrl, [string]$NewVersion, [long]$ExpectedSize = 0)
+    param([string]$DownloadUrl, [string]$NewVersion, [long]$ExpectedSize = 0, [string]$ExpectedSha256 = "")
+    # GitHub's asset.digest is "sha256:<hex>" (and is absent on older releases). The exe is run
+    # elevated right after this, so a truncated/corrupted download must never be launched: only a
+    # full 64-hex digest is accepted, anything else disables the check and is logged loudly.
+    if ($ExpectedSha256 -match '^(?:sha256:)?([0-9A-Fa-f]{64})$') {
+        $expectedHash = $Matches[1].ToLower()
+    } else {
+        $expectedHash = ""
+        if ($ExpectedSha256) { Write-GuiLog "Update: unusable digest '$ExpectedSha256' - integrity check disabled" "WARN" }
+        else { Write-GuiLog "Update: release publishes no SHA-256 digest - integrity check unavailable" "WARN" }
+    }
     # Plain local (NOT $Script:) values used inside the ContentRendered closure below:
     # 'Script: variables are not readable there - that scope expression resolves against
     # the closure MODULE's script scope (null), which corrupted 'Join-Path' with
@@ -300,6 +310,11 @@ function Invoke-SelfUpdate {
                 try { $wc2.DownloadFile([Uri]$DownloadUrl, $newExe) } catch { throw } finally { $wc2.Dispose() }
                 $got = (Get-Item $newExe -ErrorAction Stop).Length
                 if ($ExpectedSize -gt 0 -and $got -ne $ExpectedSize) { throw "incomplete download ($got / $ExpectedSize bytes)" }
+                if ($expectedHash) {
+                    $actual = (Get-FileHash -Path $newExe -Algorithm SHA256 -ErrorAction Stop).Hash.ToLower()
+                    if ($actual -ne $expectedHash) { throw "SHA-256 mismatch (expected $expectedHash, got $actual)" }
+                    Write-GuiLog "Update: SHA-256 verified" "OK"
+                }
                 $ok = $true
                 break
             } catch {

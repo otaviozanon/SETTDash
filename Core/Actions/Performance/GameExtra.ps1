@@ -7,9 +7,9 @@ function Invoke-GameExtraApply {
     Set-GuiProgress 10 "Applying extra game optimizations..."
     Write-GuiLog "Applying extra game optimizations..." "STEP"
     $extra = @(
-        @{Path="HKLM:\SYSTEM\ControlSet001\Control\PriorityControl"; Name="Win32PrioritySeparation"; Type="DWORD"; Value=38}
-        @{Path="HKLM:\SYSTEM\ControlSet001\Control\PriorityControl"; Name="ConvertibleSlateMode"; Type="DWORD"; Value=0}
-        @{Path="HKLM:\SYSTEM\ControlSet001\Control\PriorityControl"; Name="IRQ16Priority"; Type="DWORD"; Value=2}
+        @{Path="HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl"; Name="Win32PrioritySeparation"; Type="DWORD"; Value=38}
+        @{Path="HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl"; Name="ConvertibleSlateMode"; Type="DWORD"; Value=0}
+        @{Path="HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl"; Name="IRQ16Priority"; Type="DWORD"; Value=2}
         @{Path="HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"; Name="SystemResponsiveness"; Type="DWORD"; Value=16}
         @{Path="HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"; Name="LazyModeTimeout"; Type="DWORD"; Value=10000}
         @{Path="HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"; Name="NetworkThrottlingIndex"; Type="DWORD"; Value=0xffffffff}
@@ -37,12 +37,12 @@ function Invoke-GameExtraRevert {
     Set-GuiProgress 10 "Reverting extra game optimizations..."
     Write-GuiLog "Reverting extra game optimizations..." "STEP"
     $revert = @(
-        @{Path="HKLM:\SYSTEM\ControlSet001\Control\PriorityControl"; Name="Win32PrioritySeparation"; Value=2; Type="DWORD"}
+        @{Path="HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl"; Name="Win32PrioritySeparation"; Value=2; Type="DWORD"}
     )
     Invoke-RegistryApply -Settings $revert -Label "Win32PrioritySeparation Revert"
     try {
-        Remove-ItemProperty -Path "HKLM:\SYSTEM\ControlSet001\Control\PriorityControl" -Name "ConvertibleSlateMode" -Force -ErrorAction SilentlyContinue
-        Remove-ItemProperty -Path "HKLM:\SYSTEM\ControlSet001\Control\PriorityControl" -Name "IRQ16Priority" -Force -ErrorAction SilentlyContinue
+        Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "ConvertibleSlateMode" -Force -ErrorAction SilentlyContinue
+        Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "IRQ16Priority" -Force -ErrorAction SilentlyContinue
         Write-GuiLog "PriorityControl extras removed" "OK"
     } catch { }
     try {

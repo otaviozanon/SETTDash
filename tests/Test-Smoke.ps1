@@ -53,6 +53,7 @@ if ($env:SETTDASH_SMOKE -eq '1') {
         $failures = New-Object System.Collections.ArrayList
         $pageCount = 0
         $scanCount = 0
+        $selectAllCount = 0
 
         function Write-SmokeMark {
             param([string]$Text)
@@ -112,6 +113,24 @@ if ($env:SETTDASH_SMOKE -eq '1') {
                     }
                     Invoke-SmokePump
                 }
+
+                # "Select All" only flips checkboxes (nothing destructive), so it is safe to click
+                # unattended. Guards the regression where the button was built but never added to
+                # the button panel, so it never showed up on screen.
+                foreach ($btn in @(Get-SmokeButtons $Window)) {
+                    $label = ""
+                    try { $label = [string]$btn.Content } catch { }
+                    if ($label -ne 'Select All') { continue }
+                    $selectAllCount++
+                    try {
+                        $btn.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Button]::ClickEvent, $btn)))
+                        Write-SmokeMark ("SELECTALL_OK " + $key)
+                    } catch {
+                        [void]$failures.Add("select all $key -> $($_.Exception.Message)")
+                        Write-SmokeMark ("SELECTALL_FAIL " + $key + " -> " + $_.Exception.Message)
+                    }
+                    Invoke-SmokePump
+                }
             }
         } catch {
             [void]$failures.Add("driver -> $($_.Exception.Message)")
@@ -119,7 +138,7 @@ if ($env:SETTDASH_SMOKE -eq '1') {
         }
 
         foreach ($f in $failures) { Write-SmokeMark ("FAILURE " + $f) }
-        Write-SmokeMark ("COUNTS pages=$pageCount scans=$scanCount")
+        Write-SmokeMark ("COUNTS pages=$pageCount scans=$scanCount selectalls=$selectAllCount")
         Write-SmokeMark ("SMOKE DONE failures=" + $failures.Count)
 
         # Close, then force the dispatcher to stop even if "Minimize to tray" turned Close() into a
@@ -306,8 +325,8 @@ try {
     }
     Assert-True ($navKeyCount -ge 20) "The driver walked the sidebar navigation" "$navKeyCount keys"
 
-    $pageFailures = @($markerLines | Where-Object { $_ -match '^(PAGE_FAIL|SCAN_FAIL|DRIVER_FAIL)' })
-    Assert-Equal 0 $pageFailures.Count "No page or scan failed"
+    $pageFailures = @($markerLines | Where-Object { $_ -match '^(PAGE_FAIL|SCAN_FAIL|SELECTALL_FAIL|DRIVER_FAIL)' })
+    Assert-Equal 0 $pageFailures.Count "No page, scan or select-all failed"
     foreach ($f in $pageFailures) { Write-Host "         $f" -ForegroundColor DarkYellow }
 
     $doneLine = @($markerLines | Where-Object { $_ -match '^SMOKE DONE failures=(\d+)' }) | Select-Object -Last 1
@@ -318,6 +337,9 @@ try {
 
     $scans = @($markerLines | Where-Object { $_ -match '^SCAN_OK' }).Count
     Assert-True ($scans -ge 3) "Every Scan button was exercised" "$scans scan clicks"
+
+    $selectAlls = @($markerLines | Where-Object { $_ -match '^SELECTALL_OK' }).Count
+    Assert-True ($selectAlls -ge 4) "Select All buttons exist and are clickable" "$selectAlls select-all clicks"
 
     Write-Section "Test-Smoke: no error report"
 

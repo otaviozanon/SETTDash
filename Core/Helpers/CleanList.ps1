@@ -9,13 +9,8 @@
 # created per item and bound back onto the SAME object instance via a closure, so toggling
 # the checkbox mutates $item.Selected directly - no separate "read back" pass is needed.
 
-# Colors shared by every checklist row (kept in sync with the project's card/list palette).
-$Script:CleanRowBg         = "#11151B"
-$Script:CleanRowBorder     = "#21262D"
-$Script:CleanRowHoverBg    = "#161B22"
-$Script:CleanRowHoverBrd   = "#30363D"
-$Script:CleanRowCheckedBg  = "#0D419D"
-$Script:CleanRowCheckedBrd = "#1F6FEB"
+# Colors for the checklist rows come from the active theme's resources (Brush_*), so switching
+# to Terminal Retro repaints them too. No hardcoded hex values here on purpose.
 
 # Formats a byte count as a human-readable size (0 B, 1 KB, 2 MB, 200 MB, 2.09 GB, etc).
 # Bytes/KB use no decimals; MB/GB/TB use 2 decimals (trimmed of trailing zeros where whole).
@@ -41,10 +36,10 @@ function Format-ByteSize {
 function New-CleanListContainer {
     param($InnerPanel)
     $box = New-Object System.Windows.Controls.Border
-    $box.Background = "#0A0D12"
-    $box.BorderBrush = $Script:CleanRowBorder
+    $box.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, "Brush_LogBg")
+    $box.SetResourceReference([System.Windows.Controls.Border]::BorderBrushProperty, "Brush_CardBorder")
+    $box.SetResourceReference([System.Windows.Controls.Border]::CornerRadiusProperty, "Theme_CornerRadius")
     $box.BorderThickness = "1"
-    $box.CornerRadius = "8"
     $box.Padding = "8"
     $box.Margin = "0,-6,0,16"
     $box.Child = $InnerPanel
@@ -55,15 +50,61 @@ function New-CleanListContainer {
 function script:Update-CleanRowVisual {
     param($Row, [bool]$Checked, [bool]$Hover)
     if ($Checked) {
-        $Row.Background = $Script:CleanRowCheckedBg
-        $Row.BorderBrush = $Script:CleanRowCheckedBrd
+        $Row.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, "Brush_AccentMuted")
+        $Row.SetResourceReference([System.Windows.Controls.Border]::BorderBrushProperty, "Brush_Accent")
     } elseif ($Hover) {
-        $Row.Background = $Script:CleanRowHoverBg
-        $Row.BorderBrush = $Script:CleanRowHoverBrd
+        $Row.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, "Brush_HoverBg")
+        $Row.SetResourceReference([System.Windows.Controls.Border]::BorderBrushProperty, "Brush_Border")
     } else {
-        $Row.Background = $Script:CleanRowBg
-        $Row.BorderBrush = $Script:CleanRowBorder
+        $Row.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, "Brush_CardBg")
+        $Row.SetResourceReference([System.Windows.Controls.Border]::BorderBrushProperty, "Brush_CardBorder")
     }
+}
+
+# True when $Items is non-empty and every item is selected. Drives the "Select All" button
+# label and the select/unselect direction on click.
+function Test-CleanAllSelected {
+    param([array]$Items)
+    if (-not $Items) { return $false }
+    return (@($Items | Where-Object { -not $_.Selected }).Count -eq 0)
+}
+
+# Flips the label of the "Select All"/"Unselect All" button (stored on $Panel.Tag) to match the
+# current rows. No-op on panels that have no such button (e.g. Startup page toggle lists).
+function script:Update-CleanSelectAllLabel {
+    param($Panel)
+    if (-not $Panel -or $Panel.Tag -isnot [System.Windows.Controls.Button]) { return }
+    $items = @($Panel.Children | Where-Object { $_ -is [System.Windows.Controls.Border] -and $_.Tag -and $_.Tag.Item } | ForEach-Object { $_.Tag.Item })
+    $Panel.Tag.Content = if (Test-CleanAllSelected $items) { "Unselect All" } else { "Select All" }
+}
+
+# Adds a "Select All" / "Unselect All" toggle to a card's button row. $ListPanel is the
+# checklist StackPanel rendered by Set-CleanChecklist; $GetItems is re-invoked on every click, so
+# a rescan (which replaces the item array) is always picked up. The button is stashed on
+# $ListPanel.Tag so Set-CleanChecklist can reset its label after rendering a fresh list.
+function Add-CleanSelectAllBtn {
+    param($BtnPanel, $ListPanel, [string]$Style = "ActionButtonStyle", $GetItems)
+    $btn = New-Object System.Windows.Controls.Button
+    $styleObj = $Window.FindResource($Style); if ($styleObj) { $btn.Style = $styleObj }
+    $btn.MinWidth = 100
+    $btn.Margin = "0,2,5,2"
+    $btn.Content = "Select All"
+    $btn.Add_Click({
+        $items = @(& $GetItems)
+        if ($items.Count -eq 0) { return }
+        $select = -not (Test-CleanAllSelected $items)
+        foreach ($it in $items) { $it.Selected = $select }
+        foreach ($row in $ListPanel.Children) {
+            if ($row -is [System.Windows.Controls.Border] -and $row.Tag -and $row.Tag.Item) {
+                if ($row.Tag.CheckBox) { $row.Tag.CheckBox.IsChecked = $select }
+                Update-CleanRowVisual -Row $row -Checked $select -Hover $row.Tag.Hover
+            }
+        }
+        Update-CleanSelectAllLabel $ListPanel
+    }.GetNewClosure())
+    $BtnPanel.AddChild($btn)
+    $ListPanel.Tag = $btn
+    return $btn
 }
 
 # Clears $Panel and renders one selectable row per item in $Items (array of pscustomobject
@@ -75,10 +116,11 @@ function script:Update-CleanRowVisual {
 function Set-CleanChecklist {
     param($Panel, [array]$Items, [string]$EmptyText = "Nothing found.", [string]$Mode = "plain", $OnToggle = $null)
     $Panel.Children.Clear()
+    if ($Panel.Tag -is [System.Windows.Controls.Button]) { $Panel.Tag.Content = "Select All" }
     if (-not $Items -or $Items.Count -eq 0) {
         $t = New-Object System.Windows.Controls.TextBlock
         $t.Text = $EmptyText
-        $t.Foreground = "#6E7681"
+        $t.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextMuted")
         $t.FontSize = 12
         $t.Margin = "6,8,6,8"
         $t.HorizontalAlignment = "Center"
@@ -87,12 +129,12 @@ function Set-CleanChecklist {
     }
     foreach ($item in $Items) {
         $row = New-Object System.Windows.Controls.Border
-        $row.CornerRadius = "6"
+        $row.SetResourceReference([System.Windows.Controls.Border]::CornerRadiusProperty, "Theme_CornerRadius")
         $row.BorderThickness = "1"
         $row.Padding = "10,8,10,8"
         $row.Margin = "0,0,0,4"
         $row.Cursor = "Hand"
-        $row.Tag = [pscustomobject]@{ Item = $item; Hover = $false }
+        $row.Tag = [pscustomobject]@{ Item = $item; Hover = $false; CheckBox = $null }
         Update-CleanRowVisual -Row $row -Checked ([bool]$item.Selected) -Hover $false
 
         $outer = New-Object System.Windows.Controls.StackPanel
@@ -111,14 +153,17 @@ function Set-CleanChecklist {
         $cb.VerticalAlignment = "Center"
         $cb.Margin = "0,0,10,0"
         $cb.IsHitTestVisible = $false
+        $cb.SetResourceReference([System.Windows.Controls.CheckBox]::ForegroundProperty, "Brush_TextPrimary")
+        $cb.SetResourceReference([System.Windows.Controls.CheckBox]::FontFamilyProperty, "Theme_FontFamily")
         [System.Windows.Controls.Grid]::SetColumn($cb, 0)
         $topGrid.AddChild($cb)
+        $row.Tag.CheckBox = $cb
 
         $lbl = New-Object System.Windows.Controls.TextBlock
         $lbl.Text = $item.Label
         $lbl.FontWeight = "SemiBold"
         $lbl.FontSize = 13
-        $lbl.Foreground = "#E6EDF3"
+        $lbl.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextPrimary")
         $lbl.TextWrapping = "Wrap"
         $lbl.VerticalAlignment = "Center"
         [System.Windows.Controls.Grid]::SetColumn($lbl, 1)
@@ -129,7 +174,7 @@ function Set-CleanChecklist {
             $size.Text = $item.SizeText
             $size.FontFamily = "JetBrains Mono, Consolas"
             $size.FontSize = 12
-            $size.Foreground = "#58A6FF"
+            $size.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_Accent")
             $size.Margin = "10,0,0,0"
             $size.VerticalAlignment = "Center"
             [System.Windows.Controls.Grid]::SetColumn($size, 2)
@@ -140,9 +185,9 @@ function Set-CleanChecklist {
             $toggleBtn.FontSize = 11
             $toggleBtn.Padding = "10,3,10,3"
             $toggleBtn.Margin = "10,0,0,0"
-            $toggleBtn.Background = "#161B22"
-            $toggleBtn.Foreground = "#C9D1D9"
-            $toggleBtn.BorderBrush = "#30363D"
+            $toggleBtn.SetResourceReference([System.Windows.Controls.Button]::BackgroundProperty, "Brush_HoverBg")
+            $toggleBtn.SetResourceReference([System.Windows.Controls.Button]::ForegroundProperty, "Brush_TextPrimary")
+            $toggleBtn.SetResourceReference([System.Windows.Controls.Button]::BorderBrushProperty, "Brush_Border")
             $toggleBtn.BorderThickness = "1"
             $toggleBtn.Cursor = "Hand"
             $toggleBtn.VerticalAlignment = "Center"
@@ -156,6 +201,7 @@ function Set-CleanChecklist {
                     $s.Content = if ($item.Selected) { "Disable" } else { "Enable" }
                     Update-CleanRowVisual -Row $row -Checked ([bool]$item.Selected) -Hover $row.Tag.Hover
                     $cb.IsChecked = [bool]$item.Selected
+                    Update-CleanSelectAllLabel $Panel
                 }
             }.GetNewClosure()
             $toggleBtn.Add_Click($toggleHandler)
@@ -167,7 +213,7 @@ function Set-CleanChecklist {
         if ($item.Detail) {
             $det = New-Object System.Windows.Controls.TextBlock
             $det.Text = $item.Detail
-            $det.Foreground = "#8B949E"
+            $det.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextSecondary")
             $det.FontSize = 11
             $det.Margin = "28,3,0,0"
             $det.TextWrapping = "Wrap"
@@ -181,6 +227,7 @@ function Set-CleanChecklist {
             $state.Item.Selected = -not [bool]$state.Item.Selected
             $cb.IsChecked = [bool]$state.Item.Selected
             Update-CleanRowVisual -Row $s -Checked ([bool]$state.Item.Selected) -Hover $state.Hover
+            Update-CleanSelectAllLabel $Panel
         }.GetNewClosure()
         $row.Add_MouseLeftButtonUp($toggleSelect)
 
@@ -253,6 +300,26 @@ function Set-CleanFilter {
             $row.Visibility = if ($f -eq "" -or $hay.Contains($f)) { "Visible" } else { "Collapsed" }
         }
     }
+}
+
+# Re-runs a Clean page scan in the background and re-renders $Panel when it finishes, so an apply
+# (Clean Selected / Fix Selected / Delete Selected) never leaves stale rows on screen and the
+# window does not freeze while sizes are measured again. $Assign receives the fresh array and
+# stores it in the page's $Script: variable (kept explicit so no page list can silently go stale).
+function Update-CleanChecklist {
+    param($Panel, [scriptblock]$Scan, [scriptblock]$Assign, [string[]]$Functions,
+          [string]$EmptyText = "Nothing found.", [string]$Mode = "plain", $OnToggle = $null)
+    $done = {
+        param($items)
+        $fresh = @($items)
+        & $Assign $fresh
+        Set-GuiProgress 90
+        Set-CleanChecklist $Panel $fresh $EmptyText $Mode $OnToggle
+        Set-GuiProgress 0
+        Write-GuiLog "List refreshed" "OK"
+    }.GetNewClosure()
+    Set-GuiProgress 10 "Refreshing list..."
+    Start-GuiBackgroundJob -Work $Scan -Functions $Functions -OnDone $done -Name "Refresh" | Out-Null
 }
 
 # Returns only the items in $Items whose Selected flag is currently true.

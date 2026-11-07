@@ -34,7 +34,7 @@ function Show-PageBenchRam {
                 Write-GuiLog "Starting RAM benchmark ($($durState.Seconds)s)..." "STEP"
                 $resultsStack = $Global:BenchRamResultsStack
                 $resultsStack.Children.Clear()
-                Add-GuiIconTitle $resultsStack "&#xE950;" "Results" "#F0883E" -AccentTitle -TitleColor "#F0883E"
+                Add-GuiIconTitle $resultsStack "&#xE950;" "Results" "Brush_AccentWarm" -AccentTitle -TitleColor "Brush_AccentWarm"
 
                 $writeTitle = New-Object System.Windows.Controls.TextBlock
                 $writeTitle.Text = "Write Throughput (MB/s)"
@@ -82,7 +82,7 @@ function Show-PageBenchRam {
                 # Pure-read + random-access latency sub-test (AIDA64-style Read/Latency scores).
                 $rl = $null
                 if (-not $Global:BenchRamCancel) {
-                    Add-GuiIconTitle $resultsStack "&#xE950;" "Read / Latency" "#F0883E" -AccentTitle -TitleColor "#F0883E"
+                    Add-GuiIconTitle $resultsStack "&#xE950;" "Read / Latency" "Brush_AccentWarm" -AccentTitle -TitleColor "Brush_AccentWarm"
                     $readTitle = New-Object System.Windows.Controls.TextBlock
                     $readTitle.Text = "Read Throughput (MB/s)"
                     $readTitle.FontSize = 12; $readTitle.Margin = "0,8,0,4"
@@ -114,7 +114,7 @@ function Show-PageBenchRam {
                 # Multi-threaded copy bandwidth sub-test (all-cores aggregate, AIDA64-style).
                 $mt = $null
                 if (-not $Global:BenchRamCancel) {
-                    Add-GuiIconTitle $resultsStack "&#xE950;" "Multi-Thread Bandwidth" "#F0883E" -AccentTitle -TitleColor "#F0883E"
+                    Add-GuiIconTitle $resultsStack "&#xE950;" "Multi-Thread Bandwidth" "Brush_AccentWarm" -AccentTitle -TitleColor "Brush_AccentWarm"
                     $mtTitle = New-Object System.Windows.Controls.TextBlock
                     $mtTitle.Text = "All-Core Copy Bandwidth (MB/s)"
                     $mtTitle.FontSize = 12; $mtTitle.Margin = "0,8,0,4"

@@ -37,11 +37,11 @@ function Invoke-GPUApply {
                 Pop-Location
             }
             $nvidiaReg = @(
-                @{Path="HKLM:\SYSTEM\ControlSet001\Services\nvlddmkm";Name="DisablePreemption";Type="DWORD";Value=1}
-                @{Path="HKLM:\SYSTEM\ControlSet001\Services\nvlddmkm";Name="DisableCudaContextPreemption";Type="DWORD";Value=1}
-                @{Path="HKLM:\SYSTEM\ControlSet001\Services\nvlddmkm";Name="EnableCEPreemption";Type="DWORD";Value=0}
-                @{Path="HKLM:\SYSTEM\ControlSet001\Services\nvlddmkm";Name="ComputePreemption";Type="DWORD";Value=0}
-                @{Path="HKLM:\SYSTEM\ControlSet001\Control\GraphicsDrivers\Scheduler";Name="EnablePreemption";Type="DWORD";Value=0}
+                @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\nvlddmkm";Name="DisablePreemption";Type="DWORD";Value=1}
+                @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\nvlddmkm";Name="DisableCudaContextPreemption";Type="DWORD";Value=1}
+                @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\nvlddmkm";Name="EnableCEPreemption";Type="DWORD";Value=0}
+                @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\nvlddmkm";Name="ComputePreemption";Type="DWORD";Value=0}
+                @{Path="HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers\Scheduler";Name="EnablePreemption";Type="DWORD";Value=0}
             )
             Invoke-RegistryApply -Settings $nvidiaReg -Label "NVIDIA Registry"
             Write-GuiLog "NVIDIA optimization completed" "OK"
@@ -108,11 +108,11 @@ function Invoke-GPURevert {
             # OptInOrOutPreference) that Apply never touched, creating registry values/preferences
             # that didn't exist before instead of restoring prior state.
             $nvidiaRevert = @(
-                @{Path="HKLM:\SYSTEM\ControlSet001\Services\nvlddmkm"; Name="DisablePreemption"; Value=0; Type="DWORD"}
-                @{Path="HKLM:\SYSTEM\ControlSet001\Services\nvlddmkm"; Name="DisableCudaContextPreemption"; Value=0; Type="DWORD"}
-                @{Path="HKLM:\SYSTEM\ControlSet001\Services\nvlddmkm"; Name="EnableCEPreemption"; Value=1; Type="DWORD"}
-                @{Path="HKLM:\SYSTEM\ControlSet001\Services\nvlddmkm"; Name="ComputePreemption"; Value=1; Type="DWORD"}
-                @{Path="HKLM:\SYSTEM\ControlSet001\Control\GraphicsDrivers\Scheduler"; Name="EnablePreemption"; Value=1; Type="DWORD"}
+                @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\nvlddmkm"; Name="DisablePreemption"; Value=0; Type="DWORD"}
+                @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\nvlddmkm"; Name="DisableCudaContextPreemption"; Value=0; Type="DWORD"}
+                @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\nvlddmkm"; Name="EnableCEPreemption"; Value=1; Type="DWORD"}
+                @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\nvlddmkm"; Name="ComputePreemption"; Value=1; Type="DWORD"}
+                @{Path="HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers\Scheduler"; Name="EnablePreemption"; Value=1; Type="DWORD"}
             )
             Invoke-RegistryApply -Settings $nvidiaRevert -Label "NVIDIA Revert"
             Write-GuiLog "NVIDIA optimizations reverted" "OK"

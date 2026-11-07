@@ -55,7 +55,7 @@ function Show-PageBenchCpu {
                 Write-GuiLog "Starting CPU benchmark (total budget $($durState.Seconds)s)..." "STEP"
                 $resultsStack = $Global:BenchCpuResultsStack
                 $resultsStack.Children.Clear()
-                Add-GuiIconTitle $resultsStack "&#xE950;" "Results" "#F0883E" -AccentTitle -TitleColor "#F0883E"
+                Add-GuiIconTitle $resultsStack "&#xE950;" "Results" "Brush_AccentWarm" -AccentTitle -TitleColor "Brush_AccentWarm"
 
                 # Live telemetry strip (first item, centered above the charts) - updated every
                 # telemetry sample while the benchmark runs, with no "Live:" prefix label.

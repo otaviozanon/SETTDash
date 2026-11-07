@@ -43,7 +43,8 @@ function Invoke-TweaksApply {
         )
         "Interface" = @(
             @{Path="HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects";Name="VisualFXSetting";Type="DWORD";Value=3}
-            @{Path="HKCU:\Control";Name="MinAnimate";Type="String";Value=0}
+            # Windows reads MinAnimate from WindowMetrics, not HKCU\Control (where it had no effect).
+            @{Path="HKCU:\Control Panel\Desktop\WindowMetrics";Name="MinAnimate";Type="String";Value=0}
             @{Path="HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced";Name="TaskbarAnimations";Type="DWORD";Value=0}
             @{Path="HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize";Name="EnablingTransparency";Type="DWORD";Value=0}
             @{Path="HKCU:\Software\Microsoft\Windows\CurrentVersion\Search";Name="SearchboxTaskbarMode";Type="DWORD";Value=0}
@@ -59,12 +60,16 @@ function Invoke-TweaksApply {
             @{Path="HKLM:\SOFTWARE\Policies\Microsoft\Dsh";Name="AllowNewsAndInterests";Type="DWORD";Value=0}
         )
         "Kernel/Performance" = @(
-            @{Path="HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel";Name="PriorityControl";Type="DWORD";Value=50}
+            # Windows reads Win32PrioritySeparation from Control\PriorityControl; a value named
+            # "PriorityControl" under Session Manager\kernel is ignored (it was a no-op).
+            # 38 (0x26) = the documented "Programs" profile, same value GameExtra writes.
+            @{Path="HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl";Name="Win32PrioritySeparation";Type="DWORD";Value=38}
             @{Path="HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel";Name="ThreadDpcEnable";Type="DWORD";Value=1}
-            @{Path="HKCU:\Control";Name="AutoEndTasks";Type="String";Value=1}
-            @{Path="HKCU:\Control";Name="HungAppTimeout";Type="String";Value=1000}
-            @{Path="HKCU:\Control";Name="WaitToKillAppTimeout";Type="String";Value=2000}
-            @{Path="HKCU:\Control";Name="MenuShowDelay";Type="String";Value=0}
+            # Windows reads these from "Control Panel\Desktop"; writing to HKCU\Control was a no-op.
+            @{Path="HKCU:\Control Panel\Desktop";Name="AutoEndTasks";Type="String";Value=1}
+            @{Path="HKCU:\Control Panel\Desktop";Name="HungAppTimeout";Type="String";Value=1000}
+            @{Path="HKCU:\Control Panel\Desktop";Name="WaitToKillAppTimeout";Type="String";Value=2000}
+            @{Path="HKCU:\Control Panel\Desktop";Name="MenuShowDelay";Type="String";Value=0}
             @{Path="HKLM:\SYSTEM\CurrentControlSet\Control";Name="WaitToKillServiceTimeout";Type="String";Value=2000}
         )
     }
@@ -100,10 +105,8 @@ function Invoke-TweaksRevert {
     try {
         Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows" -Name "DoReport" -Force -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows" -Name "LoggingDisabled" -Force -ErrorAction SilentlyContinue
-        Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows" -Name "ConnectedSearchPrivacy" -Force -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows" -Name "AllowCloudSearch" -Force -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows" -Name "DisableWebSearch" -Force -ErrorAction SilentlyContinue
-        Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows" -Name "EnablingFeeds" -Force -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows" -Name "AllowCortana" -Force -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\PCHealth\ErrorReporting" -Name "DoReport" -Force -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Name "DoNotShowFeedbackNotifications" -Force -ErrorAction SilentlyContinue
@@ -140,7 +143,7 @@ function Invoke-TweaksRevert {
     Set-GuiProgress 65 "Restoring interface..."
     try {
         Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -Value 1 -Type DWord -Force -ErrorAction SilentlyContinue
-        Set-ItemProperty -Path "HKCU:\Control" -Name "MinAnimate" -Value 1 -Type String -Force -ErrorAction SilentlyContinue
+        Set-ItemProperty -Path "HKCU:\Control Panel\Desktop\WindowMetrics" -Name "MinAnimate" -Value 1 -Type String -Force -ErrorAction SilentlyContinue
         Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarAnimations" -Value 1 -Type DWord -Force -ErrorAction SilentlyContinue
         Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "EnablingTransparency" -Value 1 -Type DWord -Force -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Serialize" -Name "StartupDelayInMSec" -Force -ErrorAction SilentlyContinue
@@ -148,10 +151,10 @@ function Invoke-TweaksRevert {
     } catch { }
     Set-GuiProgress 85 "Restoring kernel defaults..."
     try {
-        Set-ItemProperty -Path "HKCU:\Control" -Name "AutoEndTasks" -Value 0 -Type String -Force -ErrorAction SilentlyContinue
-        Remove-ItemProperty -Path "HKCU:\Control" -Name "HungAppTimeout" -Force -ErrorAction SilentlyContinue
-        Remove-ItemProperty -Path "HKCU:\Control" -Name "WaitToKillAppTimeout" -Force -ErrorAction SilentlyContinue
-        Remove-ItemProperty -Path "HKCU:\Control" -Name "MenuShowDelay" -Force -ErrorAction SilentlyContinue
+        Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "AutoEndTasks" -Value 0 -Type String -Force -ErrorAction SilentlyContinue
+        Remove-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "HungAppTimeout" -Force -ErrorAction SilentlyContinue
+        Remove-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "WaitToKillAppTimeout" -Force -ErrorAction SilentlyContinue
+        Remove-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "MenuShowDelay" -Force -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control" -Name "WaitToKillServiceTimeout" -Force -ErrorAction SilentlyContinue
         Write-GuiLog "Kernel/performance defaults restored" "OK"
     } catch { }
@@ -163,7 +166,7 @@ function Invoke-TweaksRevert {
         Remove-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Privacy" -Name "TailoredExperiencesWithDiagnosticDataEnabled" -Force -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\Maintenance" -Name "MaintenanceDisabled" -Force -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Authentication\LogonUI\BootAnimation" -Name "DisableStartupSound" -Force -ErrorAction SilentlyContinue
-        Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" -Name "PriorityControl" -Force -ErrorAction SilentlyContinue
+        Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "Win32PrioritySeparation" -Value 2 -Type DWord -Force -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" -Name "ThreadDpcEnable" -Force -ErrorAction SilentlyContinue
         # Services the tweaks DISABLE (Start=4). These must be written back to their Windows default
         # startup type instead of being deleted - a service with no Start value does not boot.

@@ -1,4 +1,4 @@
-﻿function Show-PageHome {
+function Show-PageHome {
     Clear-GuiContent
 
     Add-GuiPageTitle "Dashboard"
@@ -22,8 +22,8 @@
     $gaugePanel.Margin = "0,0,14,0"
     $gaugePanel.VerticalAlignment = "Center"
 
-    $cpuGauge = New-GuiMetricBar -Label "CPU" -AccentColor "#1F6FEB"
-    $ramGauge = New-GuiMetricBar -Label "RAM" -AccentColor "#2EA043"
+    $cpuGauge = New-GuiMetricBar -Label "CPU" -AccentColor "Brush_Accent"
+    $ramGauge = New-GuiMetricBar -Label "RAM" -AccentColor "Brush_AccentGreen"
     $gaugePanel.AddChild($cpuGauge.Panel)
     $gaugePanel.AddChild($ramGauge.Panel)
 
@@ -32,7 +32,7 @@
     $Script:HomeGpuGauges = @()
     for ($gi = 0; $gi -lt $gpuCount; $gi++) {
         $gpuLabel = if ($gpuCount -gt 1) { "GPU $($gi + 1)" } else { "GPU" }
-        $gGauge = New-GuiMetricBar -Label $gpuLabel -AccentColor "#D29922"
+        $gGauge = New-GuiMetricBar -Label $gpuLabel -AccentColor "Brush_AccentAmber"
         $gaugePanel.AddChild($gGauge.Panel)
         $Script:HomeGpuGauges += $gGauge
     }
@@ -52,7 +52,7 @@
     # Divider between gauges and specs
     $divider = New-Object System.Windows.Controls.Border
     $divider.Width = 1
-    $divider.Background = "#282E36"
+    $divider.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, "Brush_Divider")
     $divider.Margin = "0,2,18,2"
     $divider.HorizontalAlignment = "Left"
     [System.Windows.Controls.Grid]::SetColumn($divider, 1)
@@ -86,7 +86,7 @@
         $icon.Text = [regex]::Replace($spec.Icon, '&#x([0-9A-Fa-f]+);', { param($m) [char][Convert]::ToInt32($m.Groups[1].Value, 16) })
         $icon.FontFamily = "Segoe MDL2 Assets"
         $icon.FontSize = 14
-        $icon.Foreground = "#6E7681"
+        $icon.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextMuted")
         $icon.Width = 20
         $icon.VerticalAlignment = "Center"
         $row.AddChild($icon)
@@ -94,14 +94,14 @@
         $textStack = New-Object System.Windows.Controls.StackPanel
         $label = New-Object System.Windows.Controls.TextBlock
         $label.Text = $spec.Label
-        $label.Foreground = "#6E7681"
+        $label.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextMuted")
         $label.FontSize = 10
         $label.FontWeight = "SemiBold"
         $textStack.AddChild($label)
 
         $value = New-Object System.Windows.Controls.TextBlock
         $value.Text = $spec.Value
-        $value.Foreground = "#E6EDF3"
+        $value.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextPrimary")
         $value.FontFamily = $Script:MonoFontFamily
         $value.FontSize = 11
         $value.FontWeight = "SemiBold"
@@ -143,7 +143,7 @@
     $safetyRow.ColumnDefinitions.Add($safetyRowBtnCol)
     $safetyTitlePanel = New-Object System.Windows.Controls.StackPanel
     $safetyTitlePanel.VerticalAlignment = "Center"
-    Add-GuiIconTitle $safetyTitlePanel "&#xEA18;" "Safety First" "#F0883E"
+    Add-GuiIconTitle $safetyTitlePanel "&#xEA18;" "Safety First" "Brush_AccentWarm"
     [System.Windows.Controls.Grid]::SetColumn($safetyTitlePanel, 0)
     [System.Windows.Controls.Grid]::SetColumnSpan($safetyTitlePanel, 2)
     $safetyRow.AddChild($safetyTitlePanel)
@@ -151,7 +151,7 @@
     $safetyInfoIcon.Text = [char]0xE946
     $safetyInfoIcon.FontFamily = "Segoe MDL2 Assets"
     $safetyInfoIcon.FontSize = 13
-    $safetyInfoIcon.Foreground = "#6E7681"
+    $safetyInfoIcon.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextMuted")
     $safetyInfoIcon.Margin = "8,0,10,0"
     $safetyInfoIcon.VerticalAlignment = "Center"
     $safetyInfoIcon.Cursor = "Help"
@@ -186,7 +186,7 @@
     $utilRow.ColumnDefinitions.Add($utilRowBtnCol)
     $utilTitlePanel = New-Object System.Windows.Controls.StackPanel
     $utilTitlePanel.VerticalAlignment = "Center"
-    Add-GuiIconTitle $utilTitlePanel "&#xE896;" "Sett Utility" "#F0883E"
+    Add-GuiIconTitle $utilTitlePanel "&#xE896;" "Sett Utility" "Brush_AccentWarm"
     [System.Windows.Controls.Grid]::SetColumn($utilTitlePanel, 0)
     [System.Windows.Controls.Grid]::SetColumnSpan($utilTitlePanel, 2)
     $utilRow.AddChild($utilTitlePanel)
@@ -194,7 +194,7 @@
     $utilInfoIcon.Text = [char]0xE946
     $utilInfoIcon.FontFamily = "Segoe MDL2 Assets"
     $utilInfoIcon.FontSize = 13
-    $utilInfoIcon.Foreground = "#6E7681"
+    $utilInfoIcon.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextMuted")
     $utilInfoIcon.Margin = "8,0,10,0"
     $utilInfoIcon.VerticalAlignment = "Center"
     $utilInfoIcon.Cursor = "Help"

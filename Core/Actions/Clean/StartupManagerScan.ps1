@@ -90,7 +90,7 @@ function Get-StartupFolderItems {
     if (Test-Path $startupDir) {
         Get-ChildItem $startupDir -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne 'desktop.ini' } | ForEach-Object {
             $items += [pscustomobject]@{
-                Label=$_.BaseName; Detail=$_.FullName; Selected=$true
+                Label=$_.BaseName; Detail=$_.FullName; Selected=$false
                 Name=$_.Name; Command=$_.FullName; Location=$startupDir; Source='startup-folder'
             }
         }

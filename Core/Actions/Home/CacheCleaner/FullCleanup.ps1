@@ -66,6 +66,13 @@ function Invoke-FullSystemCleanup {
     Write-GuiLog "  SETT CLEANER - FULL SYSTEM CLEANUP" "STEP"
     Write-GuiLog "============================================================" "STEP"
     Invoke-CleanAll
+
+    # Full Cleanup means every System Cleaner category, whether or not it was left checked:
+    # this is what also clears Recycle Bin, WER, thumbnail/shader caches, browser caches and
+    # Windows logs that Invoke-CleanAll's own step list does not cover.
+    $allItems = @(Get-SystemCleanerItems -SkipSize)
+    if ($allItems.Count -gt 0) { Invoke-SystemCleanerClean -Items $allItems }
+
     Set-GuiProgress 100 "Full cleanup complete!"
     Write-GuiLog "============================================================" "OK"
     Write-GuiLog "  FULL SYSTEM CLEANUP COMPLETE!" "OK"

@@ -5,7 +5,7 @@
 # instead of clipping the title; handled via a SizeChanged handler that re-measures and re-docks
 # the title/button panels into either one row (side-by-side) or two rows (stacked).
 function Add-GuiCard {
-    param([string]$Title, [string]$Description, [scriptblock]$Content= $null, [string]$Icon = "&#xE90F;", [string]$AccentColor = "#F0883E", [switch]$WrapButtons, $TargetPanel = $null, $CollapseTarget = $null)
+    param([string]$Title, [string]$Description, [scriptblock]$Content= $null, [string]$Icon = "&#xE90F;", [string]$AccentColor = "Brush_AccentWarm", [switch]$WrapButtons, $TargetPanel = $null, $CollapseTarget = $null)
     if (-not $TargetPanel) { $TargetPanel = $pnlContent }
     $card = New-Object System.Windows.Controls.Border
     $cardStyle = $Window.FindResource("CardStyle"); if ($cardStyle) { $card.Style = $cardStyle }
@@ -114,7 +114,7 @@ function Add-GuiCard {
     return $card
 }
 
-# Forces an already-collapsed card list (built with -CollapseTarget) open — used by Scan
+# Forces an already-collapsed card list (built with -CollapseTarget) open â€” used by Scan
 # buttons so results are visible immediately instead of requiring a manual chevron click.
 function Expand-GuiCard {
     param($CollapseTarget)
@@ -134,7 +134,7 @@ function Expand-GuiCard {
 # $OnToggle: scriptblock invoked with the new bool state ($true/$false) when the user flips it.
 function Add-GuiToggleCard {
     param([string]$Title, [string]$Description, [scriptblock]$GetState, [scriptblock]$OnToggle,
-          [string]$OnStatus, [string]$OffStatus, [string]$Icon = "&#xE90F;", [string]$AccentColor = "#F0883E", $TargetPanel = $null)
+          [string]$OnStatus, [string]$OffStatus, [string]$Icon = "&#xE90F;", [string]$AccentColor = "Brush_AccentWarm", $TargetPanel = $null)
     if (-not $TargetPanel) { $TargetPanel = $pnlContent }
     $card = New-Object System.Windows.Controls.Border
     $cardStyle = $Window.FindResource("InfoCardStyle"); if ($cardStyle) { $card.Style = $cardStyle }
@@ -179,7 +179,7 @@ function Add-GuiToggleCard {
     $updateStatus = {
         param($s, $isOn)
         $s.Text = if ($isOn) { "Active: $OnStatus" } else { "Inactive: $OffStatus" }
-        $s.Foreground = if ($isOn) { "#3FB950" } else { "#8B949E" }
+        Set-GuiColor $s ([System.Windows.Controls.TextBlock]::ForegroundProperty) $(if ($isOn) { "Brush_AccentGreen" } else { "Brush_TextMuted" })
     }.GetNewClosure()
     & $updateStatus $status ([bool]$toggle.IsChecked)
 
@@ -254,7 +254,7 @@ function Add-GuiCardGrid {
 # Renders an icon + title row (used as a card header) into $Panel, optionally followed by a
 # small "i" info glyph with a tooltip explaining the setting in more detail.
 function Add-GuiIconTitle {
-    param($Panel, [string]$Glyph, [string]$Text, [string]$AccentColor = "#8B949E", [string]$Tooltip = "", $ChevronBox = $null, [switch]$AccentTitle, [string]$TitleColor = $null)
+    param($Panel, [string]$Glyph, [string]$Text, [string]$AccentColor = "Brush_TextSecondary", [string]$Tooltip = "", $ChevronBox = $null, [switch]$AccentTitle, [string]$TitleColor = $null)
     $row = New-Object System.Windows.Controls.StackPanel
     $row.Orientation = "Horizontal"
     $row.Margin = "0,0,0,4"
@@ -262,7 +262,7 @@ function Add-GuiIconTitle {
     $icon.Text = [regex]::Replace($Glyph, '&#x([0-9A-Fa-f]+);', { param($m) [char][Convert]::ToInt32($m.Groups[1].Value, 16) })
     $icon.FontFamily = "Segoe MDL2 Assets"
     $icon.FontSize = 14
-    $icon.Foreground = $AccentColor
+    Set-GuiColor $icon ([System.Windows.Controls.TextBlock]::ForegroundProperty) $AccentColor
     $icon.Margin = "0,0,8,0"
     $icon.VerticalAlignment = "Center"
     $row.AddChild($icon)
@@ -274,14 +274,14 @@ function Add-GuiIconTitle {
     # Hardware identity titles (GPU/CPU/disk name, battery name, etc. via Add-GuiInfoCard) get the
     # orange accent, same emphasis already used for IsHeader rows on the System page - action/feature
     # card titles (Add-GuiCard: "AMD", "Network Optimizer"...) keep the neutral CardTitleStyle color.
-    if ($AccentTitle) { $title.Foreground = if ($TitleColor) { $TitleColor } else { $AccentColor } }
+    if ($AccentTitle) { Set-GuiColor $title ([System.Windows.Controls.TextBlock]::ForegroundProperty) $(if ($TitleColor) { $TitleColor } else { $AccentColor }) }
     $row.AddChild($title)
     if ($Tooltip) {
         $infoIcon = New-Object System.Windows.Controls.TextBlock
         $infoIcon.Text = [char]0xE946
         $infoIcon.FontFamily = "Segoe MDL2 Assets"
         $infoIcon.FontSize = 13
-        $infoIcon.Foreground = "#6E7681"
+        $infoIcon.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextMuted")
         $infoIcon.Margin = "8,0,0,0"
         $infoIcon.VerticalAlignment = "Center"
         $infoIcon.Cursor = "Help"
@@ -293,7 +293,7 @@ function Add-GuiIconTitle {
         $chevron.Text = [char]0xE70D
         $chevron.FontFamily = "Segoe MDL2 Assets"
         $chevron.FontSize = 12
-        $chevron.Foreground = "#6E7681"
+        $chevron.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextMuted")
         $chevron.Margin = "8,0,0,0"
         $chevron.VerticalAlignment = "Center"
         $row.AddChild($chevron)
@@ -345,14 +345,14 @@ function Add-GuiBtn {
 # when $Row.IsHeader is set, a compact sub-section chip (used to separate e.g. multiple disks/GPUs
 # within the same detail panel). Shared by Add-GuiInfoCard and Show-GuiCategoryDetailPage.
 function Add-GuiInfoRowItem {
-    param($Panel, $Row, [string]$AccentColor = "#F0883E")
+    param($Panel, $Row, [string]$AccentColor = "Brush_AccentWarm")
     # Under Set-StrictMode -Version Latest, accessing a key that is absent from a hashtable via
     # dot notation throws ("...cannot be found on this object"), so check with .Contains() first.
     $isHeader = $Row.Contains("IsHeader") -and $Row["IsHeader"]
     if ($isHeader) {
         $header = New-Object System.Windows.Controls.TextBlock
         $header.Text = [string]$Row.Label
-        $header.Foreground = $AccentColor
+        Set-GuiColor $header ([System.Windows.Controls.TextBlock]::ForegroundProperty) $AccentColor
         $header.FontSize = 12
         $header.FontWeight = "SemiBold"
         $headerBorder = New-Object System.Windows.Controls.Border
@@ -391,11 +391,14 @@ function Add-GuiInfoRowItem {
         $pill.HorizontalAlignment = "Left"
         $pill.VerticalAlignment = "Center"
         $bg = [System.Windows.Media.Color]::FromArgb(38, 0, 0, 0)
-        try { $base = [System.Windows.Media.ColorConverter]::ConvertFromString($valueColor); $bg = [System.Windows.Media.Color]::FromArgb(38, $base.R, $base.G, $base.B) } catch {}
+        try {
+            $base = if ($valueColor -like 'Brush_*') { $Window.FindResource($valueColor).Color } else { [System.Windows.Media.ColorConverter]::ConvertFromString($valueColor) }
+            $bg = [System.Windows.Media.Color]::FromArgb(38, $base.R, $base.G, $base.B)
+        } catch {}
         $pill.Background = New-Object System.Windows.Media.SolidColorBrush($bg)
         $value = New-Object System.Windows.Controls.TextBlock
         $value.Text = [string]$Row.Value
-        $value.Foreground = $valueColor
+        Set-GuiColor $value ([System.Windows.Controls.TextBlock]::ForegroundProperty) $valueColor
         $value.FontSize = 12
         $value.FontWeight = "Bold"
         $value.TextWrapping = "Wrap"
@@ -495,7 +498,7 @@ function Add-GuiPageSearchHeader {
 # appends it to $pnlContent. Used by the "Your PC" pages (Sensors/GPU/Disks/Energy) to
 # display hardware info gathered via WMI, without any action buttons.
 function Add-GuiInfoCard {
-    param([string]$Title, [string]$Icon = "&#xE90F;", [string]$AccentColor = "#F0883E", [array]$Rows = @())
+    param([string]$Title, [string]$Icon = "&#xE90F;", [string]$AccentColor = "Brush_AccentWarm", [array]$Rows = @())
     $card = New-Object System.Windows.Controls.Border
     # InfoCardStyle (no hover-grow animation) - see Main/Layout.ps1 comment. These cards are
     # read-only and the hover-grow Margin animation could shift text wrapping on long rows.
@@ -508,7 +511,7 @@ function Add-GuiInfoCard {
     # Title always gets the orange "hardware identity" accent (GPU/CPU/disk/battery name).
     # $AccentColor still tints the icon glyph (e.g. a verdict color), but the verdict itself
     # is shown via the row-level ValueColor pill, not the title text.
-    Add-GuiIconTitle $titlePanel $Icon $Title $AccentColor -AccentTitle -TitleColor "#F0883E"
+    Add-GuiIconTitle $titlePanel $Icon $Title $AccentColor -AccentTitle -TitleColor "Brush_AccentWarm"
     $stack.AddChild($titlePanel)
 
     foreach ($row in $Rows) { Add-GuiInfoRowItem $stack $row $AccentColor }
@@ -621,7 +624,7 @@ function New-GuiThemedComboBox {
 # $Tiles is an array of @{Label=...; Value=...; AccentColor=...} (AccentColor optional, falls back
 # to $DefaultAccent). Appended to $Panel (typically a benchmark page's results StackPanel).
 function Add-GuiBenchStatTiles {
-    param($Panel, [array]$Tiles, [string]$DefaultAccent = "#F0883E")
+    param($Panel, [array]$Tiles, [string]$DefaultAccent = "Brush_AccentWarm")
     $grid = New-Object System.Windows.Controls.Primitives.UniformGrid
     $grid.Rows = 1
     $grid.Columns = [math]::Max(1, $Tiles.Count)
@@ -645,7 +648,7 @@ function Add-GuiBenchStatTiles {
         # 'AccentColor' cannot be found on this object" for any hashtable that omits the optional
         # key - ContainsKey() avoids the strict-mode property lookup entirely.
         $accent = if ($tile.ContainsKey('AccentColor') -and $tile.AccentColor) { $tile.AccentColor } else { $DefaultAccent }
-        $valueText.Foreground = $accent
+        Set-GuiColor $valueText ([System.Windows.Controls.TextBlock]::ForegroundProperty) $accent
         $inner.AddChild($valueText)
         $labelText = New-Object System.Windows.Controls.TextBlock
         $labelText.Text = [string]$tile.Label
@@ -667,7 +670,7 @@ function Add-GuiBenchStatTiles {
 # render size automatically - no manual min/max-to-pixel math needed (Y is negated so a larger
 # sample value renders higher on the chart instead of lower, since WPF Y grows downward).
 function Add-GuiBenchChart {
-    param($Panel, [double[]]$Samples, [string]$AccentColor = "#F0883E", [double]$Height = 45, [string]$Unit = "")
+    param($Panel, [double[]]$Samples, [string]$AccentColor = "Brush_AccentWarm", [double]$Height = 45, [string]$Unit = "")
     if (-not $Samples -or $Samples.Count -eq 0) { return }
     $wrap = New-Object System.Windows.Controls.Border
     $wrap.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, "Brush_CardBg")
@@ -687,7 +690,7 @@ function Add-GuiBenchChart {
     $chartHost = New-Object System.Windows.Controls.Grid
     $chartHost.Height = $Height
     $line = New-Object System.Windows.Shapes.Polyline
-    $line.Stroke = $AccentColor
+    Set-GuiColor $line ([System.Windows.Shapes.Shape]::StrokeProperty) $AccentColor
     $line.StrokeThickness = 2
     $line.StrokeLineJoin = "Round"
     $line.HorizontalAlignment = "Stretch"
@@ -715,7 +718,7 @@ function Add-GuiBenchChart {
 # Add-GuiLiveChartSample and the caller can keep a reference to (e.g. to change the caption once
 # the run completes).
 function New-GuiLiveChart {
-    param($Panel, [string]$AccentColor = "#F0883E", [double]$Height = 45, [string]$Unit = "", [string]$Title = "")
+    param($Panel, [string]$AccentColor = "Brush_AccentWarm", [double]$Height = 45, [string]$Unit = "", [string]$Title = "")
     $wrap = New-Object System.Windows.Controls.Border
     $wrap.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, "Brush_CardBg")
     $wrap.SetResourceReference([System.Windows.Controls.Border]::BorderBrushProperty, "Brush_CardBorder")
@@ -760,7 +763,7 @@ function New-GuiLiveChart {
     # Polyline with Stretch="Fill" scales/positions itself to the render size automatically from
     # whatever raw (index, -value) points it's given - see Add-GuiBenchChart for why Y is negated.
     $line = New-Object System.Windows.Shapes.Polyline
-    $line.Stroke = $AccentColor
+    Set-GuiColor $line ([System.Windows.Shapes.Shape]::StrokeProperty) $AccentColor
     $line.StrokeThickness = 2
     $line.StrokeLineJoin = "Round"
     $line.HorizontalAlignment = "Stretch"

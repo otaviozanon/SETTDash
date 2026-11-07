@@ -131,7 +131,7 @@ function Show-PageYourPCGpu {
 
         $stack = New-Object System.Windows.Controls.StackPanel
         $titlePanel = New-Object System.Windows.Controls.StackPanel
-        Add-GuiIconTitle $titlePanel "&#xE7F4;" $g.Name "#F0883E" -AccentTitle
+        Add-GuiIconTitle $titlePanel "&#xE7F4;" $g.Name "Brush_AccentWarm" -AccentTitle
         $stack.AddChild($titlePanel)
 
         $pillsStack = New-Object System.Windows.Controls.WrapPanel

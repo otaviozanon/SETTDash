@@ -46,7 +46,7 @@ function Get-RegistryCleanerItems {
         Get-ChildItem $appPathsRoot -ErrorAction SilentlyContinue | ForEach-Object {
             $exe = Get-SafeProp (Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue) '(default)'
             if ($exe -and -not (Test-Path $exe)) {
-                $items += [pscustomobject]@{ Label="Broken App Path: $($_.PSChildName)"; Detail="Missing: $exe"; Selected=$true; KeyPath="$appPathsRoot\$($_.PSChildName)"; ValueName=''; FixOp='delete-key' }
+                $items += [pscustomobject]@{ Label="Broken App Path: $($_.PSChildName)"; Detail="Missing: $exe"; Selected=$false; KeyPath="$appPathsRoot\$($_.PSChildName)"; ValueName=''; FixOp='delete-key' }
             }
         }
     }
@@ -58,7 +58,7 @@ function Get-RegistryCleanerItems {
         if ($props) {
             $props.PSObject.Properties | Where-Object { $_.Name -notmatch '^PS' } | ForEach-Object {
                 if ($_.Name -and -not (Test-Path $_.Name)) {
-                    $items += [pscustomobject]@{ Label="Shared DLL reference missing"; Detail=$_.Name; Selected=$true; KeyPath=$sharedDllsKey; ValueName=$_.Name; FixOp='delete-value' }
+                    $items += [pscustomobject]@{ Label="Shared DLL reference missing"; Detail=$_.Name; Selected=$false; KeyPath=$sharedDllsKey; ValueName=$_.Name; FixOp='delete-value' }
                 }
             }
         }
@@ -80,7 +80,7 @@ function Get-RegistryCleanerItems {
             $exe = ($cmd -replace '^"([^"]+)".*$', '$1')
             if ($exe -eq $cmd) { $exe = ($cmd -split ' ')[0] }
             if ($exe -and $exe -match '\\' -and -not (Test-Path $exe)) {
-                $items += [pscustomobject]@{ Label="Startup entry missing file: $($_.Name)"; Detail=$cmd; Selected=$true; KeyPath=$runKey; ValueName=$_.Name; FixOp='delete-value' }
+                $items += [pscustomobject]@{ Label="Startup entry missing file: $($_.Name)"; Detail=$cmd; Selected=$false; KeyPath=$runKey; ValueName=$_.Name; FixOp='delete-value' }
             }
         }
     }
@@ -95,7 +95,7 @@ function Get-RegistryCleanerItems {
                 $file = [string]$_.Value
                 if ($file -and ($file -notmatch '\\')) { $file = Join-Path $fontsDir $file }
                 if ($file -and -not (Test-Path $file)) {
-                    $items += [pscustomobject]@{ Label="Font file missing: $($_.Name)"; Detail=$file; Selected=$true; KeyPath=$fontsKey; ValueName=$_.Name; FixOp='delete-value' }
+                    $items += [pscustomobject]@{ Label="Font file missing: $($_.Name)"; Detail=$file; Selected=$false; KeyPath=$fontsKey; ValueName=$_.Name; FixOp='delete-value' }
                 }
             }
         }
@@ -112,7 +112,7 @@ function Get-RegistryCleanerItems {
             $exe = $exe -replace '^\\SystemRoot', $env:windir
             $lower = $exe.ToLower()
             if ($lower -match '^[a-z]:\\' -and $lower -notmatch '\\windows\\' -and $lower -notmatch '\\microsoft\\' -and -not (Test-Path $exe)) {
-                $items += [pscustomobject]@{ Label="Service '$($_.PSChildName)' missing executable"; Detail=$exe; Selected=$true; KeyPath="$servicesKey\$($_.PSChildName)"; ValueName=''; FixOp='delete-key' }
+                $items += [pscustomobject]@{ Label="Service '$($_.PSChildName)' missing executable"; Detail=$exe; Selected=$false; KeyPath="$servicesKey\$($_.PSChildName)"; ValueName=''; FixOp='delete-key' }
             }
         }
     }
@@ -136,7 +136,7 @@ function Get-RegistryCleanerItems {
             $iconOk = $false
             if ($displayIcon) { $iconPath = ($displayIcon -split ',')[0].Trim('"'); $iconOk = $iconPath -and (Test-Path $iconPath) }
             if (-not $installLocOk -and -not $iconOk -and $installLocation) {
-                $items += [pscustomobject]@{ Label="Orphaned uninstall entry: $displayName"; Detail="Install folder missing"; Selected=$true; KeyPath=$_.PSPath; ValueName=''; FixOp='delete-key' }
+                $items += [pscustomobject]@{ Label="Orphaned uninstall entry: $displayName"; Detail="Install folder missing"; Selected=$false; KeyPath=$_.PSPath; ValueName=''; FixOp='delete-key' }
             }
         }
     }

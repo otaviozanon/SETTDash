@@ -34,7 +34,7 @@ function Show-PageBenchGpu {
             }
 
             $Global:BenchGpuResultsStack.Children.Clear()
-            Add-GuiIconTitle $Global:BenchGpuResultsStack "&#xE950;" "Results" "#F0883E" -AccentTitle -TitleColor "#F0883E"
+            Add-GuiIconTitle $Global:BenchGpuResultsStack "&#xE950;" "Results" "Brush_AccentWarm" -AccentTitle -TitleColor "Brush_AccentWarm"
 
             $info = New-Object System.Windows.Controls.TextBlock
             $info.FontSize = 12

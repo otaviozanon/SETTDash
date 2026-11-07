@@ -34,7 +34,7 @@ function Show-PageBenchDisk {
                 Write-GuiLog "Starting Disk benchmark ($($durState.Seconds)s)..." "STEP"
                 $resultsStack = $Global:BenchDiskResultsStack
                 $resultsStack.Children.Clear()
-                Add-GuiIconTitle $resultsStack "&#xE950;" "Results" "#F0883E" -AccentTitle -TitleColor "#F0883E"
+                Add-GuiIconTitle $resultsStack "&#xE950;" "Results" "Brush_AccentWarm" -AccentTitle -TitleColor "Brush_AccentWarm"
 
                 $writeTitle = New-Object System.Windows.Controls.TextBlock
                 $writeTitle.Text = "Write Speed (MB/s)"
@@ -83,7 +83,7 @@ function Show-PageBenchDisk {
                 # entirely, unlike the sequential read above, so it actually hits the device.
                 $r4k = $null
                 if (-not $Global:BenchDiskCancel) {
-                    Add-GuiIconTitle $resultsStack "&#xE950;" "Random 4K (Q1T1)" "#F0883E" -AccentTitle -TitleColor "#F0883E"
+                    Add-GuiIconTitle $resultsStack "&#xE950;" "Random 4K (Q1T1)" "Brush_AccentWarm" -AccentTitle -TitleColor "Brush_AccentWarm"
                     $write4kTitle = New-Object System.Windows.Controls.TextBlock
                     $write4kTitle.Text = "Write IOPS"
                     $write4kTitle.FontSize = 12; $write4kTitle.Margin = "0,8,0,4"
@@ -124,7 +124,7 @@ function Show-PageBenchDisk {
                 # Q32T1) - shows a modern NVMe drive's real ceiling, which Q1T1 alone doesn't reveal.
                 $qd = $null
                 if (-not $Global:BenchDiskCancel) {
-                    Add-GuiIconTitle $resultsStack "&#xE950;" "Random 4K (Queue Depth)" "#F0883E" -AccentTitle -TitleColor "#F0883E"
+                    Add-GuiIconTitle $resultsStack "&#xE950;" "Random 4K (Queue Depth)" "Brush_AccentWarm" -AccentTitle -TitleColor "Brush_AccentWarm"
                     $qdTitle = New-Object System.Windows.Controls.TextBlock
                     $qdTitle.Text = "Read IOPS (multi-threaded)"
                     $qdTitle.FontSize = 12; $qdTitle.Margin = "0,8,0,4"

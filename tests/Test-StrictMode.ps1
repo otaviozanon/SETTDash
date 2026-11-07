@@ -74,6 +74,14 @@ try {
     $empty = @(Get-CleanSelected $noneSelected)
     Assert-Equal 0 $empty.Count "Get-CleanSelected with everything unchecked returns an empty array"
 
+    Write-Section "Test-StrictMode: Test-CleanAllSelected"
+
+    Assert-True (-not (Test-CleanAllSelected $null)) "Test-CleanAllSelected `$null is false"
+    Assert-True (-not (Test-CleanAllSelected @())) "Test-CleanAllSelected empty list is false"
+    Assert-True (-not (Test-CleanAllSelected $items)) "Test-CleanAllSelected partial selection is false"
+    Assert-True (-not (Test-CleanAllSelected $noneSelected)) "Test-CleanAllSelected no selection is false"
+    Assert-True (Test-CleanAllSelected @([pscustomobject]@{ Selected = $true }, [pscustomobject]@{ Selected = $true })) "Test-CleanAllSelected all-selected is true"
+
     Write-Section "Test-StrictMode: Format-ByteSize / Get-CleanPathSize"
 
     Assert-Equal "Empty" (Format-ByteSize 0) "Format-ByteSize 0"
@@ -174,14 +182,17 @@ try {
     Assert-Equal 0 @($registry | Where-Object {
         -not (Get-SafeProp $_ 'KeyPath') -or -not (Get-SafeProp $_ 'FixOp')
     }).Count "Every registry issue exposes KeyPath and FixOp"
+    Assert-Equal 0 @($registry | Where-Object { Get-SafeProp $_ 'Selected' }).Count "Registry scan starts with nothing selected"
 
     $system = @()
     Assert-NoThrow { $script:system = @(Get-SystemCleanerItems) } "Get-SystemCleanerItems does not throw"
     $system = @($script:system)
     Assert-Equal 14 $system.Count "System Cleaner still reports its 14 categories"
     Assert-Equal 0 @($system | Where-Object { $null -eq (Get-SafeProp $_ 'SizeBytes') }).Count "Every system category has a size"
+    Assert-Equal 0 @($system | Where-Object { Get-SafeProp $_ 'Selected' }).Count "System Cleaner scan starts with nothing selected"
 
     Assert-NoThrow { $script:network = @(Get-NetworkCleanupItems) } "Get-NetworkCleanupItems does not throw"
+    Assert-Equal 0 @($script:network | Where-Object { Get-SafeProp $_ 'Selected' }).Count "Network Cleanup scan starts with nothing selected"
 
     Write-Section "Test-StrictMode: helpers"
 

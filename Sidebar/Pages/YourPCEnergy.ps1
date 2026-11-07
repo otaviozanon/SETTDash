@@ -49,7 +49,7 @@ function Get-BatteryHealthCards {
         if ($cycles -ge 800) { $reasons += "$cycles charge cycles: close to the typical end-of-life for Li-ion batteries (500-1000)." }
         if ($pct -lt 20 -and -not $onAc) { $reasons += "Low charge and unplugged." }
 
-        $accent = switch ($verdict) { "Good" { "#3FB950" } "Warning" { "#D29922" } "Critical" { "#F85149" } default { "#8B949E" } }
+        $accent = switch ($verdict) { "Good" { "Brush_AccentGreen" } "Warning" { "Brush_AccentAmber" } "Critical" { "Brush_AccentRed" } default { "Brush_TextSecondary" } }
 
         $rows = @()
         $statusText = if ($statusMap.ContainsKey($bstat)) { $statusMap[$bstat] } elseif ($charging) { "Charging" } elseif ($discharging) { "Discharging" } else { "Unknown" }

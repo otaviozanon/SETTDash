@@ -32,6 +32,7 @@
         <SolidColorBrush x:Key="Brush_TextSecondary" Color="#8B949E"/>
         <SolidColorBrush x:Key="Brush_TextMuted" Color="#6E7681"/>
         <SolidColorBrush x:Key="Brush_Accent" Color="#1F6FEB"/>
+        <SolidColorBrush x:Key="Brush_AccentMuted" Color="#152B4F"/>
         <SolidColorBrush x:Key="Brush_NavActiveBg" Color="#14181F"/>
         <SolidColorBrush x:Key="Brush_TitleBarBg" Color="#161B22"/>
         <SolidColorBrush x:Key="Brush_LogBg" Color="#0D1117"/>
@@ -48,6 +49,14 @@
         <SolidColorBrush x:Key="Brush_Danger" Color="#6E2C2C"/>
         <SolidColorBrush x:Key="Brush_DangerHover" Color="#F85149"/>
         <SolidColorBrush x:Key="Brush_DangerPressed" Color="#A32D2A"/>
+        <SolidColorBrush x:Key="Brush_AccentWarm" Color="#F0883E"/>
+        <SolidColorBrush x:Key="Brush_AccentGreen" Color="#3FB950"/>
+        <SolidColorBrush x:Key="Brush_AccentAmber" Color="#D29922"/>
+        <SolidColorBrush x:Key="Brush_AccentRed" Color="#F85149"/>
+        <SolidColorBrush x:Key="Brush_AccentBlue" Color="#58A6FF"/>
+        <SolidColorBrush x:Key="Brush_AccentCyan" Color="#39C5CF"/>
+        <SolidColorBrush x:Key="Brush_AccentPurple" Color="#A371F7"/>
+        <SolidColorBrush x:Key="Brush_AccentPink" Color="#DB61A2"/>
         <SolidColorBrush x:Key="Brush_ProgressOverlay" Color="Transparent"/>
         <CornerRadius x:Key="Theme_CornerRadius">6</CornerRadius>
         <FontFamily x:Key="Theme_FontFamily">Segoe UI</FontFamily>
