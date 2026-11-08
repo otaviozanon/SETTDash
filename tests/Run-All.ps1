@@ -84,13 +84,18 @@ foreach ($suite in $suites) {
     $proc.StartInfo = $psi
     [void]$proc.Start()
 
+    # Drain both pipes while the child runs. Reading only after WaitForExit deadlocks as soon as a
+    # suite prints more than the pipe buffer (StrictMode crossed that line once services were added).
+    $outTask = $proc.StandardOutput.ReadToEndAsync()
+    $errTask = $proc.StandardError.ReadToEndAsync()
+
     $timedOut = -not $proc.WaitForExit($suite.Timeout * 1000)
     if ($timedOut) {
         try { $proc.Kill() } catch { }
         try { [void]$proc.WaitForExit(10000) } catch { }
     }
-    $out = $proc.StandardOutput.ReadToEnd()
-    $err = $proc.StandardError.ReadToEnd()
+    $out = $outTask.GetAwaiter().GetResult()
+    $err = $errTask.GetAwaiter().GetResult()
     $code = if ($timedOut) { -1 } else { $proc.ExitCode }
     $proc.Dispose()
 

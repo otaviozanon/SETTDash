@@ -28,6 +28,12 @@ function Get-GuiFunctionBundle {
         if (-not $seen.Add($name)) { continue }
         $cmd = Get-Command -Name $name -CommandType Function -ErrorAction SilentlyContinue
         if (-not $cmd) { throw "Background job: function '$name' is not defined" }
+        # Module functions must NOT be copied: ScheduledTasks (and other CDXML modules) export
+        # proxy functions such as Get-ScheduledTask, and re-defining one from its definition alone
+        # shadows the real cmdlet and breaks its dynamic parameters ("You cannot call a method on
+        # a null-valued expression"), which a scan's catch then reports as "nothing found".
+        # Module functions are auto-loaded inside the runspace, so skipping them is enough.
+        if ($cmd.ModuleName) { continue }
         [void]$sb.AppendLine("function $name {")
         [void]$sb.AppendLine($cmd.Definition)
         [void]$sb.AppendLine("}")
@@ -56,7 +62,7 @@ function Start-GuiBackgroundJob {
 
     # $Script: variables read by the copied bodies are passed by reference (plain values here:
     # paths, booleans). Never invoke anything from the worker that reaches WPF. The work block
-    # itself is scanned too: page scans read $Script: flags (e.g. ShowMicrosoftTasks).
+    # itself is scanned too: page scans read $Script: flags (e.g. ShowMicrosoftServices).
     $workText = $Work.ToString()
     $vars = @{}
     foreach ($m in [regex]::Matches($bundle + $workText, '\$Script:([A-Za-z_][A-Za-z0-9_]*)')) {

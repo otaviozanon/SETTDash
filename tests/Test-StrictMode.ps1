@@ -38,6 +38,7 @@ $loadErrors = @()
 foreach ($file in @(
     "Core\Helpers\SystemPaths.ps1",
     "Core\Helpers\CleanList.ps1",
+    "Core\Helpers\BackgroundJob.ps1",
     "Core\Actions\Clean\SystemCleanerScan.ps1",
     "Core\Actions\Clean\RegistryCleanerScan.ps1",
     "Core\Actions\Clean\StartupManagerScan.ps1",
@@ -176,6 +177,28 @@ try {
     Assert-Equal 0 $badSources.Count "Every startup item has a known Source"
     Assert-Equal 0 @($startup | Where-Object { (Get-SafeProp $_ 'Selected') -isnot [bool] }).Count "Startup items expose a bool Selected flag"
 
+    $services = @()
+    Assert-NoThrow { $script:services = @(Get-ServiceItems) } "Get-ServiceItems does not throw"
+    $services = @($script:services)
+    $badServices = @($services | Where-Object {
+        -not (Get-SafeProp $_ 'Label') -or -not (Get-SafeProp $_ 'Name') -or (Get-SafeProp $_ 'Source') -ne 'service'
+    })
+    Assert-Equal 0 $badServices.Count "Every service item exposes Label/Name and the service Source"
+    Assert-Equal 0 @($services | Where-Object { (Get-SafeProp $_ 'Selected') -isnot [bool] }).Count "Service items expose a bool Selected flag"
+    Assert-Equal 0 @($services | Where-Object {
+        [string](Get-SafeProp $_ 'Location') -notmatch '^HKLM:\\SYSTEM\\CurrentControlSet\\Services\\'
+    }).Count "Every service points at its Services key"
+    Assert-Equal 0 @($services | Where-Object { @(2, 3) -notcontains (Get-SafeProp $_ 'PreviousStart') }).Count "Service items carry a restore start type"
+    $allServices = @()
+    Assert-NoThrow { $script:allServices = @(Get-ServiceItems -IncludeMicrosoft) } "Get-ServiceItems -IncludeMicrosoft does not throw"
+    Assert-True (@($script:allServices).Count -gt $services.Count) "The Microsoft filter removes services by default"
+
+    $tasks = @()
+    Assert-NoThrow { $script:tasks = @(Get-ScheduledTaskItems) } "Get-ScheduledTaskItems does not throw"
+    $tasks = @($script:tasks)
+    Assert-True ($tasks.Count -gt 0) "Scheduled Items scan returns third-party tasks"
+    Assert-Equal 0 @($tasks | Where-Object { (Get-SafeProp $_ 'Location') -match '^\\Microsoft\\' }).Count "Scheduled Items never lists Microsoft tasks"
+
     $registry = @()
     Assert-NoThrow { $script:registry = @(Get-RegistryCleanerItems) } "Get-RegistryCleanerItems does not throw with any number of issues"
     $registry = @($script:registry)
@@ -193,6 +216,20 @@ try {
 
     Assert-NoThrow { $script:network = @(Get-NetworkCleanupItems) } "Get-NetworkCleanupItems does not throw"
     Assert-Equal 0 @($script:network | Where-Object { Get-SafeProp $_ 'Selected' }).Count "Network Cleanup scan starts with nothing selected"
+
+    Write-Section "Test-StrictMode: background job function bundle"
+
+    # Get-GuiFunctionBundle copies app functions into the job runspace. It must never copy a module
+    # proxy: ScheduledTasks exports Get-ScheduledTask as a function, and re-defining it that way
+    # shadows the cmdlet and makes every scheduled-task scan return an empty list.
+    $bundle = Get-GuiFunctionBundle -Names @('Get-ScheduledTaskItems')
+    Assert-True ($bundle -notmatch '(?m)^function Get-ScheduledTask\s*\{') "Bundle does not copy the ScheduledTasks proxy Get-ScheduledTask"
+    Assert-True ($bundle -match '(?m)^function Get-ScheduledTaskItems\s*\{') "Bundle contains the requested app function"
+
+    $serviceBundle = Get-GuiFunctionBundle -Names @('Get-ServiceItems')
+    Assert-True ($serviceBundle -match '(?m)^function Get-ServiceItems\s*\{') "Service bundle contains the requested app function"
+    Assert-True ($serviceBundle -match '(?m)^function Test-MicrosoftServicePath\s*\{') "Service bundle carries its Microsoft-path helper"
+    Assert-True ($serviceBundle -match '(?m)^function Get-ServiceExecutablePath\s*\{') "Service bundle carries its executable-path helper"
 
     Write-Section "Test-StrictMode: helpers"
 
