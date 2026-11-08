@@ -253,9 +253,15 @@ try {
     # An assertion whose own expression throws (e.g. reading .Count on $null) never reaches
     # Assert-Equal, so it would be silently skipped and the run would still report success.
     # Any uncaught error attributed to THIS file is therefore a test bug and must fail the suite.
-    $selfErrors = @($Error | Where-Object {
-        $_.InvocationInfo -and $_.InvocationInfo.ScriptName -eq $PSCommandPath
-    })
+    # $Error can hold entries whose InvocationInfo is unavailable, and reading it under StrictMode
+    # throws (which used to abort this check and leave the suite green).
+    $selfErrors = @()
+    foreach ($entry in $Error) {
+        if ($entry -isnot [System.Management.Automation.ErrorRecord]) { continue }
+        $entryScript = ""
+        try { $entryScript = [string]$entry.InvocationInfo.ScriptName } catch { }
+        if ($entryScript -eq $PSCommandPath) { $selfErrors += $entry }
+    }
     Assert-Equal 0 $selfErrors.Count "No assertion raised an unexpected error"
     if ($selfErrors.Count -gt 0) {
         Write-Host "         $(($selfErrors | ForEach-Object { $_.Exception.Message }) -join ' | ')" -ForegroundColor DarkYellow

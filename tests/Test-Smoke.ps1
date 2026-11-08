@@ -3,7 +3,8 @@
 # driver that walks every page and clicks every read-only "Scan" button, compiles it with ps2exe
 # (-x64, WITHOUT -requireAdmin so no UAC prompt is needed) and then asserts that:
 #
-#   * the process exits on its own (no stack overflow, no native crash, no hang),
+#   * the sweep completes without a stack overflow, native crash or hang (the driver exits the
+#     process as soon as the last page is walked),
 #   * the driver reached the end and reported zero failures,
 #   * no error report was written (Core\Helpers\Log.ps1 only writes on a real failure).
 #
@@ -141,10 +142,13 @@ if ($env:SETTDASH_SMOKE -eq '1') {
         Write-SmokeMark ("COUNTS pages=$pageCount scans=$scanCount selectalls=$selectAllCount")
         Write-SmokeMark ("SMOKE DONE failures=" + $failures.Count)
 
-        # Close, then force the dispatcher to stop even if "Minimize to tray" turned Close() into a
-        # Hide(): the process must never outlive the sweep and hang the test.
+        # Close, then terminate the process outright. Close() alone is not enough: "Minimize to
+        # tray" turns it into Hide(), and the injected block sits right before the app's
+        # $Window.Show() - on a fresh CI profile (default preferences) the script fell through to
+        # that Show() with the dispatcher already shut down and hung until the timeout. The sweep
+        # is complete here, and a hang *during* the sweep still fails the test via the timeout.
         try { $Window.Close() } catch { }
-        try { [System.Windows.Threading.Dispatcher]::CurrentDispatcher.InvokeShutdown() } catch { }
+        [System.Environment]::Exit(0)
     }) | Out-Null
 }
 # ---- end SMOKE TEST INJECTION ----
