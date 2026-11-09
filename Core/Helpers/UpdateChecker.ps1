@@ -1,6 +1,19 @@
 # ================================================
 #region AUTO-UPDATE
 # ================================================
+# Returns the latest version when it is a valid version newer than the current one; $null when it
+# is the same/older, or when either side cannot be parsed. Pure so tests can exercise it without
+# touching the network.
+function Get-UpdateAvailability {
+    param([string]$CurrentVersion, [string]$LatestTag)
+    $current = $null; $latest = $null
+    if (-not [version]::TryParse([string]$CurrentVersion, [ref]$current)) { return $null }
+    $tag = ([string]$LatestTag).TrimStart('v')
+    if (-not [version]::TryParse($tag, [ref]$latest)) { return $null }
+    if ($latest -le $current) { return $null }
+    return $tag
+}
+
 # Used by: Startup (checks GitHub for a newer release every launch)
 # Compares $Script:AppVersion against the latest GitHub release tag for
 # otaviozanon/SETTDash. If a newer .exe is published, asks the user for
@@ -24,13 +37,9 @@ function Invoke-CheckForUpdates {
         $headers = @{ "User-Agent" = "SETTDash/$Script:AppVersion" }
         $release = Invoke-RestMethod -Uri $apiUrl -Headers $headers -TimeoutSec 10
 
-        $latestTag = $release.tag_name.TrimStart('v')
-        $current = $null; $latest = $null
-        if (-not [version]::TryParse($Script:AppVersion, [ref]$current)) { return }
-        if (-not [version]::TryParse($latestTag, [ref]$latest)) { return }
-
-        if ($latest -le $current) {
-            # Shown when the latest release is not newer than the running build.
+        $latestTag = Get-UpdateAvailability -CurrentVersion $Script:AppVersion -LatestTag ([string]$release.tag_name)
+        if (-not $latestTag) {
+            # Either this build is current, or a tag/version string could not be parsed.
             Write-GuiLog "SETTDash is up to date (v$Script:AppVersion)" "OK"
             return
         }

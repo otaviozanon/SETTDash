@@ -159,6 +159,9 @@ jobs:
 
       - name: Concatenate modular sources
         if: steps.ver.outputs.skip != 'true'
+        env:
+          # Build.ps1 injects this into the generated script (and falls back to the newest tag).
+          SETTDASH_VERSION: ${{ steps.ver.outputs.version }}
         shell: pwsh
         run: |
           .\Build.ps1

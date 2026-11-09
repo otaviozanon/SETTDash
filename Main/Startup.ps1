@@ -52,6 +52,9 @@ $Window.Dispatcher.Add_UnhandledException({
     param($sender, $e)
     try {
         Write-GuiLog "Unhandled error: $($e.Exception.Message)" "ERR"
+        # ScriptStackTrace names the source line inside the generated script; the .NET stack alone
+        # only reports interpreter frames and cannot be traced back to a page or timer.
+        if ($e.Exception.ScriptStackTrace) { Write-GuiLog $e.Exception.ScriptStackTrace "ERR" }
         if ($e.Exception.StackTrace) { Write-GuiLog $e.Exception.StackTrace "ERR" }
         Write-ErrorLog "DISPATCHER UNHANDLED: $($e.Exception.ToString())"
         Set-GuiProgress 0

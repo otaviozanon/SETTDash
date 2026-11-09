@@ -1050,6 +1050,25 @@
                          to the fixed Settings button right below the ScrollViewer. -->
                     <StackPanel x:Name="pnlNav" Margin="0,0,0,50">
 
+                        <!-- Global sidebar search: typing filters the nav itself, showing only the
+                             items that match and the section(s) they live in. -->
+                        <Border x:Name="navSearchBox" Margin="10,10,10,6" Padding="8,4,8,4"
+                                Background="{DynamicResource Brush_CardBg}"
+                                BorderBrush="{DynamicResource Brush_Border}" BorderThickness="1"
+                                CornerRadius="6">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE721;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                                           Foreground="{DynamicResource Brush_TextMuted}"
+                                           VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBox x:Name="txtNavSearch" Width="150" BorderThickness="0"
+                                         Background="Transparent"
+                                         Foreground="{DynamicResource Brush_TextPrimary}"
+                                         CaretBrush="{DynamicResource Brush_Accent}"
+                                         FontFamily="{DynamicResource Theme_FontFamily}"
+                                         ToolTip="Search the sidebar..."/>
+                            </StackPanel>
+                        </Border>
+
                         <!-- QUICK section (always visible) -->
                         <Button x:Name="hdrQuick" Style="{StaticResource NavHeaderStyle}" IsEnabled="False">
                             <TextBlock x:Name="txtHdrQuick" Text="QUICK"/>

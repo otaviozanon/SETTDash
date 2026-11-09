@@ -228,4 +228,16 @@ Assert-True ($navKeys.Count -ge 20) "Sidebar wires at least 20 navigation handle
 $duplicateNav = @($navKeys | ForEach-Object { $_.Groups[1].Value } | Group-Object | Where-Object { $_.Count -gt 1 })
 Assert-Equal 0 $duplicateNav.Count "No navigation key is wired twice"
 
+Write-Section "Test-StaticGuards: sidebar search"
+
+# The search box must be the FIRST thing in the sidebar list (before the QUICK header), and the
+# filter must hide non-matching items while showing only the section they live in.
+$layoutText = Get-Content -Path (Join-Path $RepoRoot "Main\Layout.ps1") -Raw -Encoding UTF8
+Assert-True ($layoutText -match 'x:Name="txtNavSearch"') "Sidebar exposes the global search box"
+Assert-True ($layoutText.IndexOf('x:Name="txtNavSearch"') -lt $layoutText.IndexOf('x:Name="hdrQuick"')) "The search box comes before the first sidebar section"
+Assert-True ($sidebarText -match 'function Update-SidebarSearch') "Sidebar implements the search filter"
+Assert-True ($sidebarText -match 'Update-SidebarSearch -Query') "The search box is wired to the filter"
+Assert-True ($sidebarText -match 'SidebarSectionState') "The filter restores section state when cleared"
+Assert-True ($sidebarText -match '\.Visibility = if \(\$match\) \{ ''Visible'' \}') "The filter hides non-matching nav items"
+
 Complete-Tests "Test-StaticGuards"

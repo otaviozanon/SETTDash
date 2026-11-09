@@ -133,6 +133,67 @@ if ($env:SETTDASH_SMOKE -eq '1') {
                     Invoke-SmokePump
                 }
             }
+
+            # ---- global sidebar search (runtime, not just static guards) ----
+            $searchBox = $Window.FindName('txtNavSearch')
+            if (-not $searchBox) {
+                [void]$failures.Add("search -> txtNavSearch not found")
+            } else {
+                $sectionBefore = @{}
+                foreach ($g in $Script:SidebarGroups) {
+                    if ($g.Section) { $sectionBefore[$g.Name] = [string]$g.Section.Visibility }
+                }
+                $visibleBefore = @($navButtons.Keys | Where-Object { $navButtons[$_].Visibility -eq 'Visible' })
+
+                $searchBox.Text = 'bench'
+                Invoke-SmokePump
+                $visibleNow = @($navButtons.Keys | Where-Object { $navButtons[$_].Visibility -eq 'Visible' })
+                $expected = @('navBenchCpu','navBenchGpu','navBenchRam','navBenchDisk','navBenchExport')
+                $missing = @($expected | Where-Object { $visibleNow -notcontains $_ })
+                $extra = @($visibleNow | Where-Object { $expected -notcontains $_ })
+                $benchGroup = @($Script:SidebarGroups | Where-Object { $_.Name -eq 'Benchmark' })[0]
+                $otherVisible = @($Script:SidebarGroups | Where-Object { $_.Name -ne 'Benchmark' -and $_.Section -and $_.Section.Visibility -eq 'Visible' })
+                if ($missing.Count -gt 0) { [void]$failures.Add("search -> missing: $($missing -join ',')") }
+                if ($extra.Count -gt 0) { [void]$failures.Add("search -> should be hidden: $($extra -join ',')") }
+                if ($otherVisible.Count -gt 0) { [void]$failures.Add("search -> other sections visible: $((@($otherVisible | ForEach-Object { $_.Name })) -join ',')") }
+                if (-not $benchGroup -or $benchGroup.Section.Visibility -ne 'Visible') { [void]$failures.Add("search -> Benchmark section not visible") }
+                if ($navButtons['navSettings'].Visibility -ne 'Collapsed') { [void]$failures.Add("search -> Settings should be hidden") }
+                Write-SmokeMark ("SEARCH_FILTER bench -> " + $visibleNow.Count + " items")
+
+                $searchBox.Text = ''
+                Invoke-SmokePump
+                $visibleAfter = @($navButtons.Keys | Where-Object { $navButtons[$_].Visibility -eq 'Visible' })
+                if ($visibleAfter.Count -ne $visibleBefore.Count) { [void]$failures.Add("search -> clear restored $($visibleAfter.Count)/$($visibleBefore.Count) items") }
+                if ($navButtons['navSettings'].Visibility -ne 'Visible') { [void]$failures.Add("search -> Settings not restored") }
+                foreach ($name in $sectionBefore.Keys) {
+                    $g = @($Script:SidebarGroups | Where-Object { $_.Name -eq $name })[0]
+                    if ([string]$g.Section.Visibility -ne $sectionBefore[$name]) { [void]$failures.Add("search -> section $name not restored") }
+                }
+                Write-SmokeMark ("SEARCH_CLEAR restored=" + $visibleAfter.Count)
+            }
+
+            # ---- minimize to tray (real close/hide/restore, not just the preference) ----
+            $trayPrefBefore = $false
+            try {
+                $trayPrefBefore = Get-GuiMinimizeToTrayPref
+                Save-GuiMinimizeToTrayPref $true
+                $Script:ForceExit = $false
+                $Window.Close()
+                if (-not $Window.IsLoaded) { [void]$failures.Add("tray -> close was not cancelled") }
+                if ($Window.IsVisible) { [void]$failures.Add("tray -> window was not hidden") }
+                if (-not $Script:TrayIcon.Visible) { [void]$failures.Add("tray -> tray icon not shown") }
+                Write-SmokeMark ("TRAY_OK hidden loaded=" + $Window.IsLoaded + " icon=" + $Script:TrayIcon.Visible)
+
+                & $Script:TrayRestoreHandler
+                if (-not $Window.IsVisible) { [void]$failures.Add("tray -> restore did not show the window") }
+                if ($Script:TrayIcon.Visible) { [void]$failures.Add("tray -> tray icon still visible after restore") }
+                Write-SmokeMark ("TRAY_RESTORE_OK visible=" + $Window.IsVisible)
+            } catch {
+                [void]$failures.Add("tray -> $($_.Exception.Message)")
+            } finally {
+                Save-GuiMinimizeToTrayPref ([bool]$trayPrefBefore)
+                $Script:ForceExit = $false
+            }
         } catch {
             [void]$failures.Add("driver -> $($_.Exception.Message)")
             Write-SmokeMark ("DRIVER_FAIL -> " + $_.Exception.Message)
@@ -329,9 +390,14 @@ try {
     }
     Assert-True ($navKeyCount -ge 20) "The driver walked the sidebar navigation" "$navKeyCount keys"
 
-    $pageFailures = @($markerLines | Where-Object { $_ -match '^(PAGE_FAIL|SCAN_FAIL|SELECTALL_FAIL|DRIVER_FAIL)' })
+    $pageFailures = @($markerLines | Where-Object { $_ -match '^(PAGE_FAIL|SCAN_FAIL|SELECTALL_FAIL|DRIVER_FAIL|FAILURE)' })
     Assert-Equal 0 $pageFailures.Count "No page, scan or select-all failed"
     foreach ($f in $pageFailures) { Write-Host "         $f" -ForegroundColor DarkYellow }
+
+    Assert-True (@($markerLines | Where-Object { $_ -match '^SEARCH_FILTER bench -> 5 items$' }).Count -eq 1) "Sidebar search filters the navigation at runtime"
+    Assert-True (@($markerLines | Where-Object { $_ -match '^SEARCH_CLEAR restored=' }).Count -eq 1) "Clearing the sidebar search restores every item"
+    Assert-True (@($markerLines | Where-Object { $_ -match '^TRAY_OK hidden loaded=True icon=True$' }).Count -eq 1) "Closing with Minimize to tray hides the window and shows the tray icon"
+    Assert-True (@($markerLines | Where-Object { $_ -match '^TRAY_RESTORE_OK visible=True$' }).Count -eq 1) "The tray icon restores the window"
 
     $doneLine = @($markerLines | Where-Object { $_ -match '^SMOKE DONE failures=(\d+)' }) | Select-Object -Last 1
     Assert-True ([bool]$doneLine) "The driver reached the end of the sweep" "no 'SMOKE DONE' marker - the process died mid-run"

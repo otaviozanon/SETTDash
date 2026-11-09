@@ -23,6 +23,8 @@ function Update-GuiNavActive { param([string]$activeTag)
 # sensor auto-refresh - see $Script:LivePageTimer) so it doesn't keep polling/rendering into
 # a page that's no longer on screen.
 function Clear-GuiContent {
+    # Cancel scans started by the page being left before its controls disappear.
+    if (Get-Command Stop-AllGuiBackgroundJobs -ErrorAction SilentlyContinue) { Stop-AllGuiBackgroundJobs }
     $pnlContent.Children.Clear()
     $Script:HomeCpuGauge = $null
     $Script:HomeRamGauge = $null

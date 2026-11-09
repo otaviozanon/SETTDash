@@ -1,55 +1,111 @@
-# ⚡ SETTDash
+# SETTDash
 
-**All-in-one Windows optimization & tweaking dashboard** — cache cleaner, network optimizer, system tweaks, game mode, privacy, services, GPU/CPU tools, installers and more, in a single dark WPF interface. Self-contained PowerShell script, no installation required.
+**All-in-one Windows optimization & tweaking dashboard** - cache cleaner, network optimizer, system tweaks, game mode, privacy, services, startup manager, benchmarks, hardware sensors and installers, in a single dark WPF interface. Self-contained PowerShell executable, no installation required.
 
-[![Platform](https://img.shields.io/badge/platform-Windows-1f6feb.svg?style=flat-square)]()
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-1f6feb.svg?style=flat-square)]()
 [![License](https://img.shields.io/badge/license-GPL--3.0-3fb950.svg?style=flat-square)](LICENSE)
 [![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-8b949e.svg?style=flat-square)]()
 
-> ⚠️ **Requirement:** Administrator privileges recommended for most tweaks (registry, services, power and privacy changes).
+> Administrator privileges are required for registry, service, power and privacy changes. The executable requests elevation on launch.
 
-## ✨ Features
+## Features
 
-- **🖥️ Dark dashboard** — minimalist WPF interface (GitHub-dark `#0D1117`) with custom title bar and accordion sidebar
-- **🧹 Cache cleaner** — temp files, browser cache, log files, memory dumps, prefetch, shader cache, Store cache, update cache, delivery optimization and device cleanup
-- **🌐 Network optimizer** — TCP/IP tuning plus a built-in DNS tool (DnsJumper)
-- **⚙️ System tweaks** — browser (Chrome, Edge, Firefox, Brave), Windows 11 (classic Alt-Tab, old context menu), context menu, registry and services
-- **🎮 Game Mode** — gaming-focused optimizations, GPU tweaks and power options
-- **🧠 Memory** — memory cleanup and optimization (bundles SETTMemoryCleaner)
-- **🔒 Privacy** — telemetry and tracking toggles
-- **📦 Playbooks** — one-click download of AME Wizard, AtlasOS, ReviOS and FSOSX playbooks
-- **🛠️ Embedded tools** — Autoruns, DeviceCleanup, DnsJumper, FilterKeysSetter, TimerResolution, vibranceGUI, OOAPB, sPowers, MSI util and more, extracted on first run
-- **💾 Installers** — winget-powered app catalog grouped by category (CPU, GPU, Essentials, Internet, Integrations, Utilities)
-- **🛡️ Restore point** — creates a system restore point before applying changes
-- **🖥️ Your PC** — detailed System, Sensors, GPU, CPU, Disks and Energy pages, each exportable to a printable/PDF report
-- **📊 Benchmark** — CPU, GPU, RAM and Disk stress tests with live charts, plus an Export page that combines all results (cached until the app closes) into one printable/PDF report
-- **🎨 Settings** — Default/Terminal Retro theme switcher, auto-start, minimize to tray, default startup page and update check toggle
+- **Dashboard** - GitHub-dark WPF UI with a custom title bar, collapsible sidebar and a global sidebar search.
+- **Clean** - System Cleaner (temp files, browser caches, logs, prefetch, Windows Update cache, memory dumps, Recycle Bin), Registry Cleaner (with `.reg` backup before every fix) and Device Cleanup.
+- **Network** - TCP/IP tuning, DNS tool and network cleanup.
+- **Startup** - the four places Windows starts programs from, no `msconfig` needed:
+  - **Registry** - Run/RunOnce entries with the same StartupApproved state Task Manager writes.
+  - **Startup Folder** - user and all-users startup folders.
+  - **Services** - Win32 services, Microsoft ones hidden by default (Authenticode check, persisted cache).
+  - **Scheduled Items** - third-party Task Scheduler tasks with last/next run and result. Microsoft's own tasks are never listed.
+  - Every Startup row shows its publisher (or **Unsigned**) and whether it is a user/machine entry.
+- **Your PC** - System, Sensors, GPU, CPU, Disks and Energy pages, each exportable to a printable report.
+- **System** - Performance, Network & Privacy, System Tweaks (browser, Windows 11, context menu, registry, services) and Windows Tweaks.
+- **Installers** - winget-powered catalog grouped by category.
+- **Tools** - Utilities and Playbooks (AME Wizard, AtlasOS, ReviOS, FSOSX).
+- **Benchmark** - CPU, GPU, RAM and Disk stress tests with live charts, plus an Export page that combines the results into one HTML/PDF report.
+- **Settings** - theme switcher, auto-start, minimize to tray, default startup page and update check.
+- **Restore point** - creates a System Restore checkpoint before applying changes.
 
-## 🚀 Quick Start
+## Requirements
 
-1. Download `SETTDash.exe` from the [latest release](https://github.com/otaviozanon/SETTDash/releases/latest)
-2. Run as Administrator
-3. Pick a category from the sidebar and apply what you need
+- Windows 10 or Windows 11, x64.
+- Administrator rights.
+- The release `.exe` is self-contained: PowerShell 5.1 is already part of Windows, no modules or installers are needed.
+- Running from source additionally needs PowerShell 5.1+ and the `ps2exe` module (only to compile).
 
-No installation — single self-contained executable.
+## Download
 
-## 📁 Project Structure
+Grab `SETTDash.exe` from the [latest release](https://github.com/otaviozanon/SETTDash/releases/latest) and run it.
+
+## Data locations
+
+| What | Where |
+| --- | --- |
+| Extracted embedded tools/font/libs | `%LOCALAPPDATA%\SETTDash\runtime` |
+| Settings | `%APPDATA%\SETTDash\settings.json` |
+| Registry backups | `%LOCALAPPDATA%\SETTDash\Backups\Registry` |
+| Error reports | `%LOCALAPPDATA%\SETTDash\logs` |
+
+Nothing is written under `%TEMP%`: the app cleans that folder while it is still running.
+
+## Build from source
+
+The repository is modular; `Build.ps1` concatenates the sources into `SETTDash.ps1` in the correct dependency order. Never edit `SETTDash.ps1` directly - it is generated and ignored by git.
+
+```powershell
+.\Build.ps1
+
+Import-Module ps2exe
+Invoke-ps2exe -inputFile SETTDash.ps1 -outputFile SETTDash.exe -iconFile SETTDash.ico `
+    -noConsole -requireAdmin -x64 -title "SETTDash" `
+    -description "All-in-one Windows optimization & tweaking dashboard" `
+    -product "SETTDash" -company "otaviozanon"
+Remove-Item SETTDash.ps1
+```
+
+`Build.ps1` injects the version into the generated script. It uses `$env:SETTDASH_VERSION` when set (the release workflow does this), otherwise the newest `v*` git tag. `Main\Window.ps1` only holds the fallback value.
+
+## Tests
+
+```powershell
+# Everything except the compiled smoke test
+.\tests\Run-All.ps1 -SkipSmoke
+
+# Full gate: build, static guards, benchmark export, strict mode, settings,
+# action sandbox and the compiled smoke sweep (needs ps2exe)
+.\tests\Run-All.ps1
+
+# Same suite elevated (one UAC prompt) for admin-only code paths
+.\tests\Run-All.ps1 -Elevated
+```
+
+Every suite runs in its own PowerShell process. The action sandbox intercepts every mutating cmdlet, so the tests never touch the real registry, services or files.
+
+## Project layout
 
 ```
-SETTDash.ps1          full source — WPF XAML layout + all tweak logic + embedded tools
-SETTDash.exe          compiled self-contained executable (release asset, not committed)
-icon_lightning.ico    window icon
+Build.ps1              concatenates the sources into SETTDash.ps1
+Main/                  XAML layout, window, title bar, startup sequence
+Sidebar/               sidebar wiring and one file per page
+Core/Helpers/          logging, theme, navigation, cards, background jobs, updater
+Core/Actions/          scan/apply/revert functions (clean, tweaks, benchmarks, ...)
+Core/Embed/            embedded tools, libraries and font (base64 + gzip)
+Core/Gauges/           gauge and bar builders
+tests/                 one test suite per concern, orchestrated by Run-All.ps1
 ```
 
-The entire application lives in a single `SETTDash.ps1` — the XAML dashboard, the page generators, the tweak functions and the embedded programs (gzip-compressed and stored inline, extracted to `%TEMP%\SETTDash` on first run).
+## Security notes
 
-## 🧬 How It Works
+- No kernel driver is bundled. CPU/GPU sensors use the signed PawnIO driver, installed separately through winget only if the user accepts the prompt.
+- The app does not collect telemetry.
+- `SETTDASH_NO_UPDATE_CHECK=1` disables the startup update check (used by the smoke test).
+- The updater verifies the SHA-256 digest published by GitHub when it is available and refuses a download that does not match.
 
-1. Boots a WPF window (`System.Windows.Forms` + `PresentationFramework`) with a custom, transparent title bar
-2. Builds the sidebar and cards dynamically from the script data
-3. Each tweak applies registry / service / power changes and logs the result to the in-app console
-4. Playbooks and installers are fetched from official sources (GitHub releases, winget, Microsoft Store) at run time
+## Contributing
 
-## 📄 License
+See [CONTRIBUTING.md](CONTRIBUTING.md). Commit messages follow Conventional Commits.
 
-GPL-3.0. See [LICENSE](LICENSE).
+## License
+
+GPL-3.0. See [LICENSE](LICENSE). Embedded third-party tools and libraries remain under their own licenses.

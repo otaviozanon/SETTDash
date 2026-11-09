@@ -82,6 +82,7 @@ function Expand-Section {
 
 $hdrYourPC = $Window.FindName("hdrYourPC")
 $secYourPC = $Window.FindName("secYourPC")
+$hdrQuick = $Window.FindName("hdrQuick")
 $hdrInstallers = $Window.FindName("hdrInstallers")
 $secInstallers = $Window.FindName("secInstallers")
 $hdrSystem = $Window.FindName("hdrSystem")
@@ -99,4 +100,79 @@ if ($hdrSystem -and $secSystem) { Toggle-SidebarSection $hdrSystem $secSystem }
 if ($hdrShortcuts -and $secShortcuts) { Toggle-SidebarSection $hdrShortcuts $secShortcuts }
 if ($hdrTools -and $secTools) { Toggle-SidebarSection $hdrTools $secTools }
 if ($hdrBenchmark -and $secBenchmark) { Toggle-SidebarSection $hdrBenchmark $secBenchmark }
+#endregion
+
+#region SIDEBAR SEARCH
+# First item in the sidebar: typing filters the nav itself, leaving only the matching items and
+# the section(s) they belong to. Sections are expanded while filtering and restored to their
+# previous collapsed state when the box is cleared. Headers match too ("bench" shows Benchmark).
+$Script:SidebarGroups = @(
+    @{ Name='Quick';      Header=$hdrQuick;      Section=$null;         Keys=@('navHome','navAll','navClean','navNetwork','navStartup') }
+    @{ Name='YourPC';     Header=$hdrYourPC;     Section=$secYourPC;     Keys=@('navYourPCSystem','navYourPCSensors','navYourPCGpu','navYourPCCpu','navYourPCDisks','navYourPCEnergy') }
+    @{ Name='Installers'; Header=$hdrInstallers; Section=$secInstallers; Keys=@('navInstallers','navGpuProgs','navCpuProgs','navAllInstallers') }
+    @{ Name='System';     Header=$hdrSystem;     Section=$secSystem;     Keys=@('navPerformance','navNetworkPrivacy','navSystemTweaks','navWindows') }
+    @{ Name='Shortcuts';  Header=$hdrShortcuts;  Section=$secShortcuts;  Keys=@('navWinShortcuts') }
+    @{ Name='Tools';      Header=$hdrTools;      Section=$secTools;      Keys=@('navUtilities','navPlaybooks') }
+    @{ Name='Benchmark';  Header=$hdrBenchmark;  Section=$secBenchmark;  Keys=@('navBenchCpu','navBenchGpu','navBenchRam','navBenchDisk','navBenchExport') }
+)
+$Script:SidebarSectionState = @{}
+
+# Nav buttons hold a StackPanel (icon + label); headers and QUICK hold one or two TextBlocks.
+function Get-SidebarLabel {
+    param($Button)
+    if (-not $Button) { return '' }
+    $content = $Button.Content
+    if ($content -is [System.Windows.Controls.TextBlock]) { return [string]$content.Text }
+    if ($content -is [System.Windows.Controls.StackPanel] -and $content.Children.Count -ge 2) {
+        $label = $content.Children[$content.Children.Count - 1]
+        if ($label -is [System.Windows.Controls.TextBlock]) { return [string]$label.Text }
+    }
+    return [string]$content
+}
+
+function Update-SidebarSearch {
+    param([string]$Query)
+    $q = ([string]$Query).Trim().ToLowerInvariant()
+    $filtering = $q.Length -gt 0
+    foreach ($group in $Script:SidebarGroups) {
+        $headerMatches = $false
+        if ($filtering -and $group.Header) {
+            $headerMatches = (Get-SidebarLabel $group.Header).ToLowerInvariant().Contains($q)
+        }
+        $visible = 0
+        foreach ($key in $group.Keys) {
+            $button = $navButtons[$key]
+            if (-not $button) { continue }
+            $match = (-not $filtering) -or $headerMatches -or (Get-SidebarLabel $button).ToLowerInvariant().Contains($q)
+            $button.Visibility = if ($match) { 'Visible' } else { 'Collapsed' }
+            if ($match) { $visible++ }
+        }
+        if ($group.Header) {
+            $group.Header.Visibility = if ((-not $filtering) -or $visible -gt 0) { 'Visible' } else { 'Collapsed' }
+        }
+        if ($group.Section) {
+            if ($filtering) {
+                if (-not $Script:SidebarSectionState.ContainsKey($group.Name)) {
+                    $Script:SidebarSectionState[$group.Name] = $group.Section.Visibility
+                }
+                $group.Section.Visibility = if ($visible -gt 0) { 'Visible' } else { 'Collapsed' }
+            } elseif ($Script:SidebarSectionState.ContainsKey($group.Name)) {
+                $group.Section.Visibility = $Script:SidebarSectionState[$group.Name]
+            } else {
+                $group.Section.Visibility = 'Collapsed'
+            }
+            if ($group.Header) { Set-SidebarHeaderIcon $group.Header $group.Section }
+        }
+    }
+    if ($navButtons['navSettings']) {
+        $settingsButton = $navButtons['navSettings']
+        $showSettings = (-not $filtering) -or ((Get-SidebarLabel $settingsButton).ToLowerInvariant().Contains($q))
+        $settingsButton.Visibility = if ($showSettings) { 'Visible' } else { 'Collapsed' }
+    }
+}
+
+$txtNavSearch = $Window.FindName('txtNavSearch')
+if ($txtNavSearch) {
+    $txtNavSearch.Add_TextChanged({ param($s, $e) Update-SidebarSearch -Query $s.Text })
+}
 #endregion

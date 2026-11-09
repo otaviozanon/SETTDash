@@ -176,6 +176,8 @@ try {
     $badSources = @($startup | Where-Object { $allowedSources -notcontains (Get-SafeProp $_ 'Source') })
     Assert-Equal 0 $badSources.Count "Every startup item has a known Source"
     Assert-Equal 0 @($startup | Where-Object { (Get-SafeProp $_ 'Selected') -isnot [bool] }).Count "Startup items expose a bool Selected flag"
+    Assert-Equal 0 @($startup | Where-Object { (Get-SafeProp $_ 'Publisher') -isnot [string] }).Count "Startup items expose a Publisher string"
+    Assert-Equal 0 @($startup | Where-Object { [string](Get-SafeProp $_ 'Detail') -notmatch 'Publisher: ' }).Count "Startup details show the publisher"
 
     $services = @()
     Assert-NoThrow { $script:services = @(Get-ServiceItems) } "Get-ServiceItems does not throw"
@@ -192,12 +194,17 @@ try {
     $allServices = @()
     Assert-NoThrow { $script:allServices = @(Get-ServiceItems -IncludeMicrosoft) } "Get-ServiceItems -IncludeMicrosoft does not throw"
     Assert-True (@($script:allServices).Count -gt $services.Count) "The Microsoft filter removes services by default"
+    Assert-True (Test-Path (Get-ServiceSignatureCachePath)) "The service signature cache is written to disk"
 
     $tasks = @()
     Assert-NoThrow { $script:tasks = @(Get-ScheduledTaskItems) } "Get-ScheduledTaskItems does not throw"
     $tasks = @($script:tasks)
     Assert-True ($tasks.Count -gt 0) "Scheduled Items scan returns third-party tasks"
     Assert-Equal 0 @($tasks | Where-Object { (Get-SafeProp $_ 'Location') -match '^\\Microsoft\\' }).Count "Scheduled Items never lists Microsoft tasks"
+    Assert-Equal 0 @($tasks | Where-Object { [string](Get-SafeProp $_ 'Detail') -notmatch 'Last: ' }).Count "Scheduled items show the last and next run"
+    Assert-Equal 0 @($tasks | Where-Object {
+        $null -eq (Get-SafeProp $_ 'LastRun') -and $null -eq (Get-SafeProp $_ 'NextRun') -and $null -eq (Get-SafeProp $_ 'LastResult')
+    }).Count "Scheduled items expose the run history fields"
 
     $registry = @()
     Assert-NoThrow { $script:registry = @(Get-RegistryCleanerItems) } "Get-RegistryCleanerItems does not throw with any number of issues"
@@ -230,6 +237,8 @@ try {
     Assert-True ($serviceBundle -match '(?m)^function Get-ServiceItems\s*\{') "Service bundle contains the requested app function"
     Assert-True ($serviceBundle -match '(?m)^function Test-MicrosoftServicePath\s*\{') "Service bundle carries its Microsoft-path helper"
     Assert-True ($serviceBundle -match '(?m)^function Get-ServiceExecutablePath\s*\{') "Service bundle carries its executable-path helper"
+    Assert-True ($serviceBundle -match '(?m)^function Read-ServiceSignatureCache\s*\{') "Service bundle carries the signature cache reader"
+    Assert-True ($serviceBundle -match '(?m)^function Save-ServiceSignatureCache\s*\{') "Service bundle carries the signature cache writer"
 
     Write-Section "Test-StrictMode: helpers"
 

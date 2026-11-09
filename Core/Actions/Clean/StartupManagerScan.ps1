@@ -69,10 +69,59 @@ function Set-StartupApprovedEnabled {
     return $true
 }
 
-# Returns pscustomobjects: Label, Detail, Selected(=enabled), Name, Command, Location, Source.
-# Source: 'registry-hkcu' | 'registry-hklm' | 'startup-folder'.
+# Returns pscustomobjects: Label, Detail, Selected(=enabled), Name, Command, Location, Source,
+# Publisher. Source: 'registry-hkcu' | 'registry-hklm' | 'startup-folder'.
 function Get-StartupManagerItems {
     return @(Get-StartupRegistryItems) + @(Get-StartupFolderItems)
+}
+
+# Resolves the executable a startup command runs. Returns '' when the command is not a readable
+# .exe (rundll32, explorer, a shortcut path, ...).
+function Get-StartupCommandExecutable {
+    param([string]$Command)
+    if (-not $Command) { return '' }
+    $text = [Environment]::ExpandEnvironmentVariables($Command.Trim())
+    if ($text.StartsWith('"')) {
+        $end = $text.IndexOf('"', 1)
+        if ($end -gt 1) { return $text.Substring(1, $end - 1) }
+    }
+    if ($text -match '^(?<exe>[^\s]+?\.exe)(?=\s|$)') { return $Matches.exe }
+    return ''
+}
+
+# Signer company of the executable behind a startup command ('Unsigned' when it has no valid
+# Authenticode signature, '' when there is nothing readable to check). $Cache keeps one signature
+# check per executable for the whole scan.
+function Get-StartupPublisher {
+    param([string]$Command, [hashtable]$Cache)
+    $exe = Get-StartupCommandExecutable -Command $Command
+    if (-not $exe -or -not (Test-Path -LiteralPath $exe)) { return '' }
+    $key = $exe.ToLowerInvariant()
+    if ($Cache -and $Cache.ContainsKey($key)) { return $Cache[$key] }
+    $publisher = ''
+    try {
+        $sig = Get-AuthenticodeSignature -LiteralPath $exe -ErrorAction Stop
+        if ($sig.SignerCertificate -and $sig.SignerCertificate.Subject -match 'O=([^,]+)') {
+            $publisher = $Matches[1].Trim()
+        } else {
+            $publisher = 'Unsigned'
+        }
+    } catch { $publisher = '' }
+    if ($Cache) { $Cache[$key] = $publisher }
+    return $publisher
+}
+
+# Startup folder entries are usually .lnk shortcuts, so $Path is the shortcut, not the executable.
+function Get-StartupFolderPublisher {
+    param([string]$Path, [hashtable]$Cache)
+    if (-not $Path) { return '' }
+    if ($Path -notmatch '\.lnk$') { return Get-StartupPublisher -Command $Path -Cache $Cache }
+    try {
+        $shell = New-Object -ComObject WScript.Shell
+        try { $target = [string]$shell.CreateShortcut($Path).TargetPath }
+        finally { if ($shell) { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($shell) } }
+        return Get-StartupPublisher -Command $target -Cache $Cache
+    } catch { return '' }
 }
 
 # Category 1 (Startup page): MSConfig/Task Manager Run/RunOnce entries (HKCU+HKLM+32-bit view).
@@ -80,6 +129,7 @@ function Get-StartupManagerItems {
 # so disabling here and enabling in Task Manager (or vice versa) agree.
 function Get-StartupRegistryItems {
     $items = @()
+    $sigCache = @{}
     $runKeys = @(
         @{ Path='HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run'; Source='registry-hkcu'; Approval='HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run' }
         @{ Path='HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce'; Source='registry-hkcu'; Approval='HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run' }
@@ -93,11 +143,15 @@ function Get-StartupRegistryItems {
         $props = Get-ItemProperty $rk.Path -ErrorAction SilentlyContinue
         if (-not $props) { continue }
         $props.PSObject.Properties | Where-Object { $_.Name -notmatch '^PS' -and $_.Name -ne '(default)' } | ForEach-Object {
+            $cmd = [string]$_.Value
+            $publisher = Get-StartupPublisher -Command $cmd -Cache $sigCache
+            $pubText = if ($publisher) { $publisher } else { 'Unknown' }
+            $scope = if ($rk.Source -eq 'registry-hkcu') { 'User' } else { 'Machine' }
             $items += [pscustomobject]@{
-                Label=$_.Name; Detail=[string]$_.Value
+                Label=$_.Name; Detail="$cmd  |  Publisher: $pubText  |  $scope"
                 Selected=(Get-StartupApprovedEnabled -Path $rk.Approval -Name $_.Name)
-                Name=$_.Name; Command=[string]$_.Value; Location=$rk.Path; Source=$rk.Source
-                ApprovalPath=$rk.Approval
+                Name=$_.Name; Command=$cmd; Location=$rk.Path; Source=$rk.Source
+                ApprovalPath=$rk.Approval; Publisher=$publisher
             }
         }
     }
@@ -110,10 +164,14 @@ function Get-StartupRegistryItems {
         if (-not $name -or -not $source -or $source -ne 'registry-hkcu' -and $source -ne 'registry-hklm') { continue }
         $already = $items | Where-Object { $_.Name -eq $name -and $_.Source -eq $source }
         if ($already) { continue }
+        $cmd = [string](Get-SafeProp $stored 'Command')
+        $publisher = Get-StartupPublisher -Command $cmd -Cache $sigCache
+        $pubText = if ($publisher) { $publisher } else { 'Unknown' }
+        $scope = if ($source -eq 'registry-hkcu') { 'User' } else { 'Machine' }
         $items += [pscustomobject]@{
-            Label=$name; Detail=(Get-SafeProp $stored 'Command'); Selected=$false
-            Name=$name; Command=(Get-SafeProp $stored 'Command'); Location=(Get-SafeProp $stored 'Location'); Source=$source
-            ApprovalPath=''
+            Label=$name; Detail="$cmd  |  Publisher: $pubText  |  $scope"; Selected=$false
+            Name=$name; Command=$cmd; Location=(Get-SafeProp $stored 'Location'); Source=$source
+            ApprovalPath=''; Publisher=$publisher
         }
     }
     return $items
@@ -123,6 +181,7 @@ function Get-StartupRegistryItems {
 # Task Manager's Startup tab, so a shortcut can be disabled without deleting it.
 function Get-StartupFolderItems {
     $items = @()
+    $sigCache = @{}
     $folders = @(
         @{ Path=(Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Startup'); Approval='HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\StartupFolder' }
         @{ Path=(Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs\Startup'); Approval='HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\StartupFolder' }
@@ -130,11 +189,14 @@ function Get-StartupFolderItems {
     foreach ($folder in $folders) {
         if (-not $folder.Path -or -not (Test-Path $folder.Path)) { continue }
         Get-ChildItem $folder.Path -Force -ErrorAction SilentlyContinue | Where-Object { -not $_.PSIsContainer -and $_.Name -ne 'desktop.ini' } | ForEach-Object {
+            $publisher = Get-StartupFolderPublisher -Path $_.FullName -Cache $sigCache
+            $pubText = if ($publisher) { $publisher } else { 'Unknown' }
+            $scope = if ($folder.Approval -like 'HKCU:*') { 'User folder' } else { 'All users folder' }
             $items += [pscustomobject]@{
-                Label=$_.BaseName; Detail=$_.FullName
+                Label=$_.BaseName; Detail="$($_.FullName)  |  Publisher: $pubText  |  $scope"
                 Selected=(Get-StartupApprovedEnabled -Path $folder.Approval -Name $_.Name)
                 Name=$_.Name; Command=$_.FullName; Location=$folder.Path; Source='startup-folder'
-                ApprovalPath=$folder.Approval
+                ApprovalPath=$folder.Approval; Publisher=$publisher
             }
         }
     }
@@ -158,15 +220,61 @@ function Get-ServiceExecutablePath {
     return $expanded
 }
 
+# Persistent cache of "is this executable signed by Microsoft?" keyed by lower-case path. The
+# file's size and last-write time validate an entry, so an updated binary is checked again. Without
+# it every scan re-checked ~59 signatures (~2.8 s); with it a rescan is near-instant.
+function Get-ServiceSignatureCachePath {
+    $dir = Join-Path $env:LOCALAPPDATA 'SETTDash\runtime'
+    if (-not (Test-Path $dir)) { New-Item -Path $dir -ItemType Directory -Force | Out-Null }
+    return (Join-Path $dir 'service-signatures.json')
+}
+
+function Read-ServiceSignatureCache {
+    $cache = @{}
+    try {
+        $path = Get-ServiceSignatureCachePath
+        if (-not (Test-Path $path)) { return $cache }
+        $json = Get-Content -Path $path -Raw -ErrorAction Stop | ConvertFrom-Json
+        if (-not $json) { return $cache }
+        $json.PSObject.Properties | ForEach-Object {
+            $cache[$_.Name] = @{
+                Size = [long]$_.Value.Size
+                Mtime = [long]$_.Value.Mtime
+                Microsoft = [bool]$_.Value.Microsoft
+            }
+        }
+    } catch { }
+    return $cache
+}
+
+function Save-ServiceSignatureCache {
+    param([hashtable]$Cache)
+    if (-not $Cache) { return }
+    try {
+        $Cache | ConvertTo-Json -Depth 4 | Set-Content -Path (Get-ServiceSignatureCachePath) -Encoding UTF8
+    } catch { }
+}
+
 # True when the service executable is signed by Microsoft - the same test MSConfig's
 # "Hide all Microsoft services" uses. Falls back to the old "lives under Windows" rule when the
-# binary cannot be read. $Cache keeps one signature check per executable, not per service.
+# binary cannot be read. $Cache is the persistent table above (one signature check per executable).
 function Test-MicrosoftServicePath {
     param([string]$Path, [hashtable]$Cache)
     $exe = Get-ServiceExecutablePath -Path $Path
     if (-not $exe) { return $true }
     $key = $exe.ToLowerInvariant()
-    if ($Cache -and $Cache.ContainsKey($key)) { return $Cache[$key] }
+    $size = -1; $mtime = -1
+    try {
+        $file = Get-Item -LiteralPath $exe -ErrorAction Stop
+        $size = [long]$file.Length
+        $mtime = [long]$file.LastWriteTimeUtc.ToFileTimeUtc()
+    } catch { }
+    if ($Cache -and $Cache.ContainsKey($key)) {
+        $entry = $Cache[$key]
+        if ($size -ge 0 -and [long]$entry.Size -eq $size -and [long]$entry.Mtime -eq $mtime) {
+            return [bool]$entry.Microsoft
+        }
+    }
     $isMicrosoft = $false
     try {
         $sig = Get-AuthenticodeSignature -FilePath $exe -ErrorAction Stop
@@ -174,7 +282,7 @@ function Test-MicrosoftServicePath {
     } catch {
         $isMicrosoft = $exe -match '^[A-Za-z]:\\Windows\\'
     }
-    if ($Cache) { $Cache[$key] = $isMicrosoft }
+    if ($Cache) { $Cache[$key] = @{ Size = $size; Mtime = $mtime; Microsoft = $isMicrosoft } }
     return $isMicrosoft
 }
 
@@ -182,7 +290,7 @@ function Test-MicrosoftServicePath {
 function Get-ServiceItems {
     param([switch]$IncludeMicrosoft)
     $items = @()
-    $sigCache = @{}
+    $sigCache = Read-ServiceSignatureCache
     try {
         foreach ($svc in @(Get-CimInstance -ClassName Win32_Service -ErrorAction SilentlyContinue)) {
             $path = [string](Get-SafeProp $svc 'PathName')
@@ -204,6 +312,7 @@ function Get-ServiceItems {
             }
         }
     } catch { Write-GuiLog "Service scan failed: $($_.Exception.Message)" "ERR" }
+    Save-ServiceSignatureCache -Cache $sigCache
     return $items
 }
 
@@ -244,9 +353,23 @@ function Get-ScheduledTaskItems {
             $taskPath = Get-SafeProp $task 'TaskPath'
             $taskName = Get-SafeProp $task 'TaskName'
             $state = Get-SafeProp $task 'State'
+            # Run history is what tells whether a third-party task actually does anything.
+            $lastRun = $null; $nextRun = $null; $lastResult = $null
+            try {
+                $info = Get-ScheduledTaskInfo -TaskName $taskName -TaskPath $taskPath -ErrorAction Stop
+                $lastRun = Get-SafeProp $info 'LastRunTime'
+                $nextRun = Get-SafeProp $info 'NextRunTime'
+                $lastResult = Get-SafeProp $info 'LastTaskResult'
+            } catch { }
+            $lastText = if ($lastRun -is [datetime] -and $lastRun.Year -gt 1980) { $lastRun.ToString('yyyy-MM-dd HH:mm') } else { 'never' }
+            $nextText = if ($nextRun -is [datetime] -and $nextRun.Year -gt 1980) { $nextRun.ToString('yyyy-MM-dd HH:mm') } else { 'never' }
+            $resultText = if ($null -eq $lastResult) { '?' } else { [string]$lastResult }
             $items += [pscustomobject]@{
-                Label=$taskName; Detail="$taskPath  |  $cmd"; Selected=($state -eq 'Ready' -or $state -eq 'Running')
+                Label=$taskName
+                Detail="$taskPath  |  $cmd  |  Last: $lastText ($resultText)  |  Next: $nextText  |  $state"
+                Selected=($state -eq 'Ready' -or $state -eq 'Running')
                 Name=$taskName; Command=$cmd; Location=$taskPath; Source='task-scheduler'
+                LastRun=$lastRun; NextRun=$nextRun; LastResult=$lastResult; State=$state
             }
         }
     } catch { Write-GuiLog "Scheduled task scan failed: $($_.Exception.Message)" "ERR" }

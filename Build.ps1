@@ -142,6 +142,25 @@ $output = foreach ($part in $parts) {
     Get-Content -Path $path -Encoding UTF8
 }
 
+# Version is injected here, not edited in the sources: the release workflow computes it from the
+# tag it just created, and a local build takes the newest v* tag in the repo. Without this, every
+# local build kept saying 4.0.0 while the released exe was newer, so the update checker offered an
+# update on every launch.
+$version = [string]$env:SETTDASH_VERSION
+if ($version -notmatch '^\d+\.\d+\.\d+$') {
+    $version = ""
+    try {
+        $tag = git tag --sort=-v:refname 2>$null | Where-Object { $_ -match '^v\d+\.\d+\.\d+$' } | Select-Object -First 1
+        if ($tag) { $version = $tag.TrimStart('v') }
+    } catch { }
+}
+if ($version -match '^\d+\.\d+\.\d+$') {
+    $output = $output -replace 'Dashboard v\d+\.\d+\.\d+', "Dashboard v$version"
+    $output = $output -replace '(?m)^\$Script:AppVersion = "\d+\.\d+\.\d+"', "`$Script:AppVersion = `"$version`""
+} else {
+    Write-Host "No version tag found (git unavailable or shallow clone) - keeping the source version." -ForegroundColor DarkGray
+}
+
 $outFile = Join-Path $root "SETTDash.ps1"
 $output | Set-Content -Path $outFile -Encoding UTF8
 

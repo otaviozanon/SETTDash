@@ -14,6 +14,11 @@
 # Clear-GuiLog are shadowed inside the runspace by versions that append to a thread-safe queue,
 # which the UI thread replays - a control may only be touched by the thread that created it.
 
+# Jobs still running, so Clear-GuiContent can cancel them when the page that started them is torn
+# down. Otherwise a scan keeps working (and its OnDone keeps writing into detached controls) after
+# the user navigates away.
+$Script:ActiveGuiJobs = New-Object System.Collections.ArrayList
+
 # Resolves the transitive function closure of $Names and returns it as PowerShell source text.
 # Throws (before any work starts) when a name cannot be resolved, so a job never dies halfway
 # through a cleanup because a helper was missing.
@@ -116,11 +121,16 @@ function Set-NavStatus { param([string]$Name, [bool]$Applied) [void]$Script:BgNa
         OnDone     = $OnDone
     }
     $state.Handle = $shell.BeginInvoke()
+    [void]$Script:ActiveGuiJobs.Add($state)
     if ($Button) { $Button.Content = "Cancel" }
 
     $timer = New-Object System.Windows.Threading.DispatcherTimer
     $timer.Interval = [TimeSpan]::FromMilliseconds(150)
     $timer.Tag = $state
+
+    # Captured before GetNewClosure(): inside a closure $Script: points at the closure's own empty
+    # scope, so a direct $Script:ActiveGuiJobs there is $null.
+    $activeJobs = $Script:ActiveGuiJobs
 
     $tick = {
         param($s, $e)
@@ -134,6 +144,7 @@ function Set-NavStatus { param([string]$Name, [bool]$Applied) [void]$Script:BgNa
 
         $st.Timer.Stop()
         $st.Done = $true
+        [void]$activeJobs.Remove($st)
         if ($st.Button) { $st.Button.Content = $st.ButtonText }
         $result = $null; $errorText = ""
         try {
@@ -172,8 +183,16 @@ function Stop-GuiBackgroundJob {
     try { if ($State.Shell) { $State.Shell.Dispose() } } catch { }
     try { if ($State.Runspace) { $State.Runspace.Dispose() } } catch { }
     if ($State.Button) { $State.Button.Content = $State.ButtonText }
+    [void]$Script:ActiveGuiJobs.Remove($State)
     Set-GuiProgress 0
     Write-GuiLog "$($State.Name) cancelled" "WARN"
+}
+
+# Cancels every job still running. Used by Clear-GuiContent: navigating away from a page must not
+# leave its scan running against controls that no longer exist.
+function Stop-AllGuiBackgroundJobs {
+    if (-not (Get-Variable -Name ActiveGuiJobs -Scope Script -ErrorAction SilentlyContinue)) { return }
+    foreach ($state in @($Script:ActiveGuiJobs)) { Stop-GuiBackgroundJob -State $state }
 }
 
 # Button that runs $Work in the background (scan, Full Cleanup, ...). First click starts it;

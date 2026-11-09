@@ -57,7 +57,7 @@ function Show-PageClean {
     $Script:CleanSystemItems = @()
     $Script:pnlCleanSystemList = New-Object System.Windows.Controls.StackPanel
     $Script:CleanSystemBox = New-CleanListContainer $Script:pnlCleanSystemList
-    Add-GuiCard "System Cleaner" "Scan and remove temp files, caches, logs, Windows Update cache, Delivery Optimization, prefetch, memory dumps and more." {
+    Add-GuiCard "System Cleaner" "Scan and remove temp files, caches, logs, Windows Update cache, Delivery Optimization, prefetch, memory dumps and more. Selected files are permanently deleted, not moved to the Recycle Bin." {
         param($p)
         $p.AddChild((New-CleanSearchBox "Search category..."))
         $p.Children[0].Tag.Add_TextChanged({
@@ -94,7 +94,7 @@ function Show-PageClean {
             }
         } -Style "DangerButtonStyle" -ConfirmCheck {
             Show-GuiConfirm -Title "Full Cleanup" -Icon "&#xE74D;" `
-                -Message "This removes temp files, browser caches, logs, prefetch, Windows Update cache, memory dumps and empties the Recycle Bin. Running apps keep their files locked - those are reported, not deleted. Continue?" `
+                -Message "This permanently deletes temp files, browser caches, logs, prefetch, Windows Update cache and memory dumps, and empties the Recycle Bin (nothing goes to the Recycle Bin first). Running apps keep their files locked - those are reported, not deleted. Continue?" `
                 -ConfirmText "Run Full Cleanup"
         }
     } "&#xE74D;" -WrapButtons -CollapseTarget $Script:CleanSystemBox -TargetPanel $panelSystem
