@@ -84,10 +84,12 @@ function Show-PageNetwork {
     $panelOptimizer = New-Object System.Windows.Controls.StackPanel
     Add-GuiCard "Network Optimizer" "Apply or revert network adapter tweaks for Ethernet and Wi-Fi to improve throughput and reduce latency." {
         param($p)
-        Add-GuiBtn $p "Optimize Ethernet" "ActionButtonStyle" { Invoke-NetworkOptimize "Ethernet" }
-        Add-GuiBtn $p "Optimize Wi-Fi" "ActionButtonStyle" { Invoke-NetworkOptimize "WiFi" }
-        Add-GuiBtn $p "Revert Ethernet" "RevertButtonStyle" { Invoke-NetworkRestoreDefaults "Ethernet" }
-        Add-GuiBtn $p "Revert Wi-Fi" "RevertButtonStyle" { Invoke-NetworkRestoreDefaults "WiFi" }
+        # Adapter tweaks take seconds per NIC; run them in background so the button reads "Cancel".
+        $done = { Set-GuiProgress 0 }
+        Add-GuiBackgroundBtn $p "Optimize Ethernet" { Invoke-NetworkOptimize "Ethernet" } @('Invoke-NetworkOptimize') $done
+        Add-GuiBackgroundBtn $p "Optimize Wi-Fi" { Invoke-NetworkOptimize "WiFi" } @('Invoke-NetworkOptimize') $done
+        Add-GuiBackgroundBtn $p "Revert Ethernet" { Invoke-NetworkRestoreDefaults "Ethernet" } @('Invoke-NetworkRestoreDefaults') $done -Style "RevertButtonStyle"
+        Add-GuiBackgroundBtn $p "Revert Wi-Fi" { Invoke-NetworkRestoreDefaults "WiFi" } @('Invoke-NetworkRestoreDefaults') $done -Style "RevertButtonStyle"
     } "&#xE839;" -WrapButtons -TargetPanel $panelOptimizer
     $panelOptimizer.Visibility = "Collapsed"
     $pnlContent.AddChild($panelOptimizer)

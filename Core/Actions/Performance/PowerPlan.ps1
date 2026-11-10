@@ -5,9 +5,8 @@
 # Used by: Performance ("Apply Power Plan"); also called internally by All ("OPTIMIZE ALL")
 function Invoke-PowerApply {
     Set-GuiProgress 10 "Looking for SETT power plan..."
-    Extract-EmbeddedPrograms
-    $powFile = Join-Path (Join-Path $Script:TempDir "Programs") "settPowerPlan.pow"
-    if (Test-Path $powFile) {
+    $powFile = Get-EmbeddedProgramPath "settPowerPlan.pow"
+    if ($powFile) {
         Set-GuiProgress 30 "Importing custom power plan..."
         $result = powercfg -import $powFile 2>&1
         $match = $result | Select-String -Pattern '([\w-]{36})'

@@ -28,24 +28,16 @@ $Script:Vortice3DLibraryOrder = @(
     "Vortice.Direct3D11.dll"
 )
 
-# Extracts (once) and loads the Vortice/SharpGen DLL chain required for real Direct3D11 GPU
-# rendering. Safe to call multiple times (no-op after the first success/failure).
+# Extracts (once per running version) and loads the Vortice/SharpGen DLL chain required for real
+# Direct3D11 GPU rendering. Safe to call multiple times (no-op after the first success/failure).
 function Initialize-Vortice3D {
     if ($Script:Vortice3DAvailable) { return $true }
     if ($Script:Vortice3DInitFailed) { return $false }
     try {
-        $libDir = Join-Path $Script:TempDir "Libraries"
-        if (-not (Test-Path $libDir)) { New-Item -Path $libDir -ItemType Directory -Force | Out-Null }
+        $libDir = Join-Path (Get-EmbeddedRuntimeDir) "Libraries"
         foreach ($key in $Script:Vortice3DLibraryOrder) {
             $outPath = Join-Path $libDir $key
-            if (-not (Test-Path $outPath)) {
-                $bytes = [Convert]::FromBase64String($Script:EmbeddedLibraries[$key])
-                $ms = New-Object System.IO.MemoryStream(,$bytes)
-                $gs = New-Object System.IO.Compression.GZipStream($ms, [System.IO.Compression.CompressionMode]::Decompress)
-                $fs = New-Object System.IO.FileStream($outPath, [System.IO.FileMode]::Create)
-                $gs.CopyTo($fs)
-                $fs.Close(); $gs.Close(); $ms.Close()
-            }
+            [void](Save-EmbeddedFile -Path $outPath -Bytes (Expand-EmbeddedBlob $Script:EmbeddedLibraries[$key]))
             Add-Type -Path $outPath -ErrorAction Stop
         }
         $Script:Vortice3DAvailable = $true
@@ -57,25 +49,17 @@ function Initialize-Vortice3D {
     }
 }
 
-# Used by: Show-PageYourPCSensors. Extracts the embedded DLLs to $Script:TempDir\Libraries (once),
-# loads them via Add-Type and opens a LibreHardwareMonitor.Hardware.Computer instance with the same
+# Used by: Show-PageYourPCSensors. Extracts the embedded DLLs to <runtime>\v<version>\Libraries
+# (verified against the blob), loads them via Add-Type and opens a LibreHardwareMonitor.Hardware.Computer instance with the same
 # flags SensorMonitor.cs uses. Safe to call multiple times (no-op after the first success/failure).
 function Initialize-LibreHardwareMonitor {
     if ($Script:LHMAvailable) { return $true }
     if ($Script:LHMInitFailed) { return $false }
     try {
-        $libDir = Join-Path $Script:TempDir "Libraries"
-        if (-not (Test-Path $libDir)) { New-Item -Path $libDir -ItemType Directory -Force | Out-Null }
+        $libDir = Join-Path (Get-EmbeddedRuntimeDir) "Libraries"
         foreach ($key in @("HidSharp.dll", "LibreHardwareMonitorLib.dll")) {
             $outPath = Join-Path $libDir $key
-            if (-not (Test-Path $outPath)) {
-                $bytes = [Convert]::FromBase64String($Script:EmbeddedLibraries[$key])
-                $ms = New-Object System.IO.MemoryStream(,$bytes)
-                $gs = New-Object System.IO.Compression.GZipStream($ms, [System.IO.Compression.CompressionMode]::Decompress)
-                $fs = New-Object System.IO.FileStream($outPath, [System.IO.FileMode]::Create)
-                $gs.CopyTo($fs)
-                $fs.Close(); $gs.Close(); $ms.Close()
-            }
+            [void](Save-EmbeddedFile -Path $outPath -Bytes (Expand-EmbeddedBlob $Script:EmbeddedLibraries[$key]))
             Add-Type -Path $outPath -ErrorAction Stop
         }
         $computer = New-Object -TypeName "LibreHardwareMonitor.Hardware.Computer"

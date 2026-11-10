@@ -4,18 +4,16 @@
 # Used by: Utilities ("MSI Util v3", "O&O AppBuster", "Autoruns", "sPowers")
 function Invoke-LaunchApp {
     param([string]$ExeName, [string]$Label)
-    $path = Join-Path $Script:TempDir "Programs\$ExeName"
-    if (-not (Test-Path $path)) { Extract-EmbeddedPrograms }
-    if (Test-Path $path) { Start-Process $path; Write-GuiLog "$Label launched" "OK" }
+    $path = Get-EmbeddedProgramPath $ExeName
+    if ($path) { Start-Process $path; Write-GuiLog "$Label launched" "OK" }
     else { Write-GuiLog "$ExeName not found" "ERR" }
 }
 
 # Used by: Utilities ("vibranceGUI", "TimerResolution")
 function Invoke-LaunchToDesktop {
     param([string]$ExeName, [string]$Label)
-    $src = Join-Path $Script:TempDir "Programs\$ExeName"
-    if (-not (Test-Path $src)) { Extract-EmbeddedPrograms }
-    if (-not (Test-Path $src)) { Write-GuiLog "$ExeName not found" "ERR"; return }
+    $src = Get-EmbeddedProgramPath $ExeName
+    if (-not $src) { Write-GuiLog "$ExeName not found" "ERR"; return }
     $desktop = [Environment]::GetFolderPath("Desktop")
     $dest = Join-Path $desktop $ExeName
     try {

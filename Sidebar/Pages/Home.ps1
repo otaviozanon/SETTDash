@@ -161,7 +161,10 @@ function Show-PageHome {
     $safetyBtnPanel = New-Object System.Windows.Controls.StackPanel
     $safetyBtnPanel.Orientation = "Horizontal"
     $safetyBtnPanel.VerticalAlignment = "Center"
-    [void](Add-GuiBtn $safetyBtnPanel "Create Restore Point" "ActionButtonStyle" { Invoke-RestorePoint })
+    # Checkpoint-Computer can take 30s+: runs in a background job so the button reads "Cancel".
+    [void](Add-GuiBackgroundBtn $safetyBtnPanel "Create Restore Point" { Invoke-RestorePoint } @('Invoke-RestorePoint') {
+        Set-GuiProgress 0
+    })
     [System.Windows.Controls.Grid]::SetColumn($safetyBtnPanel, 3)
     $safetyRow.AddChild($safetyBtnPanel)
     $safetyBorder.Child = $safetyRow

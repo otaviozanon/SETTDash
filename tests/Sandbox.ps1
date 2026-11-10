@@ -656,9 +656,13 @@ $Script:AppDir = $Global:SandboxRepoRoot
 $Script:CurrentTheme = "Default"
 $Script:TempDir = Join-Path $sandboxToolsDir "sandbox-runtime"
 if (-not (Test-Path -LiteralPath $Script:TempDir)) { [void](Microsoft.PowerShell.Management\New-Item -ItemType Directory -Path $Script:TempDir -Force) }
-# Extract-EmbeddedPrograms writes into <TempDir>\Programs and does not create the folder itself.
-$sandboxProgramsDir = Join-Path $Script:TempDir "Programs"
-if (-not (Test-Path -LiteralPath $sandboxProgramsDir)) { [void](Microsoft.PowerShell.Management\New-Item -ItemType Directory -Path $sandboxProgramsDir -Force) }
+# Embedded files are written to <TempDir>\v<version>\Programs|Libraries|Fonts. Get-EmbeddedRuntimeDir
+# creates those folders itself, but New-Item is shadowed in here, so pre-create them explicitly.
+$sandboxRuntimeDir = Join-Path $Script:TempDir ("v" + $Script:AppVersion)
+foreach ($sandboxSubDir in @("Programs", "Libraries", "Fonts")) {
+    $sandboxDirPath = Join-Path $sandboxRuntimeDir $sandboxSubDir
+    if (-not (Test-Path -LiteralPath $sandboxDirPath)) { [void](Microsoft.PowerShell.Management\New-Item -ItemType Directory -Path $sandboxDirPath -Force) }
+}
 $Window = $Global:SandboxWindow
 $txtLog = $null
 $btnLogCopy = $null

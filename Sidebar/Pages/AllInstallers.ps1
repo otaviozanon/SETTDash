@@ -506,5 +506,14 @@ function Show-PageAllInstallers {
     $tb.Add_TextChanged({ param($s,$e) Invoke-AllFilter $s })
 
     # --- Install handler ---
-    $btnInstall.Add_Click({ param($s,$e) Invoke-AllInstallSelected })
+    # The whole batch runs in one job: Invoke-InstallWingetApp installs inline inside a worker, so
+    # winget still runs one app at a time and the window is not blocked for the whole batch.
+    $btnInstall.Add_Click({ param($s,$e)
+        [void](Start-GuiBackgroundJob -Work {
+            $global:AllAppsData = $BatchApps
+            $global:AllSelectedSet = $BatchIds
+            Invoke-AllInstallSelected
+        } -Functions @('Invoke-AllInstallSelected') -Name "Install selected" `
+          -Arguments @{ BatchApps = $global:AllAppsData; BatchIds = $global:AllSelectedSet })
+    })
 }

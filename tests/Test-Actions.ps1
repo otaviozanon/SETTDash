@@ -131,7 +131,8 @@ Assert-True ($appFunctions.Count -ge 200) "The command census found the app's ow
 # Direct .NET calls bypass every cmdlet shadow, so they get their own pinned list. Each entry is a
 # reviewed exception; a new one fails the suite.
 $dotNetWriteAllowList = @(
-    'Cards.ps1|WriteAllText'   # Export-GuiSystemReport writes the HTML into $env:TEMP, which the sandbox redirects
+    'Cards.ps1|WriteAllText'                  # Export-GuiSystemReport writes the HTML into $env:TEMP, which the sandbox redirects
+    'EmbeddedProgramsCore.ps1|WriteAllBytes'  # embedded binaries/fonts/DLLs are decoded into the versioned runtime folder
 )
 $dotNetWrites = @()
 foreach ($file in $sourceFiles) {
@@ -235,6 +236,10 @@ $sweepFixtures = @{
     'Remove-StartupItem'     = @{ Item = $sweepStartupItem }
     'Set-StartupItemEnabled' = @{ Item = $sweepStartupItem }
     'Remove-ScheduledTaskItem'  = @{ Item = $sweepStartupItem }
+    # These need a real embedded program name: an empty one is not in $Script:EmbeddedPrograms and
+    # would be reported as "not found" instead of exercising the launch path.
+    'Invoke-LaunchApp'       = @{ ExeName = 'DnsJumper.exe'; Label = 'DnsJumper' }
+    'Invoke-LaunchToDesktop' = @{ ExeName = 'vibranceGUI.exe'; Label = 'vibranceGUI' }
     'Set-ScheduledTaskEnabled'  = @{ Item = $sweepStartupItem }
 }
 

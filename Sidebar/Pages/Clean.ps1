@@ -132,11 +132,17 @@ function Show-PageClean {
                 -Message "This removes the $($selected.Count) selected registry entries. A .reg backup of every key is saved to %LOCALAPPDATA%\SETTDash\Backups\Registry before the change. Continue?" `
                 -ConfirmText "Fix Entries"
             if (-not $ok) { return }
-            Invoke-RegistryCleanerFix -Items $selected
-            # Rescan so fixed entries disappear without a manual Scan.
-            Update-CleanChecklist $Script:pnlCleanRegistryList { Get-RegistryCleanerItems } {
-                param($items) $Script:CleanRegistryItems = @($items)
-            } @('Get-RegistryCleanerItems') "No registry issues found." "plain"
+            # Each fix runs reg.exe export + delete; doing it on the UI thread froze the window for
+            # every selected entry. OnDone re-scans so fixed entries disappear without a manual Scan.
+            [void](Start-GuiBackgroundJob -Work { Invoke-RegistryCleanerFix -Items $FixItems } `
+                -Functions @('Invoke-RegistryCleanerFix') -Name "Registry fix" `
+                -Arguments @{ FixItems = $selected } -OnDone {
+                    param($result)
+                    Set-GuiProgress 100
+                    Update-CleanChecklist $Script:pnlCleanRegistryList { Get-RegistryCleanerItems } {
+                        param($items) $Script:CleanRegistryItems = @($items)
+                    } @('Get-RegistryCleanerItems') "No registry issues found." "plain"
+                })
         }
     } "&#xE90F;" -WrapButtons -CollapseTarget $Script:CleanRegistryBox -TargetPanel $panelRegistry
     $panelRegistry.AddChild($Script:CleanRegistryBox)

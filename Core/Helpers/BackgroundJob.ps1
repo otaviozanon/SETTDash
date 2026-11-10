@@ -60,7 +60,10 @@ function Start-GuiBackgroundJob {
         [string[]]$Functions,
         [scriptblock]$OnDone = $null,
         $Button = $null,
-        [string]$Name = "Background job"
+        [string]$Name = "Background job",
+        # Values the worker needs but that are not $Script: variables (a page's local selection
+        # list, a resolved exe path). They are injected as script-scope variables in the runspace.
+        [hashtable]$Arguments = @{}
     )
 
     $bundle = Get-GuiFunctionBundle -Names $Functions
@@ -79,9 +82,13 @@ function Start-GuiBackgroundJob {
 
     $logQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[object]'
     $navQueue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[object]'
+    foreach ($k in $Arguments.Keys) { $vars[[string]$k] = $Arguments[$k] }
     $vars['BgLogQueue'] = $logQueue
     $vars['BgNavQueue'] = $navQueue
     $vars['BgProgress'] = @{ Value = 0 }
+    # Lets a helper that normally backgrounds itself (Invoke-InstallWingetApp) run inline when it is
+    # already inside a job - a nested job would escape the batch and run installs in parallel.
+    $vars['BgWorker'] = $true
 
     $scriptText = "param(`$ScriptValues)`n"
     $scriptText += "foreach (`$k in `$ScriptValues.Keys) { Set-Variable -Name `$k -Value `$ScriptValues[`$k] -Scope Script }`n"

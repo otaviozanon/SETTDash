@@ -1,6 +1,6 @@
 ﻿#region EMBEDDED MONOSPACE FONT
 # JetBrains Mono TTFs are embedded (base64 + GZip) directly in this script,
-# extracted to %LOCALAPPDATA%\SETTDash\runtime\Fonts at runtime, and loaded via FontFamily URI.
+# extracted to %LOCALAPPDATA%\SETTDash\runtime\v<version>\Fonts at runtime, and loaded via FontFamily URI.
 # No external Fonts folder or font installation is required.
 $Script:EmbeddedFonts = @{}
 $Script:EmbeddedFonts['JetBrainsMono-Regular.ttf'] = @'
@@ -12,20 +12,11 @@ H4sIAAAAAAAEAMy9B3xUxdf/P3NnZlNoCUlogWV3bzYJkCAQOgFCCqH3klAkoYNURUUUxK6ogIDYERUV
 
 $Script:MonoFontFamily = New-Object System.Windows.Media.FontFamily("Consolas")
 try {
-    $fontsDir = Join-Path $Script:TempDir "Fonts"
-    if (-not (Test-Path $fontsDir)) { New-Item -Path $fontsDir -ItemType Directory -Force | Out-Null }
+    $fontsDir = Join-Path (Get-EmbeddedRuntimeDir) "Fonts"
     foreach ($key in $Script:EmbeddedFonts.Keys) {
-        $outPath = Join-Path $fontsDir $key
-        if (-not (Test-Path $outPath)) {
-            try {
-                $bytes = [Convert]::FromBase64String($Script:EmbeddedFonts[$key])
-                $ms = New-Object System.IO.MemoryStream(,$bytes)
-                $gs = New-Object System.IO.Compression.GZipStream($ms, [System.IO.Compression.CompressionMode]::Decompress)
-                $fs = New-Object System.IO.FileStream($outPath, [System.IO.FileMode]::Create)
-                $gs.CopyTo($fs)
-                $fs.Close(); $gs.Close(); $ms.Close()
-            } catch { }
-        }
+        try {
+            [void](Save-EmbeddedFile -Path (Join-Path $fontsDir $key) -Bytes (Expand-EmbeddedBlob $Script:EmbeddedFonts[$key]))
+        } catch { }
     }
     $fontFile = Join-Path $fontsDir "JetBrainsMono-Regular.ttf"
     if (Test-Path $fontFile) {

@@ -40,47 +40,14 @@ Grab `SETTDash.exe` from the [latest release](https://github.com/otaviozanon/SET
 
 ## Data locations
 
-| What | Where |
-| --- | --- |
-| Extracted embedded tools/font/libs | `%LOCALAPPDATA%\SETTDash\runtime` |
-| Settings | `%APPDATA%\SETTDash\settings.json` |
-| Registry backups | `%LOCALAPPDATA%\SETTDash\Backups\Registry` |
-| Error reports | `%LOCALAPPDATA%\SETTDash\logs` |
+| What                               | Where                                                                   |
+| ---------------------------------- | ----------------------------------------------------------------------- |
+| Extracted embedded tools/font/libs | `%LOCALAPPDATA%\SETTDash\runtime\v<version>\{Programs,Libraries,Fonts}` |
+| Settings                           | `%APPDATA%\SETTDash\settings.json`                                      |
+| Registry backups                   | `%LOCALAPPDATA%\SETTDash\Backups\Registry`                              |
+| Error reports                      | `%LOCALAPPDATA%\SETTDash\logs`                                          |
 
 Nothing is written under `%TEMP%`: the app cleans that folder while it is still running.
-
-## Build from source
-
-The repository is modular; `Build.ps1` concatenates the sources into `SETTDash.ps1` in the correct dependency order. Never edit `SETTDash.ps1` directly - it is generated and ignored by git.
-
-```powershell
-.\Build.ps1
-
-Import-Module ps2exe
-Invoke-ps2exe -inputFile SETTDash.ps1 -outputFile SETTDash.exe -iconFile SETTDash.ico `
-    -noConsole -requireAdmin -x64 -title "SETTDash" `
-    -description "All-in-one Windows optimization & tweaking dashboard" `
-    -product "SETTDash" -company "otaviozanon"
-Remove-Item SETTDash.ps1
-```
-
-`Build.ps1` injects the version into the generated script. It uses `$env:SETTDASH_VERSION` when set (the release workflow does this), otherwise the newest `v*` git tag. `Main\Window.ps1` only holds the fallback value.
-
-## Tests
-
-```powershell
-# Everything except the compiled smoke test
-.\tests\Run-All.ps1 -SkipSmoke
-
-# Full gate: build, static guards, benchmark export, strict mode, settings,
-# action sandbox and the compiled smoke sweep (needs ps2exe)
-.\tests\Run-All.ps1
-
-# Same suite elevated (one UAC prompt) for admin-only code paths
-.\tests\Run-All.ps1 -Elevated
-```
-
-Every suite runs in its own PowerShell process. The action sandbox intercepts every mutating cmdlet, so the tests never touch the real registry, services or files.
 
 ## Project layout
 
@@ -99,7 +66,6 @@ tests/                 one test suite per concern, orchestrated by Run-All.ps1
 
 - No kernel driver is bundled. CPU/GPU sensors use the signed PawnIO driver, installed separately through winget only if the user accepts the prompt.
 - The app does not collect telemetry.
-- `SETTDASH_NO_UPDATE_CHECK=1` disables the startup update check (used by the smoke test).
 - The updater verifies the SHA-256 digest published by GitHub when it is available and refuses a download that does not match.
 
 ## Contributing

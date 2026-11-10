@@ -347,14 +347,22 @@ function Invoke-SelfUpdate {
             Set-Content -Path $markerPath -Value $NewVersion -Encoding UTF8 -Force
 
             $currentPid = [System.Diagnostics.Process]::GetCurrentProcess().Id
-            $updaterPath = Join-Path $tempDir "SETTDash_Updater.ps1"
             $logPath = Join-Path $env:LOCALAPPDATA "SETTDash\Backups\updater.log"
+            # The helper is passed to powershell.exe as -EncodedCommand instead of being written to a
+            # .ps1 next to the downloaded exe: a script file in a user-writable folder could be edited
+            # between the write and the launch, and then it would run with the old process gone.
             $updaterScript = @"
 `$ErrorActionPreference = 'Stop'
 New-Item -Path '$(Split-Path $logPath -Parent)' -ItemType Directory -Force | Out-Null
 function Write-UpdLog { param(`$m) try { Add-Content -Path '$logPath' -Value ((Get-Date -Format 'HH:mm:ss') + ' ' + `$m) -Encoding UTF8 } catch {} }
 try { Wait-Process -Id $currentPid -Timeout 15 } catch {}
 Start-Sleep -Seconds 1
+# Re-verify the downloaded file right before it replaces the running exe.
+if ('$expectedHash') {
+  try { `$srcHash = (Get-FileHash -Path '$newExe' -Algorithm SHA256 -ErrorAction Stop).Hash.ToLower() }
+  catch { Write-UpdLog ('SOURCE HASH ERROR: ' + `$_.Exception.Message); exit 1 }
+  if (`$srcHash -ne '$expectedHash') { Write-UpdLog 'SOURCE HASH MISMATCH - aborting'; exit 1 }
+}
 # Copy with retries: the just-exited exe can remain briefly locked by AV/indexer.
 `$copied = `$false
 for (`$i = 0; `$i -lt 20 -and -not `$copied; `$i++) {
@@ -371,14 +379,18 @@ if (-not `$copied) {
   Write-UpdLog 'COPY FAILED - aborting relaunch'
   exit 1
 }
+# What landed on disk is what gets relaunched: a partial copy would break the app silently.
+if ('$expectedHash') {
+  try { `$dstHash = (Get-FileHash -Path '$currentExe' -Algorithm SHA256 -ErrorAction Stop).Hash.ToLower() }
+  catch { Write-UpdLog ('DEST HASH ERROR: ' + `$_.Exception.Message); exit 1 }
+  if (`$dstHash -ne '$expectedHash') { Write-UpdLog 'DEST HASH MISMATCH - aborting relaunch'; exit 1 }
+}
 try { Start-Process -FilePath '$currentExe'; Write-UpdLog 'RELAUNCH OK' } catch { Write-UpdLog ('RELAUNCH FAILED: ' + `$_.Exception.Message) }
 Remove-Item -Path '$newExe' -Force -ErrorAction SilentlyContinue
-Remove-Item -Path '$updaterPath' -Force -ErrorAction SilentlyContinue
 "@
-            Set-Content -Path $updaterPath -Value $updaterScript -Encoding UTF8
-
+            $encodedUpdater = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($updaterScript))
             Start-Process -FilePath "powershell.exe" -ArgumentList @(
-                "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", "`"$updaterPath`""
+                "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-EncodedCommand", $encodedUpdater
             )
         } catch {
             Write-GuiLog "Self-update failed: $_" "ERR"
