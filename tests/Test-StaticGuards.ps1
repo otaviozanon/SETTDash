@@ -34,6 +34,23 @@ $sourceFiles = @(
 Assert-True ($sourceFiles.Count -gt 50) "Source tree was found" "$($sourceFiles.Count) .ps1 files under $RepoRoot"
 
 # ---------------------------------------------------------------------------------------------
+# 0. Every source file is part of the build
+# ---------------------------------------------------------------------------------------------
+# Build.ps1 concatenates an explicit list. A file that exists but is not listed is silently left
+# out of SETTDash.ps1 (how Localization.ps1 shipped without the T() it defines), and the tests
+# that load the build order never see it.
+
+Write-Section "Test-StaticGuards: build input"
+
+$buildText = Get-Content -Path (Join-Path $RepoRoot "Build.ps1") -Raw -Encoding UTF8
+$buildParts = @([regex]::Matches($buildText, '"(?:Core|Main|Sidebar)\\[^"]+\.ps1"') | ForEach-Object { $_.Value.Trim('"') })
+$missingFromBuild = @($sourceFiles |
+    ForEach-Object { $_.FullName.Substring($RepoRoot.Length + 1) } |
+    Where-Object { $_ -match '^(Core|Main|Sidebar)\\' -and $buildParts -notcontains $_ })
+Assert-Equal 0 $missingFromBuild.Count "Every source file is part of the build"
+foreach ($m in $missingFromBuild) { Write-Host "         $m" -ForegroundColor DarkYellow }
+
+# ---------------------------------------------------------------------------------------------
 # 1. Collection-returning functions must be wrapped in @() before .Count / .Length / [0]
 # ---------------------------------------------------------------------------------------------
 

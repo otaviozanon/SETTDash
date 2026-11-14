@@ -51,6 +51,7 @@ $parts = @(
     "Core\Helpers\DxgiInterop.ps1",
     "Core\Helpers\AdlInterop.ps1",
     "Core\Helpers\Theme.ps1",
+    "Core\Helpers\Localization.ps1",
     "Core\Helpers\Log.ps1",
     "Core\Helpers\Navigation.ps1",
     "Core\Helpers\Metrics.ps1",
