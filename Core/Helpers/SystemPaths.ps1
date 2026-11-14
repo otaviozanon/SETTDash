@@ -40,7 +40,7 @@ function Start-SystemTool {
     )
     if (-not $Label) { $Label = $Name }
     $path = Get-SystemToolPath $Name
-    if (-not $path) { Write-GuiLog "$Label not available: $Name was not found" "WARN"; return $false }
+    if (-not $path) { Write-GuiLog ((T "{0} not available: {1} was not found") -f $Label, $Name) "WARN"; return $false }
     try {
         $startArgs = @{ FilePath = $path; ErrorAction = 'Stop' }
         # @(...) guards the caller passing $null instead of an array: $null.Count throws.
@@ -48,10 +48,10 @@ function Start-SystemTool {
         if ($WindowStyle) { $startArgs['WindowStyle'] = $WindowStyle }
         if ($Wait) { $startArgs['Wait'] = $true }
         Start-Process @startArgs
-        Write-GuiLog "$Label opened" "OK"
+        Write-GuiLog ((T "{0} opened") -f $Label) "OK"
         return $true
     } catch {
-        Write-GuiLog "$Label failed to open: $($_.Exception.Message)" "ERR"
+        Write-GuiLog ((T "{0} failed to open: {1}") -f $Label, $_.Exception.Message) "ERR"
         return $false
     }
 }

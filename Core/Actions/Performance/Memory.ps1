@@ -5,7 +5,7 @@
 # Used by: Performance ("Apply Memory Optimizations"); also called internally by All ("OPTIMIZE ALL")
 function Invoke-MemoryApply {
     Set-GuiProgress 10 "Applying memory optimizations..."
-    Write-GuiLog "Applying memory optimizations..." "STEP"
+    Write-GuiLog (T "Applying memory optimizations...") "STEP"
     $reg = @(
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"; Name="ClearPageFileAtShutdown"; Value=0; Type="DWORD"}
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"; Name="LargeSystemCache"; Value=1; Type="DWORD"}
@@ -20,8 +20,8 @@ function Invoke-MemoryApply {
     Invoke-RegistryApply -Settings $reg -Label "Memory Management"
     try {
         Disable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue
-        Write-GuiLog "Memory compression disabled" "OK"
-    } catch { Write-GuiLog "Memory compression was already disabled" "INFO" }
+        Write-GuiLog (T "Memory compression disabled") "OK"
+    } catch { Write-GuiLog (T "Memory compression was already disabled") "INFO" }
     try {
         $ramGB = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB)
         $svcVal = switch ($ramGB) {
@@ -36,16 +36,16 @@ function Invoke-MemoryApply {
             default     { 128*1024*1024 }
         }
         Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control" -Name "SvcHostSplitThresholdInKB" -Value $svcVal -Type DWord -Force -ErrorAction SilentlyContinue
-        Write-GuiLog "SvcHost configured for ${ramGB}GB RAM" "OK"
+        Write-GuiLog ((T "SvcHost configured for {0}GB RAM") -f $ramGB) "OK"
     } catch { }
-    Write-GuiLog "Memory optimization completed" "OK"
+    Write-GuiLog (T "Memory optimization completed") "OK"
     Set-GuiProgress 0
 }
 
 # Used by: Performance ("Revert Memory")
 function Invoke-MemoryRevert {
     Set-GuiProgress 10 "Reverting memory optimizations..."
-    Write-GuiLog "Reverting memory optimizations..." "STEP"
+    Write-GuiLog (T "Reverting memory optimizations...") "STEP"
     $revert = @(
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"; Name="LargeSystemCache"; Value=0; Type="DWORD"}
     )
@@ -58,17 +58,17 @@ function Invoke-MemoryRevert {
         Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "EnergyDriverPolicyVideo" -Force -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "TimerBResolution" -Force -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "TimerMinResolution" -Force -ErrorAction SilentlyContinue
-        Write-GuiLog "Memory management keys reverted" "OK"
+        Write-GuiLog (T "Memory management keys reverted") "OK"
     } catch { }
     try {
         Enable-MMAgent -MemoryCompression -ErrorAction SilentlyContinue
-        Write-GuiLog "Memory compression re-enabled" "OK"
-    } catch { Write-GuiLog "Memory compression was already enabled" "INFO" }
+        Write-GuiLog (T "Memory compression re-enabled") "OK"
+    } catch { Write-GuiLog (T "Memory compression was already enabled") "INFO" }
     try {
         Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control" -Name "SvcHostSplitThresholdInKB" -Force -ErrorAction SilentlyContinue
-        Write-GuiLog "SvcHostSplitThresholdInKB reset" "OK"
-    } catch { Write-GuiLog "SvcHostSplitThresholdInKB was not set" "INFO" }
-    Write-GuiLog "Memory optimizations reverted" "OK"
+        Write-GuiLog (T "SvcHostSplitThresholdInKB reset") "OK"
+    } catch { Write-GuiLog (T "SvcHostSplitThresholdInKB was not set") "INFO" }
+    Write-GuiLog (T "Memory optimizations reverted") "OK"
     Set-NavStatus "Memory" $false
     Set-GuiProgress 0
 }

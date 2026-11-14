@@ -9,7 +9,7 @@
 #   4. Scheduled items - Task Scheduler.
 function Show-PageStartup {
     Clear-GuiContent
-    Add-GuiPageTitle "Startup"
+    Add-GuiPageTitle (T "Startup")
 
     # ---- Category pills (icon + label, same style as YourPCSensors) ----
     $pillsCard = New-Object System.Windows.Controls.Border
@@ -61,26 +61,26 @@ function Show-PageStartup {
     $Script:StartupRegBox = New-CleanListContainer $Script:pnlStartupReg
     $Script:StartupRegToggle = { param($it) return Set-StartupItemEnabled -Item $it -Enabled (-not [bool]$it.Selected) }
     $panelReg = New-Object System.Windows.Controls.StackPanel
-    Add-GuiCard "Registry (MSConfig)" "Run/RunOnce entries from HKCU and HKLM, with the same enabled/disabled state Task Manager's Startup tab uses (StartupApproved). Disabling keeps the command in place, exactly like msconfig/Task Manager." {
+    Add-GuiCard (T "Registry (MSConfig)") (T "Run/RunOnce entries from HKCU and HKLM, with the same enabled/disabled state Task Manager's Startup tab uses (StartupApproved). Disabling keeps the command in place, exactly like msconfig/Task Manager.") {
         param($p)
-        $p.AddChild((New-CleanSearchBox "Search name or path..."))
+        $p.AddChild((New-CleanSearchBox (T "Search name or path...")))
         $p.Children[0].Tag.Add_TextChanged({
             param($s, $e)
             Set-CleanFilter $Script:pnlStartupReg $s.Text
         })
-        Add-GuiBackgroundBtn $p "Scan" { Get-StartupRegistryItems } @('Get-StartupRegistryItems') {
+        Add-GuiBackgroundBtn $p (T "Scan") { Get-StartupRegistryItems } @('Get-StartupRegistryItems') {
             param($items)
             $Script:StartupRegItems = @($items)
             Set-GuiProgress 90
-            Set-CleanChecklist $Script:pnlStartupReg $Script:StartupRegItems "No registry startup entries found." "toggle" $Script:StartupRegToggle
+            Set-CleanChecklist $Script:pnlStartupReg $Script:StartupRegItems (T "No registry startup entries found.") "toggle" $Script:StartupRegToggle
             Set-GuiProgress 0
-            Write-GuiLog "Registry startup: $($Script:StartupRegItems.Count) entries found" "OK"
+            Write-GuiLog ((T "Registry startup: {0} entries found") -f $Script:StartupRegItems.Count) "OK"
         } -Style "RevertButtonStyle"
     } "&#xE74C;" -WrapButtons -TargetPanel $panelReg
     $panelReg.AddChild($Script:StartupRegBox)
     $panelReg.Visibility = "Collapsed"
     $pnlContent.AddChild($panelReg)
-    $categoryPanels["Registry"] = $panelReg
+    $categoryPanels[(T "Registry")] = $panelReg
 
     # --- Category 2: Startup folder ---
     $Script:StartupFolderItems = @()
@@ -88,40 +88,40 @@ function Show-PageStartup {
     $Script:StartupFolderBox = New-CleanListContainer $Script:pnlStartupFolder
     $Script:StartupFolderToggle = { param($it) return Set-StartupItemEnabled -Item $it -Enabled (-not [bool]$it.Selected) }
     $panelFolder = New-Object System.Windows.Controls.StackPanel
-    Add-GuiCard "Startup Folder" "Shortcuts in the current user's and the all-users Startup folders. Enable/disable uses the same state Task Manager writes (StartupApproved), so the shortcut stays on disk; Delete removes it." {
+    Add-GuiCard (T "Startup Folder") (T "Shortcuts in the current user's and the all-users Startup folders. Enable/disable uses the same state Task Manager writes (StartupApproved), so the shortcut stays on disk; Delete removes it.") {
         param($p)
-        $p.AddChild((New-CleanSearchBox "Search name or path..."))
+        $p.AddChild((New-CleanSearchBox (T "Search name or path...")))
         $p.Children[0].Tag.Add_TextChanged({
             param($s, $e)
             Set-CleanFilter $Script:pnlStartupFolder $s.Text
         })
-        Add-GuiBackgroundBtn $p "Scan" { Get-StartupFolderItems } @('Get-StartupFolderItems') {
+        Add-GuiBackgroundBtn $p (T "Scan") { Get-StartupFolderItems } @('Get-StartupFolderItems') {
             param($items)
             $Script:StartupFolderItems = @($items)
             Set-GuiProgress 90
-            Set-CleanChecklist $Script:pnlStartupFolder $Script:StartupFolderItems "No Startup folder shortcuts found." "toggle" $Script:StartupFolderToggle
+            Set-CleanChecklist $Script:pnlStartupFolder $Script:StartupFolderItems (T "No Startup folder shortcuts found.") "toggle" $Script:StartupFolderToggle
             Set-GuiProgress 0
-            Write-GuiLog "Startup folder: $($Script:StartupFolderItems.Count) shortcuts found" "OK"
+            Write-GuiLog ((T "Startup folder: {0} shortcuts found") -f $Script:StartupFolderItems.Count) "OK"
         } -Style "RevertButtonStyle"
         Add-CleanSelectAllBtn $p $Script:pnlStartupFolder "ActionButtonStyle" { $Script:StartupFolderItems } | Out-Null
-        Add-GuiBtn $p "Delete Selected" "ActionButtonStyle" {
+        Add-GuiBtn $p (T "Delete Selected") "ActionButtonStyle" {
             $selected = @(Get-CleanSelected $Script:StartupFolderItems)
-            if ($selected.Count -eq 0) { Write-GuiLog "No items selected." "WARN"; return }
-            $ok = Show-GuiConfirm -Title "Delete Startup Shortcuts" -Icon "&#xE74D;" `
-                -Message "This permanently deletes the $($selected.Count) selected shortcut(s) from the Startup folder. Continue?" `
-                -ConfirmText "Delete"
+            if ($selected.Count -eq 0) { Write-GuiLog (T "No items selected.") "WARN"; return }
+            $ok = Show-GuiConfirm -Title (T "Delete Startup Shortcuts") -Icon "&#xE74D;" `
+                -Message "$(T 'This permanently deletes the') $($selected.Count) $(T 'selected shortcut(s) from the Startup folder. Continue?')" `
+                -ConfirmText (T "Delete")
             if (-not $ok) { return }
             foreach ($it in $selected) { Remove-StartupItem -Item $it }
-            Write-GuiLog "Deleted $($selected.Count) Startup folder item(s)." "OK"
+            Write-GuiLog ((T "Deleted {0} Startup folder item(s).") -f $selected.Count) "OK"
             Update-CleanChecklist $Script:pnlStartupFolder { Get-StartupFolderItems } {
                 param($items) $Script:StartupFolderItems = @($items)
-            } @('Get-StartupFolderItems') "No Startup folder shortcuts found." "toggle" $Script:StartupFolderToggle
+            } @('Get-StartupFolderItems') (T "No Startup folder shortcuts found.") "toggle" $Script:StartupFolderToggle
         }
     } "&#xE7B5;" -WrapButtons -TargetPanel $panelFolder
     $panelFolder.AddChild($Script:StartupFolderBox)
     $panelFolder.Visibility = "Collapsed"
     $pnlContent.AddChild($panelFolder)
-    $categoryPanels["Startup Folder"] = $panelFolder
+    $categoryPanels[(T "Startup Folder")] = $panelFolder
 
     # --- Category 3: Services (MSConfig's Services tab) ---
     $Script:ServiceItems = @()
@@ -134,24 +134,24 @@ function Show-PageStartup {
         param($items)
         $Script:ServiceItems = @($items)
         Set-GuiProgress 90
-        Set-CleanChecklist $Script:pnlServices $Script:ServiceItems "No services found." "toggle" $Script:ServicesToggle
+        Set-CleanChecklist $Script:pnlServices $Script:ServiceItems (T "No services found.") "toggle" $Script:ServicesToggle
         Set-GuiProgress 0
-        Write-GuiLog "Services: $($Script:ServiceItems.Count) services found" "OK"
+        Write-GuiLog ((T "Services: {0} services found") -f $Script:ServiceItems.Count) "OK"
     }
     $Script:RescanServices = {
         Start-GuiBackgroundJob -Work $Script:ServicesScanWork -Functions @('Get-ServiceItems') `
             -Name "Services scan" -OnDone $Script:ServicesScanDone | Out-Null
     }
     $panelServices = New-Object System.Windows.Controls.StackPanel
-    Add-GuiCard "Services" "Windows services, the same list MSConfig's Services tab shows. Microsoft's own services are hidden by default. Disable sets the start type to Disabled; Enable restores Automatic/Manual. Disabling does not stop a service that is already running." {
+    Add-GuiCard (T "Services") (T "Windows services, the same list MSConfig's Services tab shows. Microsoft's own services are hidden by default. Disable sets the start type to Disabled; Enable restores Automatic/Manual. Disabling does not stop a service that is already running.") {
         param($p)
-        $p.AddChild((New-CleanSearchBox "Search service name or path..."))
+        $p.AddChild((New-CleanSearchBox (T "Search service name or path...")))
         $p.Children[0].Tag.Add_TextChanged({
             param($s, $e)
             Set-CleanFilter $Script:pnlServices $s.Text
         })
         $chkMs = New-Object System.Windows.Controls.CheckBox
-        $chkMs.Content = "Show Microsoft services"
+        $chkMs.Content = (T "Show Microsoft services")
         $chkMs.FontSize = 12
         $chkMs.VerticalAlignment = "Center"
         $chkMs.Margin = "0,0,10,0"
@@ -165,12 +165,12 @@ function Show-PageStartup {
             & $Script:RescanServices
         })
         $p.AddChild($chkMs)
-        Add-GuiBackgroundBtn $p "Scan" $Script:ServicesScanWork @('Get-ServiceItems') $Script:ServicesScanDone -Style "RevertButtonStyle"
+        Add-GuiBackgroundBtn $p (T "Scan") $Script:ServicesScanWork @('Get-ServiceItems') $Script:ServicesScanDone -Style "RevertButtonStyle"
     } "&#xE7F4;" -WrapButtons -TargetPanel $panelServices
     $panelServices.AddChild($Script:ServicesBox)
     $panelServices.Visibility = "Collapsed"
     $pnlContent.AddChild($panelServices)
-    $categoryPanels["Services"] = $panelServices
+    $categoryPanels[(T "Services")] = $panelServices
 
     # --- Category 4: Scheduled items (Task Scheduler, Microsoft's tasks excluded) ---
     $Script:SchedItems = @()
@@ -182,46 +182,46 @@ function Show-PageStartup {
         param($items)
         $Script:SchedItems = @($items)
         Set-GuiProgress 90
-        Set-CleanChecklist $Script:pnlSchedItems $Script:SchedItems "No scheduled items found." "toggle" $Script:SchedItemsToggle
+        Set-CleanChecklist $Script:pnlSchedItems $Script:SchedItems (T "No scheduled items found.") "toggle" $Script:SchedItemsToggle
         Set-GuiProgress 0
-        Write-GuiLog "Scheduled items: $($Script:SchedItems.Count) tasks found" "OK"
+        Write-GuiLog ((T "Scheduled items: {0} tasks found") -f $Script:SchedItems.Count) "OK"
     }
     $Script:RescanSchedItems = {
         Start-GuiBackgroundJob -Work $Script:SchedScanWork -Functions @('Get-ScheduledTaskItems') `
             -Name "Scheduled items scan" -OnDone $Script:SchedScanDone | Out-Null
     }
     $panelSched = New-Object System.Windows.Controls.StackPanel
-    Add-GuiCard "Scheduled Items" "Task Scheduler items that do not belong to Windows. Microsoft's own tasks are never listed, so they cannot be disabled or deleted here. Enable, disable or delete the selected third-party tasks." {
+    Add-GuiCard (T "Scheduled Items") (T "Task Scheduler items that do not belong to Windows. Microsoft's own tasks are never listed, so they cannot be disabled or deleted here. Enable, disable or delete the selected third-party tasks.") {
         param($p)
-        $p.AddChild((New-CleanSearchBox "Search name or path..."))
+        $p.AddChild((New-CleanSearchBox (T "Search name or path...")))
         $p.Children[0].Tag.Add_TextChanged({
             param($s, $e)
             Set-CleanFilter $Script:pnlSchedItems $s.Text
         })
-        Add-GuiBackgroundBtn $p "Scan" $Script:SchedScanWork @('Get-ScheduledTaskItems') $Script:SchedScanDone -Style "RevertButtonStyle"
-        Add-GuiBtn $p "Delete Selected" "ActionButtonStyle" {
+        Add-GuiBackgroundBtn $p (T "Scan") $Script:SchedScanWork @('Get-ScheduledTaskItems') $Script:SchedScanDone -Style "RevertButtonStyle"
+        Add-GuiBtn $p (T "Delete Selected") "ActionButtonStyle" {
             $selected = @(Get-CleanSelected $Script:SchedItems)
-            if ($selected.Count -eq 0) { Write-GuiLog "No items selected." "WARN"; return }
-            $ok = Show-GuiConfirm -Title "Delete Scheduled Items" -Icon "&#xE74D;" `
-                -Message "This permanently deletes the $($selected.Count) selected scheduled task(s). Continue?" `
-                -ConfirmText "Delete"
+            if ($selected.Count -eq 0) { Write-GuiLog (T "No items selected.") "WARN"; return }
+            $ok = Show-GuiConfirm -Title (T "Delete Scheduled Items") -Icon "&#xE74D;" `
+                -Message "$(T 'This permanently deletes the') $($selected.Count) $(T 'selected scheduled task(s). Continue?')" `
+                -ConfirmText (T "Delete")
             if (-not $ok) { return }
             foreach ($it in $selected) { Remove-ScheduledTaskItem -Item $it }
-            Write-GuiLog "Deleted $($selected.Count) scheduled item(s)." "OK"
+            Write-GuiLog ((T "Deleted {0} scheduled item(s).") -f $selected.Count) "OK"
             & $Script:RescanSchedItems
         }
     } "&#xE823;" -WrapButtons -TargetPanel $panelSched
     $panelSched.AddChild($Script:SchedItemsBox)
     $panelSched.Visibility = "Collapsed"
     $pnlContent.AddChild($panelSched)
-    $categoryPanels["Scheduled Items"] = $panelSched
+    $categoryPanels[(T "Scheduled Items")] = $panelSched
 
     # ---- Wire pills + default selection ----
     $pillDefs = @(
-        @{ Icon = "&#xE74C;"; Label = "Registry" },
-        @{ Icon = "&#xE7B5;"; Label = "Startup Folder" },
-        @{ Icon = "&#xE823;"; Label = "Scheduled Items" },
-        @{ Icon = "&#xE7F4;"; Label = "Services" }
+        @{ Icon = "&#xE74C;"; Label = (T "Registry") },
+        @{ Icon = "&#xE7B5;"; Label = (T "Startup Folder") },
+        @{ Icon = "&#xE823;"; Label = (T "Scheduled Items") },
+        @{ Icon = "&#xE7F4;"; Label = (T "Services") }
     )
     foreach ($def in $pillDefs) {
         $btn = New-StartupPill $def.Icon $def.Label
@@ -229,5 +229,5 @@ function Show-PageStartup {
         $pillButtons[$def.Label] = $btn
         $pillsStack.AddChild($btn)
     }
-    & $setActiveCategory "Registry"
+    & $setActiveCategory (T "Registry")
 }

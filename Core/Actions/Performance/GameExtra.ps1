@@ -5,7 +5,7 @@
 # Used by: Performance ("Apply Extra Optimizations"); also called internally by All ("OPTIMIZE ALL")
 function Invoke-GameExtraApply {
     Set-GuiProgress 10 "Applying extra game optimizations..."
-    Write-GuiLog "Applying extra game optimizations..." "STEP"
+    Write-GuiLog (T "Applying extra game optimizations...") "STEP"
     $extra = @(
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl"; Name="Win32PrioritySeparation"; Type="DWORD"; Value=38}
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl"; Name="ConvertibleSlateMode"; Type="DWORD"; Value=0}
@@ -28,14 +28,14 @@ function Invoke-GameExtraApply {
         @{Path="HKLM:\SOFTWARE\WOW6432Node\Microsoft\Direct3D"; Name="MaxPreRenderedFrames"; Type="DWORD"; Value=1}
     )
     Invoke-RegistryApply -Settings $extra -Label "Extra Game Optimizations"
-    Write-GuiLog "Extra game optimizations applied" "OK"
+    Write-GuiLog (T "Extra game optimizations applied") "OK"
     Set-GuiProgress 0
 }
 
 # Used by: Performance ("Revert Extra")
 function Invoke-GameExtraRevert {
     Set-GuiProgress 10 "Reverting extra game optimizations..."
-    Write-GuiLog "Reverting extra game optimizations..." "STEP"
+    Write-GuiLog (T "Reverting extra game optimizations...") "STEP"
     $revert = @(
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl"; Name="Win32PrioritySeparation"; Value=2; Type="DWORD"}
     )
@@ -43,31 +43,31 @@ function Invoke-GameExtraRevert {
     try {
         Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "ConvertibleSlateMode" -Force -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "IRQ16Priority" -Force -ErrorAction SilentlyContinue
-        Write-GuiLog "PriorityControl extras removed" "OK"
+        Write-GuiLog (T "PriorityControl extras removed") "OK"
     } catch { }
     try {
         Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -Name "SystemResponsiveness" -Force -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -Name "LazyModeTimeout" -Force -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -Name "NetworkThrottlingIndex" -Force -ErrorAction SilentlyContinue
-        Write-GuiLog "Multimedia SystemProfile reverted" "OK"
+        Write-GuiLog (T "Multimedia SystemProfile reverted") "OK"
     } catch { }
     try {
         $gamesPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games"
-        if (Test-Path $gamesPath) { Remove-Item -Path $gamesPath -Recurse -Force -ErrorAction SilentlyContinue; Write-GuiLog "Games task entries removed" "OK" }
+        if (Test-Path $gamesPath) { Remove-Item -Path $gamesPath -Recurse -Force -ErrorAction SilentlyContinue; Write-GuiLog (T "Games task entries removed") "OK" }
     } catch { }
     try {
         Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" -Name "GlobalTimerResolutionRequests" -Force -ErrorAction SilentlyContinue
-        Write-GuiLog "GlobalTimerResolutionRequests removed" "OK"
+        Write-GuiLog (T "GlobalTimerResolutionRequests removed") "OK"
     } catch { }
     try {
         Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" -Name "TdrDelay" -Force -ErrorAction SilentlyContinue
-        Write-GuiLog "TdrDelay removed" "OK"
+        Write-GuiLog (T "TdrDelay removed") "OK"
     } catch { }
     try {
         Remove-ItemProperty -Path "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Direct3D" -Name "MaxPreRenderedFrames" -Force -ErrorAction SilentlyContinue
-        Write-GuiLog "MaxPreRenderedFrames removed" "OK"
+        Write-GuiLog (T "MaxPreRenderedFrames removed") "OK"
     } catch { }
-    Write-GuiLog "Extra game optimizations reverted" "OK"
+    Write-GuiLog (T "Extra game optimizations reverted") "OK"
     Set-GuiProgress 0
 }
 #endregion

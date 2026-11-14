@@ -693,6 +693,10 @@ foreach ($part in $sandboxParts) {
     [void]$sandboxLoaded.Add($part)
 }
 
+# Main\Startup.ps1 (which normally sets this from the saved preference) is not part of the sandbox
+# load order, so every T()-calling function would otherwise throw under Set-StrictMode.
+$Script:CurrentLanguage = "EN"
+
 # ------------------------------------------------------------------------------------------------
 # Overrides that must win over whatever was just loaded
 # ------------------------------------------------------------------------------------------------

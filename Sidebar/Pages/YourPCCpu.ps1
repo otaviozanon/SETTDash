@@ -8,38 +8,38 @@ function Get-CpuInfoRows {
     $arch = if ($archMap.ContainsKey([int]$Cpu.Architecture)) { $archMap[[int]$Cpu.Architecture] } else { "Unknown" }
 
     $rows = @(
-        @{IsHeader=$true; Label="IDENTIFICATION"}
-        @{Label="Name"; Value=$(if ($Cpu.Name) { $Cpu.Name.Trim() } else { "N/A" })}
-        @{Label="Manufacturer"; Value=$(if ($Cpu.Manufacturer) { $Cpu.Manufacturer } else { "N/A" })}
-        @{Label="Socket"; Value=$(if ($Cpu.SocketDesignation) { $Cpu.SocketDesignation } else { "N/A" })}
-        @{Label="Architecture"; Value=$arch}
-        @{Label="Processor ID"; Value=$(if ($Cpu.ProcessorId) { $Cpu.ProcessorId } else { "N/A" })}
-        @{Label="Address Width / Data Width"; Value="$($Cpu.AddressWidth)-bit / $($Cpu.DataWidth)-bit"}
+        @{IsHeader=$true; Label=(T "IDENTIFICATION")}
+        @{Label=(T "Name"); Value=$(if ($Cpu.Name) { $Cpu.Name.Trim() } else { T "N/A" })}
+        @{Label=(T "Manufacturer"); Value=$(if ($Cpu.Manufacturer) { $Cpu.Manufacturer } else { T "N/A" })}
+        @{Label=(T "Socket"); Value=$(if ($Cpu.SocketDesignation) { $Cpu.SocketDesignation } else { T "N/A" })}
+        @{Label=(T "Architecture"); Value=$arch}
+        @{Label=(T "Processor ID"); Value=$(if ($Cpu.ProcessorId) { $Cpu.ProcessorId } else { T "N/A" })}
+        @{Label=(T "Address Width / Data Width"); Value="$($Cpu.AddressWidth)-bit / $($Cpu.DataWidth)-bit"}
 
-        @{IsHeader=$true; Label="CORES AND THREADS"}
-        @{Label="Physical Cores"; Value=$(if ($Cpu.NumberOfCores) { $Cpu.NumberOfCores } else { "N/A" })}
-        @{Label="Logical Processors (Threads)"; Value=$(if ($Cpu.NumberOfLogicalProcessors) { $Cpu.NumberOfLogicalProcessors } else { "N/A" })}
-        @{Label="Number of Enabled Cores"; Value=$(if ($Cpu.NumberOfEnabledCore) { $Cpu.NumberOfEnabledCore } else { "N/A" })}
+        @{IsHeader=$true; Label=(T "CORES AND THREADS")}
+        @{Label=(T "Physical Cores"); Value=$(if ($Cpu.NumberOfCores) { $Cpu.NumberOfCores } else { T "N/A" })}
+        @{Label=(T "Logical Processors (Threads)"); Value=$(if ($Cpu.NumberOfLogicalProcessors) { $Cpu.NumberOfLogicalProcessors } else { T "N/A" })}
+        @{Label=(T "Number of Enabled Cores"); Value=$(if ($Cpu.NumberOfEnabledCore) { $Cpu.NumberOfEnabledCore } else { T "N/A" })}
 
-        @{IsHeader=$true; Label="CLOCKS"}
-        @{Label="Max Clock Speed"; Value=$(if ($Cpu.MaxClockSpeed) { "$($Cpu.MaxClockSpeed) MHz" } else { "N/A" })}
-        @{Label="Current Clock Speed"; Value=$(if ($Cpu.CurrentClockSpeed) { "$($Cpu.CurrentClockSpeed) MHz" } else { "N/A" })}
-        @{Label="External Clock (Bus Speed)"; Value=$(if ($Cpu.ExtClock -and $Cpu.ExtClock -gt 0) { "$($Cpu.ExtClock) MHz" } else { "N/A" })}
+        @{IsHeader=$true; Label=(T "CLOCKS")}
+        @{Label=(T "Max Clock Speed"); Value=$(if ($Cpu.MaxClockSpeed) { "$($Cpu.MaxClockSpeed) MHz" } else { T "N/A" })}
+        @{Label=(T "Current Clock Speed"); Value=$(if ($Cpu.CurrentClockSpeed) { "$($Cpu.CurrentClockSpeed) MHz" } else { T "N/A" })}
+        @{Label=(T "External Clock (Bus Speed)"); Value=$(if ($Cpu.ExtClock -and $Cpu.ExtClock -gt 0) { "$($Cpu.ExtClock) MHz" } else { T "N/A" })}
 
-        @{IsHeader=$true; Label="CACHE"}
-        @{Label="L1 Cache"; Value=$(if ($CacheSizesKB.L1 -gt 0) { "$($CacheSizesKB.L1) KB" } else { "N/A" })}
-        @{Label="L2 Cache"; Value=$(if ($Cpu.L2CacheSize -gt 0) { "$($Cpu.L2CacheSize) KB" } else { "N/A" })}
-        @{Label="L3 Cache"; Value=$(if ($Cpu.L3CacheSize -gt 0) { "$($Cpu.L3CacheSize) KB" } else { "N/A" })}
+        @{IsHeader=$true; Label=(T "CACHE")}
+        @{Label=(T "L1 Cache"); Value=$(if ($CacheSizesKB.L1 -gt 0) { "$($CacheSizesKB.L1) KB" } else { T "N/A" })}
+        @{Label=(T "L2 Cache"); Value=$(if ($Cpu.L2CacheSize -gt 0) { "$($Cpu.L2CacheSize) KB" } else { T "N/A" })}
+        @{Label=(T "L3 Cache"); Value=$(if ($Cpu.L3CacheSize -gt 0) { "$($Cpu.L3CacheSize) KB" } else { T "N/A" })}
 
-        @{IsHeader=$true; Label="FEATURES"}
-        @{Label="Virtualization Firmware Enabled"; Value=$(if ($null -ne $Cpu.VirtualizationFirmwareEnabled) { $Cpu.VirtualizationFirmwareEnabled } else { "N/A" })}
-        @{Label="VM Monitor Mode Extensions"; Value=$(if ($null -ne $Cpu.VMMonitorModeExtensions) { $Cpu.VMMonitorModeExtensions } else { "N/A" })}
-        @{Label="Current Voltage"; Value=$(if ($Cpu.CurrentVoltage) { "$([math]::Round($Cpu.CurrentVoltage / 10, 1)) V" } else { "N/A" })}
+        @{IsHeader=$true; Label=(T "FEATURES")}
+        @{Label=(T "Virtualization Firmware Enabled"); Value=$(if ($null -ne $Cpu.VirtualizationFirmwareEnabled) { $Cpu.VirtualizationFirmwareEnabled } else { T "N/A" })}
+        @{Label=(T "VM Monitor Mode Extensions"); Value=$(if ($null -ne $Cpu.VMMonitorModeExtensions) { $Cpu.VMMonitorModeExtensions } else { T "N/A" })}
+        @{Label=(T "Current Voltage"); Value=$(if ($Cpu.CurrentVoltage) { "$([math]::Round($Cpu.CurrentVoltage / 10, 1)) V" } else { T "N/A" })}
 
-        @{IsHeader=$true; Label="DEVICE"}
-        @{Label="Device ID"; Value=$(if ($Cpu.DeviceID) { $Cpu.DeviceID } else { "N/A" })}
-        @{Label="Status"; Value=$(if ($Cpu.Status) { $Cpu.Status } else { "N/A" })}
-        @{Label="Load (At Read Time)"; Value=$(if ($null -ne $Cpu.LoadPercentage) { "$($Cpu.LoadPercentage) %" } else { "N/A" })}
+        @{IsHeader=$true; Label=(T "DEVICE")}
+        @{Label=(T "Device ID"); Value=$(if ($Cpu.DeviceID) { $Cpu.DeviceID } else { T "N/A" })}
+        @{Label=(T "Status"); Value=$(if ($Cpu.Status) { $Cpu.Status } else { T "N/A" })}
+        @{Label=(T "Load (At Read Time)"); Value=$(if ($null -ne $Cpu.LoadPercentage) { "$($Cpu.LoadPercentage) %" } else { T "N/A" })}
     )
     return $rows
 }
@@ -53,8 +53,8 @@ function Get-CpuSensorRows {
     param([string]$CpuName, [bool]$LhmOk, [bool]$PawnIOInstalled)
     $rows = @()
     if (-not $LhmOk) {
-        $msg = if ($PawnIOInstalled) { "Unavailable (if you just installed PawnIO, restart your PC)." } else { "Unavailable: install PawnIO / enable LibreHardwareMonitor for live CPU sensors." }
-        $rows += @{Label="Status"; Value=$msg}
+        $msg = if ($PawnIOInstalled) { T "Unavailable (if you just installed PawnIO, restart your PC)." } else { T "Unavailable: install PawnIO / enable LibreHardwareMonitor for live CPU sensors." }
+        $rows += @{Label=(T "Status"); Value=$msg}
         return $rows
     }
     $matched = @(Get-LHMSensorRows | Where-Object {
@@ -66,7 +66,7 @@ function Get-CpuSensorRows {
         $matched = @(Get-LHMSensorRows | Where-Object { $_.HardwareType -eq "Cpu" })
     }
     if (-not $matched -or $matched.Count -eq 0) {
-        $rows += @{Label="Status"; Value="No live sensors exposed by LibreHardwareMonitor for this CPU."}
+        $rows += @{Label=(T "Status"); Value=(T "No live sensors exposed by LibreHardwareMonitor for this CPU.")}
         return $rows
     }
     foreach ($group in ($matched | Group-Object SensorType)) {
@@ -86,7 +86,7 @@ function Get-CpuSensorRows {
 # SensorMonitor rows filtered by HardwareType.Cpu for live data), same layout pattern as Show-PageYourPCGpu.
 function Show-PageYourPCCpu {
     Clear-GuiContent
-    Add-GuiPageTitle "CPU"
+    Add-GuiPageTitle (T "CPU")
 
     $pawnIOInstalled = Test-PawnIOInstalled
     $lhmOk = Initialize-LibreHardwareMonitor
@@ -96,7 +96,7 @@ function Show-PageYourPCCpu {
     } catch { $cpus = @() }
 
     if (-not $cpus -or $cpus.Count -eq 0) {
-        Add-GuiInfoCard -Title "CPU" -Icon "&#xE950;" -Rows @(@{Label="Status"; Value="No CPU detected."})
+        Add-GuiInfoCard -Title (T "CPU") -Icon "&#xE950;" -Rows @(@{Label=(T "Status"); Value=(T "No CPU detected.")})
         return
     }
 
@@ -111,7 +111,7 @@ function Show-PageYourPCCpu {
     # is currently active on each card.
     $searchState = @{ Search = "" }
     $cardRenderers = New-Object System.Collections.Generic.List[object]
-    $searchBox = Add-GuiPageSearchHeader -SubtitleText "Detected processors" -Placeholder "Search spec or sensor..."
+    $searchBox = Add-GuiPageSearchHeader -SubtitleText (T "Detected processors") -Placeholder (T "Search spec or sensor...")
     $searchBox.Add_TextChanged({
         $searchState.Search = $searchBox.Text.Trim()
         foreach ($r in $cardRenderers) { & $r }
@@ -162,7 +162,7 @@ function Show-PageYourPCCpu {
 
         foreach ($tabName in @("Info", "Sensors")) {
             $btn = New-Object System.Windows.Controls.Button
-            $btn.Content = $tabName
+            $btn.Content = T $tabName
             $btn.Style = $normalStyle
             $btn.Add_Click({ & $renderTab $tabName }.GetNewClosure())
             $tabButtons[$tabName] = $btn

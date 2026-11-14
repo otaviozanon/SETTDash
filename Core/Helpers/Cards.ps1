@@ -328,7 +328,7 @@ function Add-GuiBtn {
             # Surfaces the full exception (message + where it happened) straight into the on-screen
             # log instead of letting it bubble up to ps2exe's generic crash MessageBox - lets errors
             # be diagnosed from the in-app log alone instead of requiring a repro/trace session.
-            Write-GuiLog "Action failed: $($_.Exception.Message)" "ERR"
+            Write-GuiLog ((T "Action failed: {0}") -f $_.Exception.Message) "ERR"
             if ($_.ScriptStackTrace) { Write-GuiLog $_.ScriptStackTrace "ERR" }
             # Full exception (with the .NET stack) goes to the error report as well, so the report
             # survives even if the UI thread dies right after this handler.
@@ -584,7 +584,7 @@ function Add-GuiBenchDurationPicker {
     param($Panel, [int[]]$Options = @(30, 60, 120), [int]$Default = 30)
     $state = [PSCustomObject]@{ Seconds = $Default }
     $label = New-Object System.Windows.Controls.TextBlock
-    $label.Text = "Test length:"
+    $label.Text = T "Test length:"
     $label.FontSize = 12
     $label.VerticalAlignment = "Center"
     $label.Margin = "0,0,8,0"
@@ -681,7 +681,7 @@ function Add-GuiBenchChart {
     $wrap.Margin = "0,0,0,8"
     $outer = New-Object System.Windows.Controls.StackPanel
     $caption = New-Object System.Windows.Controls.TextBlock
-    $caption.Text = "Samples over time" + $(if ($Unit) { " ($Unit)" } else { "" })
+    $caption.Text = (T "Samples over time") + $(if ($Unit) { " ($Unit)" } else { "" })
     $caption.FontSize = 11
     $caption.Margin = "0,0,0,6"
     $caption.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextSecondary")
@@ -751,7 +751,7 @@ function New-GuiLiveChart {
     $statsText.FontSize = 11
     $statsText.FontFamily = $Script:MonoFontFamily
     $statsText.VerticalAlignment = "Center"
-    $statsText.Text = "now --"
+    $statsText.Text = "$(T 'now') --"
     $statsText.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextSecondary")
     [System.Windows.Controls.Grid]::SetColumn($statsText, 1)
     $headerGrid.AddChild($statsText)
@@ -813,7 +813,7 @@ function Add-GuiLiveChartSample {
         for ($i = 0; $i -lt $Chart.Samples.Count; $i++) { $points.Add((New-Object System.Windows.Point($i, -$Chart.Samples[$i]))) }
     }
     $Chart.Line.Points = $points
-    if ($Chart.StatsText) { $Chart.StatsText.Text = "now $(Format-GuiChartStat $Value)" }
+    if ($Chart.StatsText) { $Chart.StatsText.Text = "$(T 'now') $(Format-GuiChartStat $Value)" }
     $Window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::Background)
 }
 
@@ -824,10 +824,10 @@ function Add-GuiLiveChartSample {
 function Complete-GuiLiveChart {
     param($Chart)
     if (-not $Chart) { return }
-    $Chart.Caption.Text = $(if ($Chart.Title) { "$($Chart.Title) - " } else { "" }) + "Samples over time" + $(if ($Chart.Unit) { " ($($Chart.Unit))" } else { "" })
+    $Chart.Caption.Text = $(if ($Chart.Title) { "$($Chart.Title) - " } else { "" }) + (T "Samples over time") + $(if ($Chart.Unit) { " ($($Chart.Unit))" } else { "" })
     if ($Chart.StatsText -and $Chart.Samples.Count -gt 0) {
         $avg = ($Chart.Samples | Measure-Object -Average).Average
-        $Chart.StatsText.Text = "avg $(Format-GuiChartStat $avg)"
+        $Chart.StatsText.Text = "$(T 'avg') $(Format-GuiChartStat $avg)"
     }
 }
 
@@ -893,7 +893,7 @@ function Show-GuiCategoryDetailPage {
     }
 
     $exportBtn = New-Object System.Windows.Controls.Button
-    $exportBtn.Content = "Export Report"
+    $exportBtn.Content = T "Export Report"
     $installStyle = $Window.FindResource("InstallButtonStyle")
     if ($installStyle) { $exportBtn.Style = $installStyle }
     $exportBtn.Margin = "16,0,0,0"
@@ -1014,9 +1014,9 @@ function Export-GuiSystemReport {
     try {
         $tempPath = Join-Path $env:TEMP "SETTDash_SystemReport_$(Get-Date -Format 'yyyyMMdd_HHmmss').html"
         [System.IO.File]::WriteAllText($tempPath, $html, [System.Text.Encoding]::UTF8)
-        Write-GuiLog "System report generated, opening in browser for PDF export..." "OK"
+        Write-GuiLog (T "System report generated, opening in browser for PDF export...") "OK"
         Start-Process $tempPath
     } catch {
-        Write-GuiLog "Failed to generate report: $($_.Exception.Message)" "ERROR"
+        Write-GuiLog ((T "Failed to generate report: {0}") -f $_.Exception.Message) "ERROR"
     }
 }

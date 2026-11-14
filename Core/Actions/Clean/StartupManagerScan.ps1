@@ -311,7 +311,7 @@ function Get-ServiceItems {
                 PreviousStart=$previousStart; Source='service'
             }
         }
-    } catch { Write-GuiLog "Service scan failed: $($_.Exception.Message)" "ERR" }
+    } catch { Write-GuiLog ((T "Service scan failed: {0}") -f $_.Exception.Message) "ERR" }
     Save-ServiceSignatureCache -Cache $sigCache
     return $items
 }
@@ -328,7 +328,7 @@ function Set-ServiceItemEnabled {
         Set-ItemProperty -Path $Item.Location -Name 'Start' -Value $start -Type DWord -ErrorAction Stop
         return $true
     } catch {
-        Write-GuiLog "Failed to toggle $(Get-SafeProp $Item 'Name'): $_" "ERR"
+        Write-GuiLog ((T "Failed to toggle {0}: {1}") -f (Get-SafeProp $Item 'Name'), $_) "ERR"
         return $false
     }
 }
@@ -372,7 +372,7 @@ function Get-ScheduledTaskItems {
                 LastRun=$lastRun; NextRun=$nextRun; LastResult=$lastResult; State=$state
             }
         }
-    } catch { Write-GuiLog "Scheduled task scan failed: $($_.Exception.Message)" "ERR" }
+    } catch { Write-GuiLog ((T "Scheduled task scan failed: {0}") -f $_.Exception.Message) "ERR" }
     return $items
 }
 
@@ -384,7 +384,7 @@ function Set-ScheduledTaskEnabled {
         else { Disable-ScheduledTask -TaskName $Item.Name -TaskPath $Item.Location -ErrorAction Stop | Out-Null }
         return $true
     } catch {
-        Write-GuiLog "Failed to toggle $($Item.Name): $_" "ERR"
+        Write-GuiLog ((T "Failed to toggle {0}: {1}") -f $Item.Name, $_) "ERR"
         return $false
     }
 }
@@ -396,7 +396,7 @@ function Remove-ScheduledTaskItem {
         Unregister-ScheduledTask -TaskName $Item.Name -TaskPath $Item.Location -Confirm:$false -ErrorAction Stop
         return $true
     } catch {
-        Write-GuiLog "Failed to delete $($Item.Name): $_" "ERR"
+        Write-GuiLog ((T "Failed to delete {0}: {1}") -f $Item.Name, $_) "ERR"
         return $false
     }
 }
@@ -431,7 +431,7 @@ function Set-StartupItemEnabled {
         }
         return $true
     } catch {
-        Write-GuiLog "Failed to toggle $($Item.Name): $_" "ERR"
+        Write-GuiLog ((T "Failed to toggle {0}: {1}") -f $Item.Name, $_) "ERR"
         return $false
     }
 }
@@ -454,7 +454,7 @@ function Remove-StartupItem {
         Set-StartupDisabledEntries -Entries $entries
         return $true
     } catch {
-        Write-GuiLog "Failed to delete $($Item.Name): $_" "ERR"
+        Write-GuiLog ((T "Failed to delete {0}: {1}") -f $Item.Name, $_) "ERR"
         return $false
     }
 }

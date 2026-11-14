@@ -5,7 +5,7 @@
 # Used by: SystemTweaksAll ("Disable Services")
 function Invoke-ServicesApply {
     Set-GuiProgress 10 "Configuring services..."
-    Write-GuiLog "Configuring services..." "STEP"
+    Write-GuiLog (T "Configuring services...") "STEP"
     $svc = @(
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\TapiSrv";Name="Start";Type="DWORD";Value=3}
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\FontCache3.0.0.0";Name="Start";Type="DWORD";Value=4}
@@ -112,7 +112,7 @@ function Invoke-ServicesApply {
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\XboxNetApiSvc";Name="Start";Type="DWORD";Value=4}
     )
     Invoke-RegistryApply -Settings $svc -Label "Disabling Services"
-    Write-GuiLog "$($svc.Count) services configured" "OK"
+    Write-GuiLog ((T "{0} services configured") -f $svc.Count) "OK"
     Set-NavStatus "Services" $true
     Set-GuiProgress 0
 }
@@ -120,7 +120,7 @@ function Invoke-ServicesApply {
 # Used by: SystemTweaksAll ("Revert Services")
 function Invoke-ServicesRevert {
     Set-GuiProgress 10 "Restoring services to defaults..."
-    Write-GuiLog "Restoring services to defaults..." "STEP"
+    Write-GuiLog (T "Restoring services to defaults...") "STEP"
     $svc = @(
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\TapiSrv"; Name="Start"; Type="DWORD"; Value=3}
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\FontCache3.0.0.0"; Name="Start"; Type="DWORD"; Value=3}
@@ -227,7 +227,7 @@ function Invoke-ServicesRevert {
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\XboxNetApiSvc"; Name="Start"; Type="DWORD"; Value=3}
     )
     Invoke-RegistryApply -Settings $svc -Label "Restoring Services"
-    Write-GuiLog "$($svc.Count) services restored to defaults" "OK"
+    Write-GuiLog ((T "{0} services restored to defaults") -f $svc.Count) "OK"
     Set-NavStatus "Services" $false
     Set-GuiProgress 0
 }
@@ -236,7 +236,7 @@ function Invoke-ServicesRevert {
 #region Printer
 function Enable-Printer {
     Set-GuiProgress 10 "Enabling Printer services..."
-    Write-GuiLog "Enabling Printer services..." "STEP"
+    Write-GuiLog (T "Enabling Printer services...") "STEP"
     $svc = @(
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\Spooler"; Name="Start"; Type="DWORD"; Value=2}
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\PrintNotify"; Name="Start"; Type="DWORD"; Value=3}
@@ -245,13 +245,13 @@ function Enable-Printer {
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\PrintWorkflowUserSvc"; Name="Start"; Type="DWORD"; Value=3}
     )
     Invoke-RegistryApply -Settings $svc -Label "Enabling Printer"
-    Write-GuiLog "$($svc.Count) printer services enabled (reboot required)" "OK"
+    Write-GuiLog ((T "{0} printer services enabled (reboot required)") -f $svc.Count) "OK"
     Set-GuiProgress 0
 }
 
 function Disable-Printer {
     Set-GuiProgress 10 "Disabling Printer services..."
-    Write-GuiLog "Disabling Printer services..." "STEP"
+    Write-GuiLog (T "Disabling Printer services...") "STEP"
     $svc = @(
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\Spooler"; Name="Start"; Type="DWORD"; Value=4}
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\PrintNotify"; Name="Start"; Type="DWORD"; Value=4}
@@ -260,7 +260,7 @@ function Disable-Printer {
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\PrintWorkflowUserSvc"; Name="Start"; Type="DWORD"; Value=4}
     )
     Invoke-RegistryApply -Settings $svc -Label "Disabling Printer"
-    Write-GuiLog "$($svc.Count) printer services disabled (reboot required)" "OK"
+    Write-GuiLog ((T "{0} printer services disabled (reboot required)") -f $svc.Count) "OK"
     Set-GuiProgress 0
 }
 #endregion 
@@ -268,23 +268,23 @@ function Disable-Printer {
 #region Notifications
 function Enable-Notifications {
     Set-GuiProgress 10 "Enabling Notifications service..."
-    Write-GuiLog "Enabling Notifications service..." "STEP"
+    Write-GuiLog (T "Enabling Notifications service...") "STEP"
     $svc = @(
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\WpnService"; Name="Start"; Type="DWORD"; Value=2}
     )
     Invoke-RegistryApply -Settings $svc -Label "Enabling Notifications"
-    Write-GuiLog "$($svc.Count) notification service enabled (reboot required)" "OK"
+    Write-GuiLog ((T "{0} notification service enabled (reboot required)") -f $svc.Count) "OK"
     Set-GuiProgress 0
 }
 
 function Disable-Notifications {
     Set-GuiProgress 10 "Disabling Notifications service..."
-    Write-GuiLog "Disabling Notifications service..." "STEP"
+    Write-GuiLog (T "Disabling Notifications service...") "STEP"
     $svc = @(
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\WpnService"; Name="Start"; Type="DWORD"; Value=4}
     )
     Invoke-RegistryApply -Settings $svc -Label "Disabling Notifications"
-    Write-GuiLog "$($svc.Count) notification service disabled (reboot required)" "OK"
+    Write-GuiLog ((T "{0} notification service disabled (reboot required)") -f $svc.Count) "OK"
     Set-GuiProgress 0
 }
 #endregion
@@ -292,7 +292,7 @@ function Disable-Notifications {
 #region Bluetooth
 function Enable-Bluetooth {
     Set-GuiProgress 10 "Enabling Bluetooth services..."
-    Write-GuiLog "Enabling Bluetooth services..." "STEP"
+    Write-GuiLog (T "Enabling Bluetooth services...") "STEP"
     $svc = @(
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\bthserv"; Name="Start"; Type="DWORD"; Value=3}
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\BthAvctpSvc"; Name="Start"; Type="DWORD"; Value=3}
@@ -301,13 +301,13 @@ function Enable-Bluetooth {
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\BluetoothUserService"; Name="Start"; Type="DWORD"; Value=3}
     )
     Invoke-RegistryApply -Settings $svc -Label "Enabling Bluetooth"
-    Write-GuiLog "$($svc.Count) bluetooth services enabled (reboot required)" "OK"
+    Write-GuiLog ((T "{0} bluetooth services enabled (reboot required)") -f $svc.Count) "OK"
     Set-GuiProgress 0
 }
 
 function Disable-Bluetooth {
     Set-GuiProgress 10 "Disabling Bluetooth services..."
-    Write-GuiLog "Disabling Bluetooth services..." "STEP"
+    Write-GuiLog (T "Disabling Bluetooth services...") "STEP"
     $svc = @(
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\bthserv"; Name="Start"; Type="DWORD"; Value=4}
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\BthAvctpSvc"; Name="Start"; Type="DWORD"; Value=4}
@@ -316,7 +316,7 @@ function Disable-Bluetooth {
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\BluetoothUserService"; Name="Start"; Type="DWORD"; Value=4}
     )
     Invoke-RegistryApply -Settings $svc -Label "Disabling Bluetooth"
-    Write-GuiLog "$($svc.Count) bluetooth services disabled (reboot required)" "OK"
+    Write-GuiLog ((T "{0} bluetooth services disabled (reboot required)") -f $svc.Count) "OK"
     Set-GuiProgress 0
 }
 #endregion
@@ -324,27 +324,27 @@ function Disable-Bluetooth {
 #region Enable Game Pass
 function Enable-GamePass {
     Set-GuiProgress 10 "Enabling Game Pass / Xbox services..."
-    Write-GuiLog "Enabling Game Pass / Xbox services..." "STEP"
+    Write-GuiLog (T "Enabling Game Pass / Xbox services...") "STEP"
     $svc = @(
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\XblAuthManager"; Name="Start"; Type="DWORD"; Value=3}
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\XblGameSave"; Name="Start"; Type="DWORD"; Value=3}
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\XboxNetApiSvc"; Name="Start"; Type="DWORD"; Value=3}
     )
     Invoke-RegistryApply -Settings $svc -Label "Enabling Game Pass"
-    Write-GuiLog "$($svc.Count) Game Pass services enabled (reboot required)" "OK"
+    Write-GuiLog ((T "{0} Game Pass services enabled (reboot required)") -f $svc.Count) "OK"
     Set-GuiProgress 0
 }
 
 function Disable-GamePass {
     Set-GuiProgress 10 "Disabling Game Pass / Xbox services..."
-    Write-GuiLog "Disabling Game Pass / Xbox services..." "STEP"
+    Write-GuiLog (T "Disabling Game Pass / Xbox services...") "STEP"
     $svc = @(
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\XblAuthManager"; Name="Start"; Type="DWORD"; Value=4}
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\XblGameSave"; Name="Start"; Type="DWORD"; Value=4}
         @{Path="HKLM:\SYSTEM\CurrentControlSet\Services\XboxNetApiSvc"; Name="Start"; Type="DWORD"; Value=4}
     )
     Invoke-RegistryApply -Settings $svc -Label "Disabling Game Pass"
-    Write-GuiLog "$($svc.Count) Game Pass services disabled (reboot required)" "OK"
+    Write-GuiLog ((T "{0} Game Pass services disabled (reboot required)") -f $svc.Count) "OK"
     Set-GuiProgress 0
 }
 #endregion

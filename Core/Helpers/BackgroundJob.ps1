@@ -129,7 +129,7 @@ function Set-NavStatus { param([string]$Name, [bool]$Applied) [void]$Script:BgNa
     }
     $state.Handle = $shell.BeginInvoke()
     [void]$Script:ActiveGuiJobs.Add($state)
-    if ($Button) { $Button.Content = "Cancel" }
+    if ($Button) { $Button.Content = T "Cancel" }
 
     $timer = New-Object System.Windows.Threading.DispatcherTimer
     $timer.Interval = [TimeSpan]::FromMilliseconds(150)
@@ -168,9 +168,9 @@ function Set-NavStatus { param([string]$Name, [bool]$Applied) [void]$Script:BgNa
 
         if ($errorText) {
             Set-GuiProgress 0
-            Write-GuiLog "$($st.Name) failed: $errorText" "ERR"
+            Write-GuiLog ((T "{0} failed: {1}") -f $st.Name, $errorText) "ERR"
         } elseif ($st.OnDone) {
-            try { & $st.OnDone $result } catch { Write-GuiLog "$($st.Name) completion failed: $($_.Exception.Message)" "ERR"; Set-GuiProgress 0 }
+            try { & $st.OnDone $result } catch { Write-GuiLog ((T "{0} completion failed: {1}") -f $st.Name, $_.Exception.Message) "ERR"; Set-GuiProgress 0 }
         }
     }.GetNewClosure()
     $timer.Add_Tick($tick)
@@ -192,7 +192,7 @@ function Stop-GuiBackgroundJob {
     if ($State.Button) { $State.Button.Content = $State.ButtonText }
     [void]$Script:ActiveGuiJobs.Remove($State)
     Set-GuiProgress 0
-    Write-GuiLog "$($State.Name) cancelled" "WARN"
+    Write-GuiLog ((T "{0} cancelled") -f $State.Name) "WARN"
 }
 
 # Cancels every job still running. Used by Clear-GuiContent: navigating away from a page must not

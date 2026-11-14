@@ -26,8 +26,8 @@ function Invoke-AutoStartApply {
     try {
         $target = Get-GuiAutoStartTarget
         Set-ItemProperty -Path $Script:AutoStartRunKey -Name $Script:AutoStartRunName -Value ('"' + $target + '"') -Force
-        Write-GuiLog "SETTDash will now start automatically with Windows" "OK"
-    } catch { Write-GuiLog "Failed to enable auto-start: $_" "ERR" }
+        Write-GuiLog (T "SETTDash will now start automatically with Windows") "OK"
+    } catch { Write-GuiLog ((T "Failed to enable auto-start: {0}") -f $_) "ERR" }
     Set-GuiProgress 0
 }
 
@@ -36,21 +36,21 @@ function Invoke-AutoStartRevert {
     Set-GuiProgress 50 "Disabling auto-start with Windows..."
     try {
         Remove-ItemProperty -Path $Script:AutoStartRunKey -Name $Script:AutoStartRunName -ErrorAction SilentlyContinue
-        Write-GuiLog "Auto-start with Windows disabled" "OK"
-    } catch { Write-GuiLog "Failed to disable auto-start: $_" "ERR" }
+        Write-GuiLog (T "Auto-start with Windows disabled") "OK"
+    } catch { Write-GuiLog ((T "Failed to disable auto-start: {0}") -f $_) "ERR" }
     Set-GuiProgress 0
 }
 
 # Used by: Settings ("Enable Minimize to Tray")
 function Invoke-MinimizeToTrayApply {
     Save-GuiMinimizeToTrayPref $true
-    Write-GuiLog "Closing the window now minimizes SETTDash to the system tray" "OK"
+    Write-GuiLog (T "Closing the window now minimizes SETTDash to the system tray") "OK"
 }
 
 # Used by: Settings ("Disable Minimize to Tray")
 function Invoke-MinimizeToTrayRevert {
     Save-GuiMinimizeToTrayPref $false
-    Write-GuiLog "Closing the window now exits SETTDash normally" "OK"
+    Write-GuiLog (T "Closing the window now exits SETTDash normally") "OK"
 }
 
 # Whether to check GitHub for a newer release automatically on every launch (default: on).

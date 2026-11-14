@@ -2,9 +2,10 @@
 #region STARTUP
 # ================================================
 Set-GuiTheme (Get-GuiThemePref)
+$Script:CurrentLanguage = Get-GuiLanguagePref
 
-Write-GuiLog "SETT OPTIMIZER Dashboard v4.0.0 - Ready" "INFO"
-Write-GuiLog "Select a category from the sidebar to begin" "INFO"
+Write-GuiLog (T "SETT OPTIMIZER Dashboard v4.0.0 - Ready") "INFO"
+Write-GuiLog (T "Select a category from the sidebar to begin") "INFO"
 $sysInfo = Get-SystemInfo
 
 Show-UpdateAppliedNotice
@@ -51,7 +52,7 @@ $Window.Add_Closing({
 $Window.Dispatcher.Add_UnhandledException({
     param($sender, $e)
     try {
-        Write-GuiLog "Unhandled error: $($e.Exception.Message)" "ERR"
+        Write-GuiLog ((T "Unhandled error: {0}") -f $e.Exception.Message) "ERR"
         # ScriptStackTrace names the source line inside the generated script; the .NET stack alone
         # only reports interpreter frames and cannot be traced back to a page or timer.
         if ($e.Exception.ScriptStackTrace) { Write-GuiLog $e.Exception.ScriptStackTrace "ERR" }

@@ -50,7 +50,7 @@ function Get-DiskHealthCards {
                 Letters = ""
             }
         }
-    } catch { return @([PSCustomObject]@{Title="Could not read disks"; Verdict="Unknown"; AccentColor="Brush_TextSecondary"; Rows=@(@{Label="Error"; Value="$_"})}) }
+    } catch { return @([PSCustomObject]@{Title=(T "Could not read disks"); Verdict="Unknown"; AccentColor="Brush_TextSecondary"; Rows=@(@{Label=(T "Error"); Value="$_"})}) }
 
     # Storage API: media type, overall health, reliability counters (temp/wear/hours/errors).
     try {
@@ -149,24 +149,24 @@ function Get-DiskHealthCards {
         $crit = @(); $warn = @()
         $anyData = $r.Health -ne 5 -or $null -ne $r.PredictFail -or $null -ne $r.Wear -or $null -ne $r.Temp -or $null -ne $r.PowerOnHours
 
-        if ($r.PredictFail -eq $true) { $crit += "The disk itself reports (S.M.A.R.T.) that it is likely to fail soon. Back up now." }
-        if ($r.Health -eq 2) { $crit += "Windows classifies this disk as NOT healthy." }
-        elseif ($r.Health -eq 1) { $warn += "Windows classifies this disk's health as `"warning`"." }
+        if ($r.PredictFail -eq $true) { $crit += (T "The disk itself reports (S.M.A.R.T.) that it is likely to fail soon. Back up now.") }
+        if ($r.Health -eq 2) { $crit += (T "Windows classifies this disk as NOT healthy.") }
+        elseif ($r.Health -eq 1) { $warn += (T "Windows classifies this disk's health as `"warning`".") }
 
         if ($null -ne $r.Wear) {
             $w = [double]$r.Wear
-            if ($w -ge 95) { $crit += "Wear at $([math]::Round($w))%: the SSD is at end of life. Replace it and back up now." }
-            elseif ($w -ge 80) { $warn += "Wear at $([math]::Round($w))%: the SSD has used up a large part of its lifespan. Plan a replacement." }
+            if ($w -ge 95) { $crit += "$(T 'Wear at') $([math]::Round($w))%: $(T 'the SSD is at end of life. Replace it and back up now.')" }
+            elseif ($w -ge 80) { $warn += "$(T 'Wear at') $([math]::Round($w))%: $(T 'the SSD has used up a large part of its lifespan. Plan a replacement.')" }
         }
         if ($null -ne $r.Temp) {
             $t = [double]$r.Temp
             $okMax = if ($isSsd) { 70 } else { 55 }
             $critMax = if ($isSsd) { 85 } else { 65 }
-            if ($t -ge $critMax) { $crit += "Temperature of $([math]::Round($t)) °C is too high for this disk." }
-            elseif ($t -ge $okMax) { $warn += "Temperature of $([math]::Round($t)) °C is high. Improve ventilation." }
+            if ($t -ge $critMax) { $crit += "$(T 'Temperature of') $([math]::Round($t)) °C $(T 'is too high for this disk.')" }
+            elseif ($t -ge $okMax) { $warn += "$(T 'Temperature of') $([math]::Round($t)) °C $(T 'is high. Improve ventilation.')" }
         }
         if (($r.ReadErrUncorrected -gt 0) -or ($r.WriteErrUncorrected -gt 0)) {
-            $warn += "Uncorrected errors: $([int]($r.ReadErrUncorrected)) read and $([int]($r.WriteErrUncorrected)) write."
+            $warn += "$(T 'Uncorrected errors:') $([int]($r.ReadErrUncorrected)) $(T 'read and') $([int]($r.WriteErrUncorrected)) $(T 'write.')"
         }
 
         $verdict = if ($crit.Count -gt 0) { "Critical" } elseif ($warn.Count -gt 0) { "Warning" } elseif ($anyData) { "Good" } else { "Unknown" }
@@ -174,50 +174,51 @@ function Get-DiskHealthCards {
 
         $reasons = @($crit) + @($warn)
         if ($reasons.Count -eq 0) {
-            $reasons += if ($verdict -eq "Good") { "No problems found in the available readings." } else { "This disk doesn't report health data (common on pen drives and some external HDDs)." }
+            $reasons += if ($verdict -eq "Good") { T "No problems found in the available readings." } else { T "This disk doesn't report health data (common on pen drives and some external HDDs)." }
         }
 
         $accent = switch ($verdict) { "Good" { "Brush_AccentGreen" } "Warning" { "Brush_AccentAmber" } "Critical" { "Brush_AccentRed" } default { "Brush_TextSecondary" } }
 
         $kind = if ($r.Media.Length -gt 0) { $r.Media } elseif ($isSsd) { "SSD" } else { "" }
-        $metaParts = @($kind, $r.Bus, (Format-DiskBytes $r.Size), $(if ($r.Letters.Length -gt 0) { "Drives: $($r.Letters)" } else { "" })) | Where-Object { $_ }
+        $metaParts = @($kind, $r.Bus, (Format-DiskBytes $r.Size), $(if ($r.Letters.Length -gt 0) { "$(T 'Drives:') $($r.Letters)" } else { "" })) | Where-Object { $_ }
 
+        $verdictLabel = switch ($verdict) { "Good" { T "GOOD" } "Warning" { T "WARNING" } "Critical" { T "CRITICAL" } default { T "UNKNOWN_BADGE" } }
         $rows = @()
-        $rows += @{Label="Verdict"; Value=$verdict.ToUpper(); ValueColor=$accent}
-        $rows += @{Label="Details"; Value=($metaParts -join " · ")}
-        if ($r.Serial) { $rows += @{Label="Serial"; Value=$r.Serial} }
-        $rows += @{Label="Notes"; Value=($reasons -join " ")}
-        $rows += @{IsHeader=$true; Label="METRICS"}
+        $rows += @{Label=(T "Verdict"); Value=$verdictLabel; ValueColor=$accent}
+        $rows += @{Label=(T "Details"); Value=($metaParts -join " · ")}
+        if ($r.Serial) { $rows += @{Label=(T "Serial"); Value=$r.Serial} }
+        $rows += @{Label=(T "Notes"); Value=($reasons -join " ")}
+        $rows += @{IsHeader=$true; Label=(T "METRICS")}
         if ($null -ne $r.Temp) {
             $tv = "$([math]::Round($r.Temp)) °C"
-            if ($r.TempMax -gt 0) { $tv += " (max recorded $([math]::Round($r.TempMax)))" }
-            $rows += @{Label="Temperature"; Value=$tv}
+            if ($r.TempMax -gt 0) { $tv += " ($(T 'max recorded') $([math]::Round($r.TempMax)))" }
+            $rows += @{Label=(T "Temperature"); Value=$tv}
         }
         if ($null -ne $r.Wear) {
-            $rows += @{Label="Wear"; Value="$([math]::Round($r.Wear))%"}
-            $rows += @{Label="Remaining life"; Value="$([math]::Max(0, 100 - $r.Wear))%"}
+            $rows += @{Label=(T "Wear"); Value="$([math]::Round($r.Wear))%"}
+            $rows += @{Label=(T "Remaining life"); Value="$([math]::Max(0, 100 - $r.Wear))%"}
         }
         if ($null -ne $r.PowerOnHours) {
             $hoursText = ([math]::Round($r.PowerOnHours)).ToString('N0')
             $daysText = ([math]::Round($r.PowerOnHours / 24.0)).ToString('N0')
-            $rows += @{Label="Power-on hours"; Value="$hoursText h ($daysText days)"}
+            $rows += @{Label=(T "Power-on hours"); Value="$hoursText h ($daysText $(T 'days'))"}
         }
-        if ($null -ne $r.StartStop) { $rows += @{Label="Start/stop cycles"; Value=([int64]$r.StartStop).ToString('N0')} }
+        if ($null -ne $r.StartStop) { $rows += @{Label=(T "Start/stop cycles"); Value=([int64]$r.StartStop).ToString('N0')} }
         if ($null -ne $r.ReadErr) {
             $v = ([int64]$r.ReadErr).ToString('N0')
-            if ($r.ReadErrUncorrected -gt 0) { $v += " ($([int64]$r.ReadErrUncorrected) uncorrected)" }
-            $rows += @{Label="Read errors"; Value=$v}
+            if ($r.ReadErrUncorrected -gt 0) { $v += " ($([int64]$r.ReadErrUncorrected) $(T 'uncorrected'))" }
+            $rows += @{Label=(T "Read errors"); Value=$v}
         }
         if ($null -ne $r.WriteErr) {
             $v = ([int64]$r.WriteErr).ToString('N0')
-            if ($r.WriteErrUncorrected -gt 0) { $v += " ($([int64]$r.WriteErrUncorrected) uncorrected)" }
-            $rows += @{Label="Write errors"; Value=$v}
+            if ($r.WriteErrUncorrected -gt 0) { $v += " ($([int64]$r.WriteErrUncorrected) $(T 'uncorrected'))" }
+            $rows += @{Label=(T "Write errors"); Value=$v}
         }
-        if ($r.WrittenGb -gt 0) { $rows += @{Label="Total written"; Value="$([math]::Round($r.WrittenGb).ToString('N0')) GB"} }
-        if ($r.ReadGb -gt 0) { $rows += @{Label="Total read"; Value="$([math]::Round($r.ReadGb).ToString('N0')) GB"} }
-        if ($null -ne $r.PredictFail) { $rows += @{Label="Predicted failure (S.M.A.R.T.)"; Value=$(if ($r.PredictFail) { "YES" } else { "No" })} }
-        if ($r.Health -ne 5) { $rows += @{Label="Health (Windows)"; Value=switch ($r.Health) { 0 { "Healthy" } 1 { "Warning" } 2 { "Unhealthy" } default { "Unknown" } }} }
-        if ($r.Firmware) { $rows += @{Label="Firmware"; Value=$r.Firmware} }
+        if ($r.WrittenGb -gt 0) { $rows += @{Label=(T "Total written"); Value="$([math]::Round($r.WrittenGb).ToString('N0')) GB"} }
+        if ($r.ReadGb -gt 0) { $rows += @{Label=(T "Total read"); Value="$([math]::Round($r.ReadGb).ToString('N0')) GB"} }
+        if ($null -ne $r.PredictFail) { $rows += @{Label=(T "Predicted failure (S.M.A.R.T.)"); Value=$(if ($r.PredictFail) { T "YES" } else { T "No" })} }
+        if ($r.Health -ne 5) { $rows += @{Label=(T "Health (Windows)"); Value=switch ($r.Health) { 0 { T "Healthy" } 1 { T "Warning" } 2 { T "Unhealthy" } default { T "Unknown" } }} }
+        if ($r.Firmware) { $rows += @{Label=(T "Firmware"); Value=$r.Firmware} }
 
         $cards += [PSCustomObject]@{Title=$r.Model; Verdict=$verdict; AccentColor=$accent; Rows=$rows}
     }
@@ -256,20 +257,20 @@ function Get-DriveMapCards {
             $info = $diskByLetter[$letter]
             $usb = $info -and $info.Bus -eq "USB"
             $kind = switch ([int]$v.DriveType) {
-                2 { "Removable" }
-                3 { if ($usb) { "External (USB)" } else { "Internal" } }
-                4 { "Network" }
-                5 { "Optical" }
-                default { "Unknown" }
+                2 { T "Removable" }
+                3 { if ($usb) { T "External (USB)" } else { T "Internal" } }
+                4 { T "Network" }
+                5 { T "Optical" }
+                default { T "Unknown" }
             }
             $total = [long]$v.Size; $free = [long]$v.FreeSpace
             $usedPct = if ($total -gt 0) { [math]::Round((($total - $free) / $total) * 100, 1) } else { 0 }
             $title = if ($v.VolumeName) { "$letter  $($v.VolumeName)" } else { $letter }
             $rows = @(
-                @{Label="Type"; Value=$kind}
-                @{Label="File system"; Value=$(if ($v.FileSystem) { $v.FileSystem } else { "—" })}
-                @{Label="Disk"; Value=$(if ($info -and $info.Model) { "$($info.Model) ($($info.Bus))" } else { "—" })}
-                @{Label="Used"; Value="$usedPct% — $(Format-DiskBytes ($total - $free)) used, $(Format-DiskBytes $free) free of $(Format-DiskBytes $total)"}
+                @{Label=(T "Type"); Value=$kind}
+                @{Label=(T "File system"); Value=$(if ($v.FileSystem) { $v.FileSystem } else { "—" })}
+                @{Label=(T "Disk"); Value=$(if ($info -and $info.Model) { "$($info.Model) ($($info.Bus))" } else { "—" })}
+                @{Label=(T "Used"); Value="$usedPct% $(T 'used,') $(Format-DiskBytes ($total - $free)) $(T 'free of') $(Format-DiskBytes $total)"}
             )
             $cards += [PSCustomObject]@{Title=$title; Rows=$rows}
         }
@@ -283,7 +284,7 @@ function Get-DriveMapCards {
 # ResetExplode's Disks page (DiskHealth.cs + DriveMap.cs).
 function Show-PageYourPCDisks {
     Clear-GuiContent
-    Add-GuiPageTitle "Disks"
+    Add-GuiPageTitle (T "Disks")
 
     $lhmOk = Initialize-LibreHardwareMonitor
     $healthCards = @(Get-DiskHealthCards -LhmOk $lhmOk)
@@ -297,6 +298,6 @@ function Show-PageYourPCDisks {
     }
 
     if ($healthCards.Count -eq 0 -and $driveCards.Count -eq 0) {
-        Add-GuiInfoCard -Title "Disks" -Icon "&#xEDA2;" -Rows @(@{Label="Status"; Value="Disk detection failed."})
+        Add-GuiInfoCard -Title (T "Disks") -Icon "&#xEDA2;" -Rows @(@{Label=(T "Status"); Value=(T "Disk detection failed.")})
     }
 }

@@ -57,21 +57,21 @@ function Get-NetAdapters { param([string]$Type)
         } else {
             @($all | Where-Object { $_.InterfaceDescription -like "*Wireless*" -or $_.InterfaceDescription -like "*Wi-Fi*" -or $_.InterfaceDescription -like "*802.11*" -or $_.Name -like "*Wi-Fi*" })
         }
-    } catch { Write-GuiLog "Error detecting adapters: $_" "ERR"; return @() }
+    } catch { Write-GuiLog ((T "Error detecting adapters: {0}") -f $_) "ERR"; return @() }
 }
 
 # Used by: Home (Network Optimizer > "Optimize Ethernet" / "Optimize Wi-Fi"); also called internally by All ("OPTIMIZE ALL")
 function Invoke-NetworkOptimize { param([string]$Type)
     Set-GuiProgress 10 "Optimizing $Type adapters..."
-    Write-GuiLog "Optimizing $Type adapters..." "STEP"
+    Write-GuiLog ((T "Optimizing {0} adapters...") -f $Type) "STEP"
     $adapters = @(Get-NetAdapters -Type $Type)
-    if ($adapters.Count -eq 0) { Write-GuiLog "No $Type adapters found!" "WARN"; return }
+    if ($adapters.Count -eq 0) { Write-GuiLog ((T "No {0} adapters found!") -f $Type) "WARN"; return }
     $configs = if ($Type -eq "Ethernet") { $Script:EthernetConfigs } else { $Script:WiFiConfigs }
     $totalAdapters = $adapters.Count
     $adapterIdx = 0
     foreach ($adapter in $adapters) {
         $adapterIdx++
-        Write-GuiLog "Optimizing: $($adapter.Name) ($($adapter.InterfaceDescription))" "STEP"
+        Write-GuiLog ((T "Optimizing: {0} ({1})") -f $adapter.Name, $adapter.InterfaceDescription) "STEP"
         try {
             $propCache = @{}
             Get-NetAdapterAdvancedProperty -Name $adapter.Name -ErrorAction Stop | ForEach-Object { $propCache[$_.DisplayName] = $_ }
@@ -115,21 +115,21 @@ function Invoke-NetworkOptimize { param([string]$Type)
                     if (-not $appliedReg) { $failed++ }
                 }
             }
-            Write-GuiLog "  $($adapter.Name): $applied changed, $skipped already optimal, $failed failed" "OK"
-        } catch { Write-GuiLog "  Error processing $($adapter.Name): $_" "ERR" }
+            Write-GuiLog ((T "  {0}: {1} changed, {2} already optimal, {3} failed") -f $adapter.Name, $applied, $skipped, $failed) "OK"
+        } catch { Write-GuiLog ((T "  Error processing {0}: {1}") -f $adapter.Name, $_) "ERR" }
     }
-    Write-GuiLog "$Type optimization completed! ($totalAdapters adapter(s))" "OK"
+    Write-GuiLog ((T "{0} optimization completed! ({1} adapter(s))") -f $Type, $totalAdapters) "OK"
     Set-GuiProgress 0
 }
 
 # Used by: Home (Network Optimizer > "Revert Ethernet" / "Revert Wi-Fi")
 function Invoke-NetworkRestoreDefaults { param([string]$Type)
     Set-GuiProgress 10 "Restoring $Type defaults..."
-    Write-GuiLog "Restoring $Type defaults..." "STEP"
+    Write-GuiLog ((T "Restoring {0} defaults...") -f $Type) "STEP"
     $adapters = @(Get-NetAdapters -Type $Type)
-    if ($adapters.Count -eq 0) { Write-GuiLog "No $Type adapters found!" "WARN"; return }
+    if ($adapters.Count -eq 0) { Write-GuiLog ((T "No {0} adapters found!") -f $Type) "WARN"; return }
     foreach ($adapter in $adapters) {
-        Write-GuiLog "Restoring: $($adapter.Name)" "STEP"
+        Write-GuiLog ((T "Restoring: {0}") -f $adapter.Name) "STEP"
         $changed = 0
         try {
             $props = Get-NetAdapterAdvancedProperty -Name $adapter.Name -ErrorAction Stop
@@ -145,9 +145,9 @@ function Invoke-NetworkRestoreDefaults { param([string]$Type)
                 }
             }
         } catch { }
-        Write-GuiLog "  $($adapter.Name): $changed properties restored" "OK"
+        Write-GuiLog ((T "  {0}: {1} properties restored") -f $adapter.Name, $changed) "OK"
     }
-    Write-GuiLog "$Type defaults restored" "OK"
+    Write-GuiLog ((T "{0} defaults restored") -f $Type) "OK"
     Set-GuiProgress 0
 }
 #endregion

@@ -4,12 +4,12 @@
 # ================================================
 # Used by: SystemTweaksAll ("Apply All System Tweaks")
 function Invoke-TweaksApply {
-    Write-GuiLog "Applying system tweaks..." "STEP"
-    Write-GuiLog "Removing Edge scheduled tasks..." "STEP"
+    Write-GuiLog (T "Applying system tweaks...") "STEP"
+    Write-GuiLog (T "Removing Edge scheduled tasks...") "STEP"
     try {
         reg.exe delete "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tree\MicrosoftEdgeUpdateTaskMachineCore" /f 2>$null | Out-Null
         reg.exe delete "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tree\MicrosoftEdgeUpdateTaskMachineUA" /f 2>$null | Out-Null
-        Write-GuiLog "Edge tasks removed" "OK"
+        Write-GuiLog (T "Edge tasks removed") "OK"
     } catch { }
     $cats = @{
         "Telemetry" = @(
@@ -89,12 +89,12 @@ function Invoke-TweaksApply {
     }
     Set-NavStatus "Tweaks" $true
     Set-GuiProgress 0
-    Write-GuiLog "System tweaks applied ($totalAll keys)" "OK"
+    Write-GuiLog ((T "System tweaks applied ({0} keys)") -f $totalAll) "OK"
 }
 
 # Used by: SystemTweaksAll ("Revert Tweaks")
 function Invoke-TweaksRevert {
-    Write-GuiLog "Reverting system tweaks to defaults..." "STEP"
+    Write-GuiLog (T "Reverting system tweaks to defaults...") "STEP"
     Set-GuiProgress 10 "Restoring telemetry..."
     $telemetry = @(
         @{Path="HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection"; Name="AllowTelemetry"; Value=1; Type="DWORD"}
@@ -114,7 +114,7 @@ function Invoke-TweaksRevert {
         Remove-ItemProperty -Path "HKLM:\Software\Policies\Microsoft\Windows\System" -Name "EnableActivityFeed" -Force -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path "HKLM:\Software\Policies\Microsoft\Windows\AdvertisingInfo" -Name "DisabledByGroupPolicy" -Force -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows" -Name "LogEnabling" -Force -ErrorAction SilentlyContinue
-        Write-GuiLog "Telemetry/diagnostics reverted" "OK"
+        Write-GuiLog (T "Telemetry/diagnostics reverted") "OK"
     } catch { }
     Set-GuiProgress 25 "Restoring settings sync..."
     $sync = @(
@@ -127,18 +127,18 @@ function Invoke-TweaksRevert {
     Invoke-RegistryApply -Settings $sync -Label "Settings Sync Restore"
     try {
         Remove-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\SettingSync" -Name "SyncPolicy" -Force -ErrorAction SilentlyContinue
-        Write-GuiLog "Settings sync re-enabled" "OK"
+        Write-GuiLog (T "Settings sync re-enabled") "OK"
     } catch { }
     Set-GuiProgress 45 "Restoring search/Cortana..."
     try {
         Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Search" -Name "BingSearchEnabled" -Value 1 -Type DWord -Force -ErrorAction SilentlyContinue
         Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Search" -Name "SearchboxTaskbarMode" -Value 1 -Type DWord -Force -ErrorAction SilentlyContinue
-        Write-GuiLog "Search features re-enabled" "OK"
+        Write-GuiLog (T "Search features re-enabled") "OK"
     } catch { }
     try {
         Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Feeds" -Name "EnableFeeds" -Force -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Dsh" -Name "AllowNewsAndInterests" -Force -ErrorAction SilentlyContinue
-        Write-GuiLog "Feeds and news re-enabled" "OK"
+        Write-GuiLog (T "Feeds and news re-enabled") "OK"
     } catch { }
     Set-GuiProgress 65 "Restoring interface..."
     try {
@@ -147,7 +147,7 @@ function Invoke-TweaksRevert {
         Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarAnimations" -Value 1 -Type DWord -Force -ErrorAction SilentlyContinue
         Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "EnablingTransparency" -Value 1 -Type DWord -Force -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Serialize" -Name "StartupDelayInMSec" -Force -ErrorAction SilentlyContinue
-        Write-GuiLog "Visual effects and animations restored" "OK"
+        Write-GuiLog (T "Visual effects and animations restored") "OK"
     } catch { }
     Set-GuiProgress 85 "Restoring kernel defaults..."
     try {
@@ -156,7 +156,7 @@ function Invoke-TweaksRevert {
         Remove-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "WaitToKillAppTimeout" -Force -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "MenuShowDelay" -Force -ErrorAction SilentlyContinue
         Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control" -Name "WaitToKillServiceTimeout" -Force -ErrorAction SilentlyContinue
-        Write-GuiLog "Kernel/performance defaults restored" "OK"
+        Write-GuiLog (T "Kernel/performance defaults restored") "OK"
     } catch { }
     # Values the tweaks above CREATE. Removing them is what restores the Windows default; without
     # this block a user who reverted still had telemetry/DPC/boot-sound tweaks applied.
@@ -174,10 +174,10 @@ function Invoke-TweaksRevert {
         Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WdiServiceHost" -Name "Start" -Value 3 -Type DWord -Force -ErrorAction SilentlyContinue
         Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WdiSystemHost" -Name "Start" -Value 3 -Type DWord -Force -ErrorAction SilentlyContinue
         Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Spooler" -Name "Start" -Value 2 -Type DWord -Force -ErrorAction SilentlyContinue
-        Write-GuiLog "Diagnostics, kernel and service tweaks restored" "OK"
+        Write-GuiLog (T "Diagnostics, kernel and service tweaks restored") "OK"
     } catch { }
     Set-NavStatus "Tweaks" $false
     Set-GuiProgress 0
-    Write-GuiLog "System tweaks reverted to defaults" "OK"
+    Write-GuiLog (T "System tweaks reverted to defaults") "OK"
 }
 #endregion

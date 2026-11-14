@@ -52,7 +52,7 @@ function Get-NetworkCleanupItems {
 # Cleans the given Network Cleanup items (array of objects returned by Get-NetworkCleanupItems).
 function Invoke-NetworkCleanupClean {
     param([array]$Items)
-    if (-not $Items -or $Items.Count -eq 0) { Write-GuiLog "No items selected." "WARN"; return @{Cleaned=0; Failed=0} }
+    if (-not $Items -or $Items.Count -eq 0) { Write-GuiLog (T "No items selected.") "WARN"; return @{Cleaned=0; Failed=0} }
     $total = $Items.Count
     $cleaned = 0; $failed = 0
     for ($i = 0; $i -lt $total; $i++) {
@@ -68,29 +68,29 @@ function Invoke-NetworkCleanupClean {
                     if (-not $flushed) {
                         try { $null = ipconfig /flushdns 2>$null; $flushed = $true } catch { $flushed = $false }
                     }
-                    if ($flushed) { $cleaned++; Write-GuiLog "DNS cache flushed" "OK" }
-                    else { $failed++; Write-GuiLog "Failed to flush the DNS cache" "ERR" }
+                    if ($flushed) { $cleaned++; Write-GuiLog (T "DNS cache flushed") "OK" }
+                    else { $failed++; Write-GuiLog (T "Failed to flush the DNS cache") "ERR" }
                 }
                 'wifi-profile' {
                     $null = netsh wlan delete profile name="$($it.Key)" 2>$null
-                    $cleaned++; Write-GuiLog "Wi-Fi profile removed: $($it.Label)" "OK"
+                    $cleaned++; Write-GuiLog ((T "Wi-Fi profile removed: {0}") -f $it.Label) "OK"
                 }
                 'arp-cache' {
                     $null = netsh interface ip delete arpcache 2>$null
-                    $cleaned++; Write-GuiLog "ARP cache cleared" "OK"
+                    $cleaned++; Write-GuiLog (T "ARP cache cleared") "OK"
                 }
                 'network-history' {
                     Remove-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\NetworkList\Profiles\$($it.Key)" -Recurse -Force -ErrorAction Stop
-                    $cleaned++; Write-GuiLog "Network history removed: $($it.Label)" "OK"
+                    $cleaned++; Write-GuiLog ((T "Network history removed: {0}") -f $it.Label) "OK"
                 }
             }
         } catch {
             $failed++
-            Write-GuiLog "Failed to clean $($it.Label): $_" "ERR"
+            Write-GuiLog ((T "Failed to clean {0}: {1}") -f $it.Label, $_) "ERR"
         }
     }
     Set-GuiProgress 0
-    Write-GuiLog "Network Cleanup: $cleaned/$total items cleaned" "OK"
+    Write-GuiLog ((T "Network Cleanup: {0}/{1} items cleaned") -f $cleaned, $total) "OK"
     return @{Cleaned=$cleaned; Failed=$failed}
 }
 #endregion

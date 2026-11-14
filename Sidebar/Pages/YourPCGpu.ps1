@@ -14,34 +14,34 @@ function Get-GpuInfoRows {
     $driverDate = try { if ($Gpu.DriverDate) { [Management.ManagementDateTimeConverter]::ToDateTime($Gpu.DriverDate).ToString("yyyy-MM-dd") } else { "N/A" } } catch { "$($Gpu.DriverDate)" }
 
     $rows = @(
-        @{IsHeader=$true; Label="DISPLAY"}
-        @{Label="Video Processor"; Value=$(if ($Gpu.VideoProcessor) { $Gpu.VideoProcessor } else { "N/A" })}
-        @{Label="Current Resolution"; Value=$resolution}
-        @{Label="Refresh Rate"; Value=$(if ($Gpu.CurrentRefreshRate) { "$($Gpu.CurrentRefreshRate) Hz" } else { "N/A" })}
-        @{Label="Color Depth"; Value=$(if ($Gpu.CurrentBitsPerPixel) { "$($Gpu.CurrentBitsPerPixel)-bit" } else { "N/A" })}
-        @{Label="Video Mode"; Value=$(if ($Gpu.VideoModeDescription) { $Gpu.VideoModeDescription } else { "N/A" })}
+        @{IsHeader=$true; Label=(T "DISPLAY")}
+        @{Label=(T "Video Processor"); Value=$(if ($Gpu.VideoProcessor) { $Gpu.VideoProcessor } else { T "N/A" })}
+        @{Label=(T "Current Resolution"); Value=$resolution}
+        @{Label=(T "Refresh Rate"); Value=$(if ($Gpu.CurrentRefreshRate) { "$($Gpu.CurrentRefreshRate) Hz" } else { T "N/A" })}
+        @{Label=(T "Color Depth"); Value=$(if ($Gpu.CurrentBitsPerPixel) { "$($Gpu.CurrentBitsPerPixel)-bit" } else { T "N/A" })}
+        @{Label=(T "Video Mode"); Value=$(if ($Gpu.VideoModeDescription) { $Gpu.VideoModeDescription } else { T "N/A" })}
 
-        @{IsHeader=$true; Label="MEMORY"}
-        @{Label="Dedicated VRAM"; Value=$(if ($vramGB) { "$vramGB GB" } else { "N/A" })}
-        @{Label="Video Memory Type"; Value=$(if ($Gpu.VideoMemoryType) { $Gpu.VideoMemoryType } else { "N/A" })}
+        @{IsHeader=$true; Label=(T "MEMORY")}
+        @{Label=(T "Dedicated VRAM"); Value=$(if ($vramGB) { "$vramGB GB" } else { T "N/A" })}
+        @{Label=(T "Video Memory Type"); Value=$(if ($Gpu.VideoMemoryType) { $Gpu.VideoMemoryType } else { T "N/A" })}
 
-        @{IsHeader=$true; Label="DRIVER AND BIOS"}
-        @{Label="Driver Version"; Value=$(if ($Gpu.DriverVersion) { $Gpu.DriverVersion } else { "N/A" })}
-        @{Label="Driver Date"; Value=$driverDate}
-        @{Label="INF Section"; Value=$(if ($Gpu.InfSection) { $Gpu.InfSection } else { "N/A" })}
-        @{Label="Signed Driver"; Value=$(if ($Gpu.Status) { $Gpu.Status } else { "N/A" })}
+        @{IsHeader=$true; Label=(T "DRIVER AND BIOS")}
+        @{Label=(T "Driver Version"); Value=$(if ($Gpu.DriverVersion) { $Gpu.DriverVersion } else { T "N/A" })}
+        @{Label=(T "Driver Date"); Value=$driverDate}
+        @{Label=(T "INF Section"); Value=$(if ($Gpu.InfSection) { $Gpu.InfSection } else { T "N/A" })}
+        @{Label=(T "Signed Driver"); Value=$(if ($Gpu.Status) { $Gpu.Status } else { T "N/A" })}
 
-        @{IsHeader=$true; Label="DEVICE"}
-        @{Label="Adapter Compatibility"; Value=$(if ($Gpu.AdapterCompatibility) { $Gpu.AdapterCompatibility } else { "N/A" })}
-        @{Label="PNP Device ID"; Value=$(if ($Gpu.PNPDeviceID) { $Gpu.PNPDeviceID } else { "N/A" })}
-        @{Label="Availability"; Value=$(if ($Gpu.Availability) { $Gpu.Availability } else { "N/A" })}
-        @{Label="Status"; Value=$(if ($Gpu.Status) { $Gpu.Status } else { "N/A" })}
+        @{IsHeader=$true; Label=(T "DEVICE")}
+        @{Label=(T "Adapter Compatibility"); Value=$(if ($Gpu.AdapterCompatibility) { $Gpu.AdapterCompatibility } else { T "N/A" })}
+        @{Label=(T "PNP Device ID"); Value=$(if ($Gpu.PNPDeviceID) { $Gpu.PNPDeviceID } else { T "N/A" })}
+        @{Label=(T "Availability"); Value=$(if ($Gpu.Availability) { $Gpu.Availability } else { T "N/A" })}
+        @{Label=(T "Status"); Value=$(if ($Gpu.Status) { $Gpu.Status } else { T "N/A" })}
     )
     if ($DxgiAdapter) {
-        $rows += @{IsHeader=$true; Label="DIRECTX (DXGI)"}
-        if ($DxgiAdapter.FeatureLevel) { $rows += @{Label="Max Feature Level"; Value="D3D_FEATURE_LEVEL_$($DxgiAdapter.FeatureLevel)"} }
-        if ($DxgiAdapter.SharedSystemMemory -gt 0) { $rows += @{Label="Shared System Memory"; Value="$([math]::Round($DxgiAdapter.SharedSystemMemory/1GB,1)) GB"} }
-        if ($DxgiAdapter.DedicatedSystemMemory -gt 0) { $rows += @{Label="Dedicated System Memory"; Value="$([math]::Round($DxgiAdapter.DedicatedSystemMemory/1MB,0)) MB"} }
+        $rows += @{IsHeader=$true; Label=(T "DIRECTX (DXGI)")}
+        if ($DxgiAdapter.FeatureLevel) { $rows += @{Label=(T "Max Feature Level"); Value="D3D_FEATURE_LEVEL_$($DxgiAdapter.FeatureLevel)"} }
+        if ($DxgiAdapter.SharedSystemMemory -gt 0) { $rows += @{Label=(T "Shared System Memory"); Value="$([math]::Round($DxgiAdapter.SharedSystemMemory/1GB,1)) GB"} }
+        if ($DxgiAdapter.DedicatedSystemMemory -gt 0) { $rows += @{Label=(T "Dedicated System Memory"); Value="$([math]::Round($DxgiAdapter.DedicatedSystemMemory/1MB,0)) MB"} }
     }
     if ($NvmlHandle -ne [IntPtr]::Zero) { $rows += Get-NvmlInfoRows -Handle $NvmlHandle }
     return $rows
@@ -55,13 +55,13 @@ function Get-GpuSensorRows {
     param([string]$GpuName, [bool]$LhmOk, [IntPtr]$NvmlHandle = [IntPtr]::Zero, $AdlAdapterIndex = $null)
     $rows = @()
     if (-not $LhmOk) {
-        $rows += @{Label="Status"; Value="Unavailable: install PawnIO / enable LibreHardwareMonitor for live GPU sensors."}
+        $rows += @{Label=(T "Status"); Value=(T "Unavailable: install PawnIO / enable LibreHardwareMonitor for live GPU sensors.")}
     } else {
         $matched = @(Get-LHMSensorRows | Where-Object {
             $_.HardwareType -like "Gpu*" -and ($_.HardwareName -eq $GpuName -or $GpuName -like "*$($_.HardwareName)*" -or $_.HardwareName -like "*$GpuName*")
         })
         if (-not $matched -or $matched.Count -eq 0) {
-            $rows += @{Label="Status"; Value="No live sensors exposed by LibreHardwareMonitor for this GPU."}
+            $rows += @{Label=(T "Status"); Value=(T "No live sensors exposed by LibreHardwareMonitor for this GPU.")}
         } else {
             foreach ($group in ($matched | Group-Object SensorType)) {
                 $rows += @{IsHeader=$true; Label=(Get-LHMSensorCategory $group.Name).ToUpper()}
@@ -84,7 +84,7 @@ function Get-GpuSensorRows {
 # sensors for that adapter), adapted to the WMI + LibreHardwareMonitor data available here.
 function Show-PageYourPCGpu {
     Clear-GuiContent
-    Add-GuiPageTitle "GPU"
+    Add-GuiPageTitle (T "GPU")
 
     $lhmOk = Initialize-LibreHardwareMonitor
     $nvmlOk = Initialize-Nvml
@@ -95,7 +95,7 @@ function Show-PageYourPCGpu {
     } catch { $gpus = @() }
 
     if (-not $gpus -or $gpus.Count -eq 0) {
-        Add-GuiInfoCard -Title "GPU" -Icon "&#xE7F4;" -Rows @(@{Label="Status"; Value="No GPU detected."})
+        Add-GuiInfoCard -Title (T "GPU") -Icon "&#xE7F4;" -Rows @(@{Label=(T "Status"); Value=(T "No GPU detected.")})
         return
     }
 
@@ -108,7 +108,7 @@ function Show-PageYourPCGpu {
     # is currently active on each card.
     $searchState = @{ Search = "" }
     $cardRenderers = New-Object System.Collections.Generic.List[object]
-    $searchBox = Add-GuiPageSearchHeader -SubtitleText "Detected adapters" -Placeholder "Search spec or sensor..."
+    $searchBox = Add-GuiPageSearchHeader -SubtitleText (T "Detected adapters") -Placeholder (T "Search spec or sensor...")
     $searchBox.Add_TextChanged({
         $searchState.Search = $searchBox.Text.Trim()
         foreach ($r in $cardRenderers) { & $r }
@@ -161,7 +161,7 @@ function Show-PageYourPCGpu {
 
         foreach ($tabName in @("Info", "Sensors")) {
             $btn = New-Object System.Windows.Controls.Button
-            $btn.Content = $tabName
+            $btn.Content = T $tabName
             $btn.Style = $normalStyle
             $btn.Add_Click({ & $renderTab $tabName }.GetNewClosure())
             $tabButtons[$tabName] = $btn

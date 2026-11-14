@@ -176,3 +176,50 @@ if ($txtNavSearch) {
     $txtNavSearch.Add_TextChanged({ param($s, $e) Update-SidebarSearch -Query $s.Text })
 }
 #endregion
+
+#region SIDEBAR LOCALIZATION
+# English source text for every nav button label and section header, keyed by the same x:Name
+# used to look the control up. Update-SidebarLanguage re-applies T() to all of them, so a language
+# switch from the Settings page relabels the sidebar without needing to reload the XAML.
+$Script:SidebarNavLabels = @{
+    navHome = "Home"; navAll = "Optimize All"; navClean = "Clean"; navNetwork = "Network"; navStartup = "Startup"
+    navYourPCSystem = "System"; navYourPCSensors = "Sensors"; navYourPCGpu = "GPU"; navYourPCCpu = "CPU"
+    navYourPCDisks = "Disks"; navYourPCEnergy = "Energy"
+    navInstallers = "Essentials"; navGpuProgs = "GPU Software"; navCpuProgs = "CPU Software"; navAllInstallers = "ALL Programs"
+    navPerformance = "Performance"; navNetworkPrivacy = "Network & Privacy"; navSystemTweaks = "System Tweaks"; navWindows = "Windows Tweaks"
+    navWinShortcuts = "Windows Config"
+    navUtilities = "Utilities"; navPlaybooks = "Playbooks Download"
+    navBenchCpu = "CPU"; navBenchGpu = "GPU"; navBenchRam = "RAM"; navBenchDisk = "Disk"; navBenchExport = "Export"
+    navSettings = "Settings"
+}
+$Script:SidebarHeaderLabels = @{
+    txtHdrQuick = "QUICK"; txtHdrYourPC = "YOUR PC"; txtHdrInstallers = "INSTALLERS"; txtHdrSystem = "SYSTEM_HDR"
+    txtHdrShortcuts = "SHORTCUTS"; txtHdrTools = "TOOLS"; txtHdrBenchmark = "BENCHMARK"
+}
+
+# Mirrors Get-SidebarLabel: writes the label TextBlock instead of reading it.
+function Set-SidebarLabel {
+    param($Button, [string]$Text)
+    if (-not $Button) { return }
+    $content = $Button.Content
+    if ($content -is [System.Windows.Controls.TextBlock]) { $content.Text = $Text; return }
+    if ($content -is [System.Windows.Controls.StackPanel] -and $content.Children.Count -ge 2) {
+        $label = $content.Children[$content.Children.Count - 1]
+        if ($label -is [System.Windows.Controls.TextBlock]) { $label.Text = $Text }
+    }
+}
+
+# Re-applies T() to every sidebar label/header using the English source text above. Called once at
+# startup and again whenever the Settings page switches the active language.
+function Update-SidebarLanguage {
+    foreach ($key in $Script:SidebarNavLabels.Keys) {
+        if ($navButtons.ContainsKey($key)) { Set-SidebarLabel $navButtons[$key] (T $Script:SidebarNavLabels[$key]) }
+    }
+    foreach ($name in $Script:SidebarHeaderLabels.Keys) {
+        $tb = $Window.FindName($name)
+        if ($tb) { $tb.Text = T $Script:SidebarHeaderLabels[$name] }
+    }
+    if ($txtNavSearch) { $txtNavSearch.ToolTip = T "Search the sidebar..." }
+}
+Update-SidebarLanguage
+#endregion

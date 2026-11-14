@@ -40,7 +40,7 @@ function Get-RamBenchmarkResult {
             [System.GC]::Collect()
             if ($BufferSizeMB -le 32) { throw }
             $BufferSizeMB = [Math]::Max(32, [int]($BufferSizeMB / 2))
-            Write-GuiLog "RAM benchmark: not enough contiguous memory, retrying with a $BufferSizeMB MB buffer..." "WARN"
+            Write-GuiLog ((T "RAM benchmark: not enough contiguous memory, retrying with a {0} MB buffer...") -f $BufferSizeMB) "WARN"
         }
     }
     $size = $BufferSizeMB * 1MB
@@ -143,7 +143,7 @@ function Get-RamReadLatencyResult {
             [System.GC]::Collect()
             if ($BufferSizeMB -le 32) { throw }
             $BufferSizeMB = [Math]::Max(32, [int]($BufferSizeMB / 2))
-            Write-GuiLog "RAM read test: not enough contiguous memory, retrying with a $BufferSizeMB MB buffer..." "WARN"
+            Write-GuiLog ((T "RAM read test: not enough contiguous memory, retrying with a {0} MB buffer...") -f $BufferSizeMB) "WARN"
         }
     }
     $size = $BufferSizeMB * 1MB

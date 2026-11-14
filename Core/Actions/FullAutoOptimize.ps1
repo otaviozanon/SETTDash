@@ -6,7 +6,7 @@
 function Invoke-FullAutoOptimize {
     Clear-GuiLog
     Write-GuiLog "============================================================" "STEP"
-    Write-GuiLog "  SETT OPTIMIZER - FULL AUTO OPTIMIZATION" "STEP"
+    Write-GuiLog (T "  SETT OPTIMIZER - FULL AUTO OPTIMIZATION") "STEP"
     Write-GuiLog "============================================================" "STEP"
     $totalSteps = 13
     $currentStep = 0
@@ -14,7 +14,7 @@ function Invoke-FullAutoOptimize {
     $currentStep++
     Set-GuiProgress ([math]::Round($currentStep/$totalSteps*100)) "Step $currentStep/${totalSteps}: Creating Restore Point"
     $rpOk = Invoke-RestorePoint
-    if (-not $rpOk) { Write-GuiLog "Restore point failed, continuing anyway..." "WARN" }
+    if (-not $rpOk) { Write-GuiLog (T "Restore point failed, continuing anyway...") "WARN" }
 
     $currentStep++
     Set-GuiProgress ([math]::Round($currentStep/$totalSteps*100)) "Step $currentStep/${totalSteps}: Internet Optimization"
@@ -67,8 +67,8 @@ function Invoke-FullAutoOptimize {
 
     Set-GuiProgress 100 "Full optimization complete!"
     Write-GuiLog "============================================================" "OK"
-    Write-GuiLog "  FULL AUTO OPTIMIZATION COMPLETE!" "OK"
-    Write-GuiLog "  A system restart is recommended for all changes to take effect." "WARN"
+    Write-GuiLog (T "  FULL AUTO OPTIMIZATION COMPLETE!") "OK"
+    Write-GuiLog (T "  A system restart is recommended for all changes to take effect.") "WARN"
     Write-GuiLog "============================================================" "OK"
 }
 #endregion

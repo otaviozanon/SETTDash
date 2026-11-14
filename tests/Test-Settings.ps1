@@ -50,8 +50,10 @@ try {
     New-Item -Path $env:APPDATA -ItemType Directory -Force | Out-Null
 
     . (Join-Path $RepoRoot "Core\Helpers\Theme.ps1")
+    . (Join-Path $RepoRoot "Core\Helpers\Localization.ps1")
     . (Join-Path $RepoRoot "Core\Actions\Settings\AppBehavior.ps1")
     . (Join-Path $RepoRoot "Core\Helpers\UpdateChecker.ps1")
+    $Script:CurrentLanguage = "EN"
     $Script:AppVersion = "4.0.7"
 
     Write-Section "Test-Settings: update availability"

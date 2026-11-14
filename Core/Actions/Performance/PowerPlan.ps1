@@ -13,10 +13,10 @@ function Invoke-PowerApply {
         if ($match) {
             $guid = $match.Matches[0].Groups[1].Value
             powercfg -setactive $guid
-            Write-GuiLog "SETT power plan activated ($guid)" "OK"
+            Write-GuiLog ((T "SETT power plan activated ({0})") -f $guid) "OK"
         } else { 
             $allOut = $result -join " "
-            Write-GuiLog "Could not parse GUID from import. Output: $allOut" "WARN"
+            Write-GuiLog ((T "Could not parse GUID from import. Output: {0}") -f $allOut) "WARN"
         }
     } else {
         Set-GuiProgress 30 "settPowerPlan.pow not found, using High Performance..."
@@ -25,7 +25,7 @@ function Invoke-PowerApply {
         powercfg -change -monitor-timeout-ac 0
         powercfg -change -standby-timeout-ac 0
         powercfg -change -hibernate-timeout-ac 0
-        Write-GuiLog "High Performance plan activated (fallback, $guid)" "OK"
+        Write-GuiLog ((T "High Performance plan activated (fallback, {0})") -f $guid) "OK"
     }
     Set-NavStatus "Power" $true
     Set-GuiProgress 0
@@ -33,7 +33,7 @@ function Invoke-PowerApply {
 
 # Used by: Performance ("Revert Power")
 function Invoke-PowerRevert {
-    Write-GuiLog "Restoring Balanced power plan..." "STEP"
+    Write-GuiLog (T "Restoring Balanced power plan...") "STEP"
     Set-GuiProgress 30 "Activating Balanced scheme..."
     try {
         $output = powercfg /l 2>&1
@@ -50,12 +50,12 @@ function Invoke-PowerRevert {
         }
         if ($balancedGuid) {
             powercfg /setactive $balancedGuid
-            Write-GuiLog "Balanced power plan activated ($balancedGuid)" "OK"
+            Write-GuiLog ((T "Balanced power plan activated ({0})") -f $balancedGuid) "OK"
         } else {
             powercfg /setactive 381b4222-f694-41f0-9685-ff5bb260df2e
-            Write-GuiLog "Balanced power plan activated (hardcoded GUID)" "OK"
+            Write-GuiLog (T "Balanced power plan activated (hardcoded GUID)") "OK"
         }
-    } catch { Write-GuiLog "Failed to restore power plan: $_" "ERR" }
+    } catch { Write-GuiLog ((T "Failed to restore power plan: {0}") -f $_) "ERR" }
     Set-NavStatus "Power" $false
     Set-GuiProgress 0
 }

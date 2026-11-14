@@ -28,7 +28,7 @@ function Invoke-CheckForUpdates {
     # below is a blocking modal with nobody to answer it, so the whole sweep hangs until the test
     # times out. The switch skips only this check - nothing else in the app behaves differently.
     if ($env:SETTDASH_NO_UPDATE_CHECK -eq '1') { return }
-    Write-GuiLog "Checking for updates..." "STEP"
+    Write-GuiLog (T "Checking for updates...") "STEP"
     try {
         # .NET Framework (the host WinPS 5.1 the compiled exe runs on) defaults to older TLS;
         # GitHub API/objects require TLS 1.2 or the asset download aborts mid-transfer.
@@ -40,22 +40,22 @@ function Invoke-CheckForUpdates {
         $latestTag = Get-UpdateAvailability -CurrentVersion $Script:AppVersion -LatestTag ([string]$release.tag_name)
         if (-not $latestTag) {
             # Either this build is current, or a tag/version string could not be parsed.
-            Write-GuiLog "SETTDash is up to date (v$Script:AppVersion)" "OK"
+            Write-GuiLog ((T "SETTDash is up to date (v{0})") -f $Script:AppVersion) "OK"
             return
         }
 
-        Write-GuiLog "Update available: v$latestTag (current v$Script:AppVersion)" "WARN"
+        Write-GuiLog ((T "Update available: v{0} (current v{1})") -f $latestTag, $Script:AppVersion) "WARN"
         $asset = $release.assets | Where-Object { $_.name -like "*.exe" } | Select-Object -First 1
-        if (-not $asset) { Write-GuiLog "No .exe asset found in latest release" "ERR"; return }
+        if (-not $asset) { Write-GuiLog (T "No .exe asset found in latest release") "ERR"; return }
 
         if (-not (Show-UpdateConfirmDialog -CurrentVersion $Script:AppVersion -NewVersion $latestTag)) {
-            Write-GuiLog "Update postponed by user" "INFO"
+            Write-GuiLog (T "Update postponed by user") "INFO"
             return
         }
 
         Invoke-SelfUpdate -DownloadUrl $asset.browser_download_url -NewVersion $latestTag -ExpectedSize ([long]$asset.size) -ExpectedSha256 ([string](Get-SafeProp $asset 'digest'))
     } catch {
-        Write-GuiLog "Update check failed: $_" "WARN"
+        Write-GuiLog ((T "Update check failed: {0}") -f $_) "WARN"
     }
 }
 
@@ -213,15 +213,15 @@ function Show-UpdateConfirmDialog {
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
-                <TextBlock Text="Update Available" FontFamily="JetBrains Mono, Consolas" Foreground="$($t.TextPrimary)" FontSize="14" FontWeight="Bold"/>
+                <TextBlock Text="$(T 'Update Available')" FontFamily="JetBrains Mono, Consolas" Foreground="$($t.TextPrimary)" FontSize="14" FontWeight="Bold"/>
                 <TextBlock x:Name="txtVersions" FontFamily="JetBrains Mono, Consolas" Text="v$CurrentVersion &#8594; v$NewVersion" Foreground="$($t.TextMuted)" FontSize="11" Margin="0,3,0,0"/>
             </StackPanel>
         </StackPanel>
-        <TextBlock Text="A new version of SETTDash is ready to install. Do you want to update now?"
+        <TextBlock Text="$(T 'A new version of SETTDash is ready to install. Do you want to update now?')"
                    Foreground="$($t.TextSecondary)" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,22"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button x:Name="btnLater" Content="Later" Style="{StaticResource DialogSecondaryButtonStyle}" Margin="0,0,12,0"/>
-            <Button x:Name="btnUpdate" Content="Update Now" Style="{StaticResource DialogPrimaryButtonStyle}"/>
+            <Button x:Name="btnLater" Content="$(T 'Later')" Style="{StaticResource DialogSecondaryButtonStyle}" Margin="0,0,12,0"/>
+            <Button x:Name="btnUpdate" Content="$(T 'Update Now')" Style="{StaticResource DialogPrimaryButtonStyle}"/>
         </StackPanel>
 "@
 
@@ -260,8 +260,8 @@ function Invoke-SelfUpdate {
         $expectedHash = $Matches[1].ToLower()
     } else {
         $expectedHash = ""
-        if ($ExpectedSha256) { Write-GuiLog "Update: unusable digest '$ExpectedSha256' - integrity check disabled" "WARN" }
-        else { Write-GuiLog "Update: release publishes no SHA-256 digest - integrity check unavailable" "WARN" }
+        if ($ExpectedSha256) { Write-GuiLog ((T "Update: unusable digest '{0}' - integrity check disabled") -f $ExpectedSha256) "WARN" }
+        else { Write-GuiLog (T "Update: release publishes no SHA-256 digest - integrity check unavailable") "WARN" }
     }
     # Plain local (NOT $Script:) values used inside the ContentRendered closure below:
     # 'Script: variables are not readable there - that scope expression resolves against
@@ -280,8 +280,8 @@ function Invoke-SelfUpdate {
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
-                <TextBlock x:Name="txtTitle" FontFamily="JetBrains Mono, Consolas" Text="Downloading update v$NewVersion" Foreground="$($t.TextPrimary)" FontSize="14" FontWeight="Bold"/>
-                <TextBlock x:Name="txtStatus" FontFamily="JetBrains Mono, Consolas" Text="Connecting..." Foreground="$($t.TextMuted)" FontSize="11" Margin="0,3,0,0"/>
+                <TextBlock x:Name="txtTitle" FontFamily="JetBrains Mono, Consolas" Text="$(T 'Downloading update') v$NewVersion" Foreground="$($t.TextPrimary)" FontSize="14" FontWeight="Bold"/>
+                <TextBlock x:Name="txtStatus" FontFamily="JetBrains Mono, Consolas" Text="$(T 'Connecting...')" Foreground="$($t.TextMuted)" FontSize="11" Margin="0,3,0,0"/>
             </StackPanel>
         </StackPanel>
         <Grid Height="8" Margin="0,2,0,0">
@@ -322,25 +322,25 @@ function Invoke-SelfUpdate {
                 if ($expectedHash) {
                     $actual = (Get-FileHash -Path $newExe -Algorithm SHA256 -ErrorAction Stop).Hash.ToLower()
                     if ($actual -ne $expectedHash) { throw "SHA-256 mismatch (expected $expectedHash, got $actual)" }
-                    Write-GuiLog "Update: SHA-256 verified" "OK"
+                    Write-GuiLog (T "Update: SHA-256 verified") "OK"
                 }
                 $ok = $true
                 break
             } catch {
                 $lastReason = $_.Exception.Message
-                Write-GuiLog "Download attempt $tryN failed: $lastReason" "WARN"
+                Write-GuiLog ((T "Download attempt {0} failed: {1}") -f $tryN, $lastReason) "WARN"
                 Remove-Item $newExe -Force -ErrorAction SilentlyContinue
                 Start-Sleep -Milliseconds 800
             }
         }
         if (-not $ok) {
-            Write-GuiLog "Update download failed after 3 attempts: $lastReason" "ERR"
+            Write-GuiLog ((T "Update download failed after 3 attempts: {0}") -f $lastReason) "ERR"
             $pw.Close()
             return
         }
 
-        $txtTitle.Text = "Update downloaded"
-        $txtStatus.Text = "Restarting SETTDash to apply v$NewVersion..."
+        $txtTitle.Text = T "Update downloaded"
+        $txtStatus.Text = "$(T 'Restarting SETTDash to apply') v$NewVersion..."
 
         try {
             $markerPath = Join-Path $tempDir "update_applied.txt"
@@ -393,7 +393,7 @@ Remove-Item -Path '$newExe' -Force -ErrorAction SilentlyContinue
                 "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-EncodedCommand", $encodedUpdater
             )
         } catch {
-            Write-GuiLog "Self-update failed: $_" "ERR"
+            Write-GuiLog ((T "Self-update failed: {0}") -f $_) "ERR"
             $pw.Close()
             return
         }
@@ -417,7 +417,7 @@ function Show-UpdateAppliedNotice {
     if (Test-Path $markerPath) {
         try {
             $updatedVersion = (Get-Content $markerPath -Raw).Trim()
-            if ($updatedVersion) { Write-GuiLog "Updated to v$updatedVersion successfully!" "OK" }
+            if ($updatedVersion) { Write-GuiLog ((T "Updated to v{0} successfully!") -f $updatedVersion) "OK" }
         } catch {}
         Remove-Item $markerPath -Force -ErrorAction SilentlyContinue
     }

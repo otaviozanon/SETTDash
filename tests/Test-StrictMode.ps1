@@ -36,6 +36,7 @@ function Clear-GuiLog { }
 
 $loadErrors = @()
 foreach ($file in @(
+    "Core\Helpers\Localization.ps1",
     "Core\Helpers\SystemPaths.ps1",
     "Core\Helpers\CleanList.ps1",
     "Core\Helpers\BackgroundJob.ps1",
@@ -47,6 +48,9 @@ foreach ($file in @(
     $path = Join-Path $RepoRoot $file
     try { . $path } catch { $loadErrors += "${file}: $($_.Exception.Message)" }
 }
+# Main\Startup.ps1 (which normally sets this from the saved preference) is not part of this
+# test's load order, so T() would otherwise see an unset $Script:CurrentLanguage.
+$Script:CurrentLanguage = "EN"
 Assert-Equal 0 $loadErrors.Count "Data layer loads under StrictMode Latest"
 if ($loadErrors.Count -gt 0) { Write-Host "         $($loadErrors -join ' | ')" -ForegroundColor DarkYellow }
 

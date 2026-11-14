@@ -5,7 +5,7 @@
 # Used by: Home (Cache Cleaner > "Browser Cache"); also called internally by Invoke-CleanAll
 function Invoke-CleanBrowserCache {
     Set-GuiProgress 10 "Cleaning browser caches..."
-    Write-GuiLog "Cleaning browser caches..." "STEP"
+    Write-GuiLog (T "Cleaning browser caches...") "STEP"
     $browsers = @{
         "Chrome" = "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Cache"
         "Brave" = "$env:LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data\Default\Cache"
@@ -18,10 +18,10 @@ function Invoke-CleanBrowserCache {
     if ($ffPath) {
         try {
             Start-Process -FilePath $ffPath -ArgumentList '-P "default" -no-remote -safe-mode -clearcache' -Wait -WindowStyle Hidden -ErrorAction Stop
-            Write-GuiLog "Firefox cache cleaned" "OK"
-        } catch { Write-GuiLog "Firefox cache reset failed: $($_.Exception.Message)" "WARN" }
+            Write-GuiLog (T "Firefox cache cleaned") "OK"
+        } catch { Write-GuiLog ((T "Firefox cache reset failed: {0}") -f $_.Exception.Message) "WARN" }
     }
-    Write-GuiLog "Browser caches cleaned" "OK"
+    Write-GuiLog (T "Browser caches cleaned") "OK"
     Set-GuiProgress 0
 }
 #endregion

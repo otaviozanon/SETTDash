@@ -74,7 +74,7 @@ public static class SettNvml
         $r = [SettNvml]::Init()
         if ($r -ne 0) { throw "nvmlInit returned $r" }
         $Script:NvmlAvailable = $true
-        Write-GuiLog "NVML initialized (NVIDIA live GPU metrics enabled)" "OK"
+        Write-GuiLog (T "NVML initialized (NVIDIA live GPU metrics enabled)") "OK"
         return $true
     } catch {
         $Script:NvmlInitFailed = $true

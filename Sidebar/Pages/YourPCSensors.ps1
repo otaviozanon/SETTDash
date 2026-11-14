@@ -17,6 +17,7 @@ public class SettSensorRow : INotifyPropertyChanged
 
     public string HardwareName { get; set; }
     public string Category { get; set; }
+    public string CategoryDisplay { get; set; }
     public string SensorName { get; set; }
 
     private string _valueText;
@@ -62,15 +63,15 @@ function Show-PawnIOInstallPrompt {
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
-                <TextBlock Text="PawnIO Driver Missing" FontFamily="JetBrains Mono, Consolas" Foreground="$($t.TextPrimary)" FontSize="14" FontWeight="Bold"/>
-                <TextBlock FontFamily="JetBrains Mono, Consolas" Text="Required for CPU temperature/power sensors" Foreground="$($t.TextMuted)" FontSize="11" Margin="0,3,0,0"/>
+                <TextBlock Text="$(T 'PawnIO Driver Missing')" FontFamily="JetBrains Mono, Consolas" Foreground="$($t.TextPrimary)" FontSize="14" FontWeight="Bold"/>
+                <TextBlock FontFamily="JetBrains Mono, Consolas" Text="$(T 'Required for CPU temperature/power sensors')" Foreground="$($t.TextMuted)" FontSize="11" Margin="0,3,0,0"/>
             </StackPanel>
         </StackPanel>
-        <TextBlock Text="PawnIO is a free, signed driver (also used by LibreHardwareMonitor and FanControl) needed to read CPU temperature and power. Install it now via winget? This opens a console window; close and reopen SETTDash once it's done."
+        <TextBlock Text="$(T "PawnIO is a free, signed driver (also used by LibreHardwareMonitor and FanControl) needed to read CPU temperature and power. Install it now via winget? This opens a console window; close and reopen SETTDash once it's done.")"
                    Foreground="$($t.TextSecondary)" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,22"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button x:Name="btnLater" Content="Not Now" Style="{StaticResource DialogSecondaryButtonStyle}" Margin="0,0,12,0"/>
-            <Button x:Name="btnUpdate" Content="Install PawnIO" Style="{StaticResource DialogPrimaryButtonStyle}"/>
+            <Button x:Name="btnLater" Content="$(T 'Not Now')" Style="{StaticResource DialogSecondaryButtonStyle}" Margin="0,0,12,0"/>
+            <Button x:Name="btnUpdate" Content="$(T 'Install PawnIO')" Style="{StaticResource DialogPrimaryButtonStyle}"/>
         </StackPanel>
 "@
 
@@ -95,7 +96,7 @@ function Show-PawnIOInstallPrompt {
     $btnClose.Add_Click({ $dlg.Close() }.GetNewClosure())
     $btnInstall.Add_Click({
         $dlg.Close()
-        Write-GuiLog "Installing PawnIO via winget..." "STEP"
+        Write-GuiLog (T "Installing PawnIO via winget...") "STEP"
         $marker = Join-Path $tempDir "pawnio_install.flag"
         if (Test-Path $marker) { Remove-Item $marker -Force -ErrorAction SilentlyContinue }
         Start-Process "cmd.exe" -ArgumentList "/c winget install --id namazso.PawnIO -e --accept-package-agreements --accept-source-agreements & echo.>`"$marker`" & echo Done! You can close this window." -WindowStyle Normal
@@ -119,7 +120,7 @@ function Watch-PawnIOInstallResult {
             $timer.Stop()
             Remove-Item $Marker -Force -ErrorAction SilentlyContinue
             $installedNow = Test-PawnIOInstalled
-            Write-GuiLog $(if ($installedNow) { "PawnIO installed successfully" } else { "PawnIO installer finished" }) $(if ($installedNow) { "OK" } else { "WARN" })
+            Write-GuiLog $(if ($installedNow) { T "PawnIO installed successfully" } else { T "PawnIO installer finished" }) $(if ($installedNow) { "OK" } else { "WARN" })
             Show-PawnIOInstallResultDialog -Success $installedNow
         }
     }.GetNewClosure())
@@ -133,11 +134,11 @@ function Show-PawnIOInstallResultDialog {
     param([bool]$Success)
     $t = Get-CurrentThemeColors
     $icon = if ($Success) { "&#xE930;" } else { "&#xE946;" }
-    $title = if ($Success) { "PawnIO Installed" } else { "Installation Finished" }
+    $title = if ($Success) { T "PawnIO Installed" } else { T "Installation Finished" }
     $msg = if ($Success) {
-        "PawnIO was installed successfully. Restart SETTDash now to enable CPU temperature and power sensors."
+        T "PawnIO was installed successfully. Restart SETTDash now to enable CPU temperature and power sensors."
     } else {
-        "The winget installer finished, but PawnIO was not detected yet. If you just installed it, restart your PC, then restart SETTDash."
+        T "The winget installer finished, but PawnIO was not detected yet. If you just installed it, restart your PC, then restart SETTDash."
     }
     $body = @"
         <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
@@ -151,7 +152,7 @@ function Show-PawnIOInstallResultDialog {
         </StackPanel>
         <TextBlock Text="$msg" Foreground="$($t.TextSecondary)" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,22"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button x:Name="btnUpdate" Content="OK" Style="{StaticResource DialogPrimaryButtonStyle}"/>
+            <Button x:Name="btnUpdate" Content="$(T 'OK')" Style="{StaticResource DialogPrimaryButtonStyle}"/>
         </StackPanel>
 "@
     [xml]$xaml = Get-UpdatePopupXaml -Width 420 -Title "SETTDash" -BodyXaml $body
@@ -204,7 +205,7 @@ function Get-AllSensorRows {
     $add = {
         param($Hw, $Cat, $Name, $Val, $Min = "—", $Max = "—")
         $row = New-Object SettSensorRow
-        $row.HardwareName = $Hw; $row.Category = $Cat; $row.SensorName = $Name
+        $row.HardwareName = $Hw; $row.Category = $Cat; $row.CategoryDisplay = (T $Cat); $row.SensorName = $Name
         $row.ValueText = $Val; $row.MinText = $Min; $row.MaxText = $Max
         $list.Add($row) | Out-Null
     }.GetNewClosure()
@@ -226,7 +227,7 @@ function Get-AllSensorRows {
         $i = 1
         foreach ($c in (Get-CimInstance Win32_Processor)) { & $add "CPU" "Clock" "Core $i" "$($c.CurrentClockSpeed) MHz"; $i++ }
     } catch {}
-    $tempMsg = if ($PawnIOInstalled) { "Unavailable (if you just installed PawnIO, restart your PC)" } else { "Unavailable: PawnIO driver not installed" }
+    $tempMsg = if ($PawnIOInstalled) { T "Unavailable (if you just installed PawnIO, restart your PC)" } else { T "Unavailable: PawnIO driver not installed" }
     & $add "CPU" "Temperature" "Package" $tempMsg
     & $add "CPU" "Power" "Package" $tempMsg
 
@@ -237,7 +238,7 @@ function Get-AllSensorRows {
             $load = ($g.Group | Measure-Object -Property UtilizationPercentage -Sum).Sum
             & $add "GPU" "Load" "GPU Total" "$([math]::Round($load,1)) %"
         }
-    } catch { & $add "GPU" "Load" "GPU Total" "Unavailable on this system." }
+    } catch { & $add "GPU" "Load" "GPU Total" (T "Unavailable on this system.") }
     try {
         $mem = Get-CimInstance Win32_PerfFormattedData_GPUPerformanceCounters_GPUProcessMemory -ErrorAction Stop
         & $add "GPU" "Data" "Dedicated Memory In Use" (Format-ByteSizeAuto (($mem | Measure-Object -Property DedicatedUsage -Sum).Sum))
@@ -248,10 +249,10 @@ function Get-AllSensorRows {
         $zones = Get-CimInstance -Namespace "root\wmi" -ClassName MSAcpi_ThermalZoneTemperature -ErrorAction Stop
         $i = 1
         foreach ($z in $zones) { & $add "Motherboard" "Temperature" "Thermal Zone $i" "$([math]::Round(($z.CurrentTemperature / 10) - 273.15, 1)) °C"; $i++ }
-    } catch { & $add "Motherboard" "Temperature" "Thermal Zones" "Unavailable (requires vendor ACPI sensor exposure)." }
+    } catch { & $add "Motherboard" "Temperature" "Thermal Zones" (T "Unavailable (requires vendor ACPI sensor exposure).") }
     try {
         $i = 1
-        foreach ($f in (Get-CimInstance Win32_Fan -ErrorAction Stop)) { & $add "Motherboard" "Fans" "Fan $i" $(if ($f.StatusInfo -eq 3) { "Active" } else { "Unknown" }); $i++ }
+        foreach ($f in (Get-CimInstance Win32_Fan -ErrorAction Stop)) { & $add "Motherboard" "Fans" "Fan $i" $(if ($f.StatusInfo -eq 3) { T "Active" } else { T "Unknown" }); $i++ }
     } catch {}
 
     try {
@@ -270,7 +271,7 @@ function Get-AllSensorRows {
             & $add $d.Name "Throughput" "Read Speed" "$([math]::Round($d.DiskReadBytesPersec / 1MB, 2)) MB/s"
             & $add $d.Name "Throughput" "Write Speed" "$([math]::Round($d.DiskWriteBytesPersec / 1MB, 2)) MB/s"
         }
-    } catch { & $add "Storage" "Load" "Status" "Disk activity counters unavailable." }
+    } catch { & $add "Storage" "Load" (T "Status") (T "Disk activity counters unavailable.") }
 
     try {
         # @(...): if every adapter is filtered out the pipeline emits nothing ($null), and
@@ -282,8 +283,8 @@ function Get-AllSensorRows {
             & $add $n.Name "Throughput" "Upload" "$([math]::Round($n.BytesSentPersec * 8 / 1MB, 2)) Mbps"
             & $add $n.Name "Throughput" "Download" "$([math]::Round($n.BytesReceivedPersec * 8 / 1MB, 2)) Mbps"
         }
-        if ($nics.Count -eq 0) { & $add "Network" "Load" "Status" "No active network interface detected." }
-    } catch { & $add "Network" "Load" "Status" "Network counters unavailable." }
+        if ($nics.Count -eq 0) { & $add "Network" "Load" (T "Status") (T "No active network interface detected.") }
+    } catch { & $add "Network" "Load" (T "Status") (T "Network counters unavailable.") }
 
     return $list
 }
@@ -299,13 +300,13 @@ function Show-PageYourPCSensors {
     $allRows = Get-AllSensorRows -LhmOk $lhmOk -PawnIOInstalled $pawnIOInstalled
 
     Clear-GuiContent
-    Add-GuiPageTitle "Sensors"
+    Add-GuiPageTitle (T "Sensors")
 
     # ---- Header row: subtitle + search box (like ResetExplode's StatusText + SensorSearch) ----
     $headerGrid = New-Object System.Windows.Controls.Grid
     $headerGrid.Margin = "0,0,0,14"
     $subTitle = New-Object System.Windows.Controls.TextBlock
-    $subTitle.Text = if ($lhmOk) { "Live sensor readings" } else { "Limited readings (install PawnIO for full CPU sensors)" }
+    $subTitle.Text = if ($lhmOk) { T "Live sensor readings" } else { T "Limited readings (install PawnIO for full CPU sensors)" }
     $subTitle.FontSize = 12
     $subTitle.HorizontalAlignment = "Left"
     $subTitle.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextSecondary")
@@ -336,7 +337,7 @@ function Show-PageYourPCSensors {
     $searchBox.SetResourceReference([System.Windows.Controls.TextBox]::ForegroundProperty, "Brush_TextPrimary")
     $searchBox.SetResourceReference([System.Windows.Controls.TextBox]::CaretBrushProperty, "Brush_Accent")
     $searchBox.SetResourceReference([System.Windows.Controls.TextBox]::FontFamilyProperty, "Theme_FontFamily")
-    $searchBox.Tag = "Search sensor or hardware..."
+    $searchBox.Tag = (T "Search sensor or hardware...")
     $searchStack.AddChild($searchBox)
     $searchBorder.Child = $searchStack
     $headerGrid.AddChild($searchBorder)
@@ -392,11 +393,11 @@ function Show-PageYourPCSensors {
         if ($ElementStyle) { $col.ElementStyle = $ElementStyle }
         return $col
     }
-    $grid.Columns.Add((New-SensorColumn "SENSOR" "SensorName" (New-Object System.Windows.Controls.DataGridLength(1, [System.Windows.Controls.DataGridLengthUnitType]::Star)) $sensorNameStyle)) | Out-Null
-    $grid.Columns.Add((New-SensorColumn "TYPE" "Category" 130 $mutedStyle)) | Out-Null
-    $grid.Columns.Add((New-SensorColumn "VALUE" "ValueText" 130 $monoStyle)) | Out-Null
-    $grid.Columns.Add((New-SensorColumn "MIN" "MinText" 110 $mutedMonoStyle)) | Out-Null
-    $grid.Columns.Add((New-SensorColumn "MAX" "MaxText" 110 $mutedMonoStyle)) | Out-Null
+    $grid.Columns.Add((New-SensorColumn (T "SENSOR") "SensorName" (New-Object System.Windows.Controls.DataGridLength(1, [System.Windows.Controls.DataGridLengthUnitType]::Star)) $sensorNameStyle)) | Out-Null
+    $grid.Columns.Add((New-SensorColumn (T "TYPE (column)") "CategoryDisplay" 130 $mutedStyle)) | Out-Null
+    $grid.Columns.Add((New-SensorColumn (T "VALUE") "ValueText" 130 $monoStyle)) | Out-Null
+    $grid.Columns.Add((New-SensorColumn (T "MIN") "MinText" 110 $mutedMonoStyle)) | Out-Null
+    $grid.Columns.Add((New-SensorColumn (T "MAX") "MaxText" 110 $mutedMonoStyle)) | Out-Null
 
     # DataGrid has its own internal ScrollViewer, which swallows mouse-wheel input even when the
     # cursor is just hovering a row (not over its own scrollbar) - that's the "can't scroll the page
@@ -452,7 +453,7 @@ function Show-PageYourPCSensors {
     $allCats = @("All") + @($allRows | Select-Object -ExpandProperty Category -Unique | Sort-Object)
     foreach ($name in $allCats) {
         $btn = New-Object System.Windows.Controls.Button
-        $btn.Content = $name
+        $btn.Content = (T $name)
         $btn.Style = $normalStyle
         $btn.Add_Click({ & $setPill $name }.GetNewClosure())
         $pillButtons[$name] = $btn

@@ -7,7 +7,7 @@
 # cards, since each section can grow large (checklists) and benefits from the full page.
 function Show-PageClean {
     Clear-GuiContent
-    Add-GuiPageTitle "Clean"
+    Add-GuiPageTitle (T "Clean")
 
     # ---- Category pills (icon + label, same style as Startup/YourPCSensors) ----
     $pillsCard = New-Object System.Windows.Controls.Border
@@ -57,80 +57,80 @@ function Show-PageClean {
     $Script:CleanSystemItems = @()
     $Script:pnlCleanSystemList = New-Object System.Windows.Controls.StackPanel
     $Script:CleanSystemBox = New-CleanListContainer $Script:pnlCleanSystemList
-    Add-GuiCard "System Cleaner" "Scan and remove temp files, caches, logs, Windows Update cache, Delivery Optimization, prefetch, memory dumps and more. Selected files are permanently deleted, not moved to the Recycle Bin." {
+    Add-GuiCard (T "System Cleaner") (T "Scan and remove temp files, caches, logs, Windows Update cache, Delivery Optimization, prefetch, memory dumps and more. Selected files are permanently deleted, not moved to the Recycle Bin.") {
         param($p)
-        $p.AddChild((New-CleanSearchBox "Search category..."))
+        $p.AddChild((New-CleanSearchBox (T "Search category...")))
         $p.Children[0].Tag.Add_TextChanged({
             param($s, $e)
             Set-CleanFilter $Script:pnlCleanSystemList $s.Text
         })
-        Add-GuiBackgroundBtn $p "Scan" { Get-SystemCleanerItems } @('Get-SystemCleanerItems') {
+        Add-GuiBackgroundBtn $p (T "Scan") { Get-SystemCleanerItems } @('Get-SystemCleanerItems') {
             param($items)
             $Script:CleanSystemItems = @($items)
             Set-GuiProgress 90
-            Set-CleanChecklist $Script:pnlCleanSystemList $Script:CleanSystemItems "No cleanable items found." "size"
+            Set-CleanChecklist $Script:pnlCleanSystemList $Script:CleanSystemItems (T "No cleanable items found.") "size"
             Expand-GuiCard $Script:CleanSystemBox
             Set-GuiProgress 0
-            Write-GuiLog "System Cleaner: $($Script:CleanSystemItems.Count) categories scanned" "OK"
+            Write-GuiLog ((T "System Cleaner: {0} categories scanned") -f $Script:CleanSystemItems.Count) "OK"
         } -Style "RevertButtonStyle"
         Add-CleanSelectAllBtn $p $Script:pnlCleanSystemList "ActionButtonStyle" { $Script:CleanSystemItems } | Out-Null
-        Add-GuiBtn $p "Clean Selected" "ActionButtonStyle" {
+        Add-GuiBtn $p (T "Clean Selected") "ActionButtonStyle" {
             $selected = @(Get-CleanSelected $Script:CleanSystemItems)
-            if ($selected.Count -eq 0) { Write-GuiLog "No items selected." "WARN"; return }
+            if ($selected.Count -eq 0) { Write-GuiLog (T "No items selected.") "WARN"; return }
             Invoke-SystemCleanerClean -Items $selected
             # Rescan so cleaned rows show their real remaining size instead of the stale scan value.
             Update-CleanChecklist $Script:pnlCleanSystemList { Get-SystemCleanerItems } {
                 param($items) $Script:CleanSystemItems = @($items)
-            } @('Get-SystemCleanerItems') "No cleanable items found." "size"
+            } @('Get-SystemCleanerItems') (T "No cleanable items found.") "size"
         }
-        Add-GuiBackgroundBtn $p "Full Cleanup" { Invoke-FullSystemCleanup } @('Invoke-FullSystemCleanup') {
+        Add-GuiBackgroundBtn $p (T "Full Cleanup") { Invoke-FullSystemCleanup } @('Invoke-FullSystemCleanup') {
             param($result)
-            Set-GuiProgress 100 "Full cleanup complete!"
+            Set-GuiProgress 100 (T "Full cleanup complete!")
             # Only refresh if a scan produced a list; otherwise leave the collapsed card alone.
             if ($Script:CleanSystemItems.Count -gt 0) {
                 Update-CleanChecklist $Script:pnlCleanSystemList { Get-SystemCleanerItems } {
                     param($items) $Script:CleanSystemItems = @($items)
-                } @('Get-SystemCleanerItems') "No cleanable items found." "size"
+                } @('Get-SystemCleanerItems') (T "No cleanable items found.") "size"
             }
         } -Style "DangerButtonStyle" -ConfirmCheck {
-            Show-GuiConfirm -Title "Full Cleanup" -Icon "&#xE74D;" `
-                -Message "This permanently deletes temp files, browser caches, logs, prefetch, Windows Update cache and memory dumps, and empties the Recycle Bin (nothing goes to the Recycle Bin first). Running apps keep their files locked - those are reported, not deleted. Continue?" `
-                -ConfirmText "Run Full Cleanup"
+            Show-GuiConfirm -Title (T "Full Cleanup") -Icon "&#xE74D;" `
+                -Message (T "This permanently deletes temp files, browser caches, logs, prefetch, Windows Update cache and memory dumps, and empties the Recycle Bin (nothing goes to the Recycle Bin first). Running apps keep their files locked - those are reported, not deleted. Continue?") `
+                -ConfirmText (T "Run Full Cleanup")
         }
     } "&#xE74D;" -WrapButtons -CollapseTarget $Script:CleanSystemBox -TargetPanel $panelSystem
     $panelSystem.AddChild($Script:CleanSystemBox)
     $panelSystem.Visibility = "Collapsed"
     $pnlContent.AddChild($panelSystem)
-    $categoryPanels["System Cleaner"] = $panelSystem
+    $categoryPanels[(T "System Cleaner")] = $panelSystem
 
     # --- Category 2: Registry Cleaner ---
     $panelRegistry = New-Object System.Windows.Controls.StackPanel
     $Script:CleanRegistryItems = @()
     $Script:pnlCleanRegistryList = New-Object System.Windows.Controls.StackPanel
     $Script:CleanRegistryBox = New-CleanListContainer $Script:pnlCleanRegistryList
-    Add-GuiCard "Registry Cleaner" "Scan for broken App Paths, SharedDLLs, Run entries, fonts, orphaned services and stale uninstall entries. A .reg backup is saved before any fix." {
+    Add-GuiCard (T "Registry Cleaner") (T "Scan for broken App Paths, SharedDLLs, Run entries, fonts, orphaned services and stale uninstall entries. A .reg backup is saved before any fix.") {
         param($p)
-        $p.AddChild((New-CleanSearchBox "Search name or path..."))
+        $p.AddChild((New-CleanSearchBox (T "Search name or path...")))
         $p.Children[0].Tag.Add_TextChanged({
             param($s, $e)
             Set-CleanFilter $Script:pnlCleanRegistryList $s.Text
         })
-        Add-GuiBackgroundBtn $p "Scan" { Get-RegistryCleanerItems } @('Get-RegistryCleanerItems') {
+        Add-GuiBackgroundBtn $p (T "Scan") { Get-RegistryCleanerItems } @('Get-RegistryCleanerItems') {
             param($items)
             $Script:CleanRegistryItems = @($items)
             Set-GuiProgress 90
-            Set-CleanChecklist $Script:pnlCleanRegistryList $Script:CleanRegistryItems "No registry issues found." "plain"
+            Set-CleanChecklist $Script:pnlCleanRegistryList $Script:CleanRegistryItems (T "No registry issues found.") "plain"
             Expand-GuiCard $Script:CleanRegistryBox
             Set-GuiProgress 0
-            Write-GuiLog "Registry Cleaner: $($Script:CleanRegistryItems.Count) issues found" "OK"
+            Write-GuiLog ((T "Registry Cleaner: {0} issues found") -f $Script:CleanRegistryItems.Count) "OK"
         } -Style "RevertButtonStyle"
         Add-CleanSelectAllBtn $p $Script:pnlCleanRegistryList "ActionButtonStyle" { $Script:CleanRegistryItems } | Out-Null
-        Add-GuiBtn $p "Fix Selected" "ActionButtonStyle" {
+        Add-GuiBtn $p (T "Fix Selected") "ActionButtonStyle" {
             $selected = @(Get-CleanSelected $Script:CleanRegistryItems)
-            if ($selected.Count -eq 0) { Write-GuiLog "No items selected." "WARN"; return }
-            $ok = Show-GuiConfirm -Title "Fix Registry Entries" -Icon "&#xE90F;" `
-                -Message "This removes the $($selected.Count) selected registry entries. A .reg backup of every key is saved to %LOCALAPPDATA%\SETTDash\Backups\Registry before the change. Continue?" `
-                -ConfirmText "Fix Entries"
+            if ($selected.Count -eq 0) { Write-GuiLog (T "No items selected.") "WARN"; return }
+            $ok = Show-GuiConfirm -Title (T "Fix Registry Entries") -Icon "&#xE90F;" `
+                -Message "$(T 'This removes the') $($selected.Count) $(T 'selected registry entries. A .reg backup of every key is saved to %LOCALAPPDATA%\SETTDash\Backups\Registry before the change. Continue?')" `
+                -ConfirmText (T "Fix Entries")
             if (-not $ok) { return }
             # Each fix runs reg.exe export + delete; doing it on the UI thread froze the window for
             # every selected entry. OnDone re-scans so fixed entries disappear without a manual Scan.
@@ -141,30 +141,30 @@ function Show-PageClean {
                     Set-GuiProgress 100
                     Update-CleanChecklist $Script:pnlCleanRegistryList { Get-RegistryCleanerItems } {
                         param($items) $Script:CleanRegistryItems = @($items)
-                    } @('Get-RegistryCleanerItems') "No registry issues found." "plain"
+                    } @('Get-RegistryCleanerItems') (T "No registry issues found.") "plain"
                 })
         }
     } "&#xE90F;" -WrapButtons -CollapseTarget $Script:CleanRegistryBox -TargetPanel $panelRegistry
     $panelRegistry.AddChild($Script:CleanRegistryBox)
     $panelRegistry.Visibility = "Collapsed"
     $pnlContent.AddChild($panelRegistry)
-    $categoryPanels["Registry Cleaner"] = $panelRegistry
+    $categoryPanels[(T "Registry Cleaner")] = $panelRegistry
 
     # --- Category 3: Device Cleanup (moved from Home > Tools) ---
     $panelDevice = New-Object System.Windows.Controls.StackPanel
-    Add-GuiCard "Device Cleanup" "Launches the Windows Device Cleanup tool to remove unused device drivers and entries." {
+    Add-GuiCard (T "Device Cleanup") (T "Launches the Windows Device Cleanup tool to remove unused device drivers and entries.") {
         param($p)
-        Add-GuiBtn $p "Run Device Cleanup" "ActionButtonStyle" { Invoke-CleanDeviceCleanup }
+        Add-GuiBtn $p (T "Run Device Cleanup") "ActionButtonStyle" { Invoke-CleanDeviceCleanup }
     } "&#xE90F;" -WrapButtons -TargetPanel $panelDevice
     $panelDevice.Visibility = "Collapsed"
     $pnlContent.AddChild($panelDevice)
-    $categoryPanels["Device Cleanup"] = $panelDevice
+    $categoryPanels[(T "Device Cleanup")] = $panelDevice
 
     # ---- Wire pills + default selection ----
     $pillDefs = @(
-        @{ Icon = "&#xE74D;"; Label = "System Cleaner" },
-        @{ Icon = "&#xE90F;"; Label = "Registry Cleaner" },
-        @{ Icon = "&#xE90F;"; Label = "Device Cleanup" }
+        @{ Icon = "&#xE74D;"; Label = (T "System Cleaner") },
+        @{ Icon = "&#xE90F;"; Label = (T "Registry Cleaner") },
+        @{ Icon = "&#xE90F;"; Label = (T "Device Cleanup") }
     )
     foreach ($def in $pillDefs) {
         $btn = New-CleanPill $def.Icon $def.Label
@@ -172,5 +172,5 @@ function Show-PageClean {
         $pillButtons[$def.Label] = $btn
         $pillsStack.AddChild($btn)
     }
-    & $setActiveCategory "System Cleaner"
+    & $setActiveCategory (T "System Cleaner")
 }

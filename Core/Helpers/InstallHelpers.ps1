@@ -9,11 +9,11 @@ function Invoke-InstallWingetApp {
     param([string]$Id, [string]$Name, [string]$Source="winget", [string]$FallbackUrl="")
     if (-not $Id) {
         if ($FallbackUrl) {
-            Write-GuiLog "Opening $Name website..." "STEP"
-            try { Start-Process $FallbackUrl -ErrorAction Stop; Write-GuiLog "$Name download page opened" "OK" }
-            catch { Write-GuiLog "Failed to open $Name website: $($_.Exception.Message)" "ERR" }
+            Write-GuiLog ((T "Opening {0} website...") -f $Name) "STEP"
+            try { Start-Process $FallbackUrl -ErrorAction Stop; Write-GuiLog ((T "{0} download page opened") -f $Name) "OK" }
+            catch { Write-GuiLog ((T "Failed to open {0} website: {1}") -f $Name, $_.Exception.Message) "ERR" }
         }
-        else { Write-GuiLog "$Name : no download URL available" "ERR" }
+        else { Write-GuiLog ((T "{0} : no download URL available") -f $Name) "ERR" }
         return
     }
     if (-not (Get-Variable -Name BgWorker -ValueOnly -Scope Script -ErrorAction SilentlyContinue)) {
@@ -22,7 +22,7 @@ function Invoke-InstallWingetApp {
             -Arguments @{ InstallId = $Id; InstallName = $Name; InstallSource = $Source; InstallFallbackUrl = $FallbackUrl })
         return
     }
-    Write-GuiLog "Installing $Name via winget..." "STEP"
+    Write-GuiLog ((T "Installing {0} via winget...") -f $Name) "STEP"
     $exitCode = $null
     try {
         $wingetArgs = @("install", "--id=$Id", "--silent", "--accept-source-agreements", "--accept-package-agreements")
@@ -38,31 +38,31 @@ function Invoke-InstallWingetApp {
             if ($line) { Write-GuiLog $line "INFO" }
         }
         $exitCode = $LASTEXITCODE
-    } catch { Write-GuiLog "Winget error: $($_.Exception.Message)" "WARN" }
-    if ($exitCode -eq 0) { Write-GuiLog "$Name installed" "OK"; return }
-    if ($exitCode -eq -1978335189 -or $exitCode -eq -1978335215) { Write-GuiLog "$Name already installed" "OK"; return }
-    if ($null -ne $exitCode) { Write-GuiLog "Winget failed (code $exitCode), trying fallback..." "WARN" }
+    } catch { Write-GuiLog ((T "Winget error: {0}") -f $_.Exception.Message) "WARN" }
+    if ($exitCode -eq 0) { Write-GuiLog ((T "{0} installed") -f $Name) "OK"; return }
+    if ($exitCode -eq -1978335189 -or $exitCode -eq -1978335215) { Write-GuiLog ((T "{0} already installed") -f $Name) "OK"; return }
+    if ($null -ne $exitCode) { Write-GuiLog ((T "Winget failed (code {0}), trying fallback...") -f $exitCode) "WARN" }
     if ($FallbackUrl) {
-        Write-GuiLog "Opening $Name website..." "STEP"
-        try { Start-Process $FallbackUrl -ErrorAction Stop; Write-GuiLog "$Name download page opened" "OK" }
-        catch { Write-GuiLog "Failed to open $Name website: $($_.Exception.Message)" "ERR" }
-    } else { Write-GuiLog "$Name : no fallback URL available" "ERR" }
+        Write-GuiLog ((T "Opening {0} website...") -f $Name) "STEP"
+        try { Start-Process $FallbackUrl -ErrorAction Stop; Write-GuiLog ((T "{0} download page opened") -f $Name) "OK" }
+        catch { Write-GuiLog ((T "Failed to open {0} website: {1}") -f $Name, $_.Exception.Message) "ERR" }
+    } else { Write-GuiLog ((T "{0} : no fallback URL available") -f $Name) "ERR" }
 }
 # Used by: Installers, AllInstallers, GpuSoftware, CPU (generic install helpers)
 # Downloads and executes a remote installer script from $Url via Invoke-Expression. On failure,
 # falls back to opening $FallbackUrl in the browser (if provided) so the user can install manually.
 function Invoke-InstallRemoteScript {
     param([string]$Url, [string]$Name, [string]$FallbackUrl="")
-    Write-GuiLog "Installing $Name via remote script..." "STEP"
+    Write-GuiLog ((T "Installing {0} via remote script...") -f $Name) "STEP"
     try {
         Invoke-Expression (Invoke-RestMethod $Url)
-        Write-GuiLog "$Name installed" "OK"
+        Write-GuiLog ((T "{0} installed") -f $Name) "OK"
     } catch {
-        Write-GuiLog "$Name install failed: $_" "WARN"
+        Write-GuiLog ((T "{0} install failed: {1}") -f $Name, $_) "WARN"
         if ($FallbackUrl) {
-            Write-GuiLog "Opening $Name website..." "STEP"
-            try { Start-Process $FallbackUrl -ErrorAction Stop; Write-GuiLog "$Name download page opened" "OK" }
-            catch { Write-GuiLog "Failed to open $Name website: $($_.Exception.Message)" "ERR" }
+            Write-GuiLog ((T "Opening {0} website...") -f $Name) "STEP"
+            try { Start-Process $FallbackUrl -ErrorAction Stop; Write-GuiLog ((T "{0} download page opened") -f $Name) "OK" }
+            catch { Write-GuiLog ((T "Failed to open {0} website: {1}") -f $Name, $_.Exception.Message) "ERR" }
         }
     }
 }

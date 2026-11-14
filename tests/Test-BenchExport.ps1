@@ -29,6 +29,8 @@ Set-StrictMode -Version Latest
 # Load the real helper file FIRST: it defines Add-GuiPageTitle etc., which the stubs below must
 # replace (the other order would let the real, WPF-bound helpers win).
 . (Join-Path $RepoRoot "Core\Helpers\Cards.ps1")
+. (Join-Path $RepoRoot "Core\Helpers\Localization.ps1")
+$Script:CurrentLanguage = "EN"
 
 # ---- stubs ---------------------------------------------------------------------------------------
 function Clear-GuiContent { }

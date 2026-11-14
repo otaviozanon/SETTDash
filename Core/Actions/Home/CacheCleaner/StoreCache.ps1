@@ -11,15 +11,15 @@ function Invoke-CleanStoreCache {
     # error that broke Clean > Full Cleanup. Resolve the real 64-bit path via Get-SystemToolPath.
     $wsreset = Get-SystemToolPath "wsreset.exe"
     if (-not $wsreset) {
-        Write-GuiLog "Store cache reset skipped: wsreset.exe was not found" "WARN"
+        Write-GuiLog (T "Store cache reset skipped: wsreset.exe was not found") "WARN"
         Set-GuiProgress 0
         return
     }
     try {
         Start-Process -FilePath $wsreset -WindowStyle Hidden -ErrorAction Stop
-        Write-GuiLog "Store cache reset initiated" "OK"
+        Write-GuiLog (T "Store cache reset initiated") "OK"
     } catch {
-        Write-GuiLog "Store cache reset failed: $($_.Exception.Message)" "ERR"
+        Write-GuiLog ((T "Store cache reset failed: {0}") -f $_.Exception.Message) "ERR"
     }
     Set-GuiProgress 0
 }

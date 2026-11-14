@@ -8,10 +8,10 @@
 # appears nowhere else in the app.
 function Show-GuiConfirm {
     param(
-        [string]$Title = "Confirm",
+        [string]$Title = (T "Confirm"),
         [string]$Message,
-        [string]$ConfirmText = "Confirm",
-        [string]$CancelText = "Cancel",
+        [string]$ConfirmText = (T "Confirm"),
+        [string]$CancelText = (T "Cancel"),
         [string]$Icon = "&#xE7BA;"
     )
     # XAML text nodes: escape so a message containing & or < cannot break the popup.

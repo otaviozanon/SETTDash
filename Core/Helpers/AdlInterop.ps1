@@ -64,7 +64,7 @@ public static class SettAdl
         if ($r -ne 0 -or $ctx -eq [IntPtr]::Zero) { throw "ADL2_Main_Control_Create returned $r" }
         $Script:AdlContext = $ctx
         $Script:AdlAvailable = $true
-        Write-GuiLog "ADL initialized (AMD live GPU metrics enabled)" "OK"
+        Write-GuiLog (T "ADL initialized (AMD live GPU metrics enabled)") "OK"
         return $true
     } catch {
         $Script:AdlInitFailed = $true

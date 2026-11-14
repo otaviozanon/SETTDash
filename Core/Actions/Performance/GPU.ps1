@@ -14,26 +14,26 @@ function Get-AmdGpuKeys {
 # Used by: Performance ("Detect & Optimize GPU"); also called internally by All ("OPTIMIZE ALL")
 function Invoke-GPUApply {
     Set-GuiProgress 10 "Detecting GPU vendor..."
-    Write-GuiLog "Detecting GPU vendor..." "STEP"
+    Write-GuiLog (T "Detecting GPU vendor...") "STEP"
     try {
         $gpu = Get-CimInstance Win32_VideoController | Where-Object { $_.AdapterRAM -ne $null } | Select-Object -First 1
         # A machine without a real adapter (VM, Basic Display Adapter, remote session) used to make
         # $gpu.Name throw here under StrictMode. Nothing to optimize is not an error.
         if (-not $gpu -or -not $gpu.Name) {
-            Write-GuiLog "No supported GPU detected - nothing to optimize" "WARN"
+            Write-GuiLog (T "No supported GPU detected - nothing to optimize") "WARN"
             Set-GuiProgress 0
             return
         }
         $nameLow = $gpu.Name.ToLower()
         $vendor = if ($nameLow -match "nvidia") { "NVIDIA" } elseif ($nameLow -match "amd|radeon") { "AMD" } else { "Unknown" }
-        Write-GuiLog "Detected GPU vendor: $vendor ($($gpu.Name.Trim()))" "INFO"
+        Write-GuiLog ((T "Detected GPU vendor: {0} ({1})") -f $vendor, $gpu.Name.Trim()) "INFO"
 
         if ($vendor -eq "NVIDIA") {
             Set-GuiProgress 40 "Optimizing NVIDIA..."
             $nvPath = "C:\Program Files\NVIDIA Corporation\NVSMI"
             if (Test-Path $nvPath) {
                 Push-Location $nvPath
-                try { & .\nvidia-smi.exe -acp 0 | Out-Null; & .\nvidia-smi.exe -e 1 | Out-Null; Write-GuiLog "NVIDIA-SMI settings applied" "OK" } catch { }
+                try { & .\nvidia-smi.exe -acp 0 | Out-Null; & .\nvidia-smi.exe -e 1 | Out-Null; Write-GuiLog (T "NVIDIA-SMI settings applied") "OK" } catch { }
                 Pop-Location
             }
             $nvidiaReg = @(
@@ -44,11 +44,11 @@ function Invoke-GPUApply {
                 @{Path="HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers\Scheduler";Name="EnablePreemption";Type="DWORD";Value=0}
             )
             Invoke-RegistryApply -Settings $nvidiaReg -Label "NVIDIA Registry"
-            Write-GuiLog "NVIDIA optimization completed" "OK"
+            Write-GuiLog (T "NVIDIA optimization completed") "OK"
         } elseif ($vendor -eq "AMD") {
             $keys = @(Get-AmdGpuKeys)
             if ($keys.Count -eq 0) {
-                Write-GuiLog "AMD registry key not found." "WARN"
+                Write-GuiLog (T "AMD registry key not found.") "WARN"
             } else {
                 foreach ($basePath in $keys) {
                     $amdReg = @(
@@ -76,12 +76,12 @@ function Invoke-GPUApply {
                     )
                     Invoke-RegistryApply -Settings $amdReg -Label "AMD Optimization"
                 }
-                Write-GuiLog "AMD optimization completed. Restart required." "OK"
+                Write-GuiLog (T "AMD optimization completed. Restart required.") "OK"
             }
         } else {
-            Write-GuiLog "No NVIDIA or AMD GPU detected. Skipping GPU optimizations." "WARN"
+            Write-GuiLog (T "No NVIDIA or AMD GPU detected. Skipping GPU optimizations.") "WARN"
         }
-    } catch { Write-GuiLog "GPU detection failed: $_" "ERR" }
+    } catch { Write-GuiLog ((T "GPU detection failed: {0}") -f $_) "ERR" }
     Set-NavStatus "GPU" $true
     Set-GuiProgress 0
 }
@@ -89,19 +89,19 @@ function Invoke-GPUApply {
 # Used by: Performance ("Revert GPU")
 function Invoke-GPURevert {
     Set-GuiProgress 10 "Reverting GPU optimizations..."
-    Write-GuiLog "Reverting GPU optimizations..." "STEP"
+    Write-GuiLog (T "Reverting GPU optimizations...") "STEP"
     try {
         $gpu = Get-CimInstance Win32_VideoController | Where-Object { $_.AdapterRAM -ne $null } | Select-Object -First 1
         # Same guard as Invoke-GPUApply: no detectable adapter means there is nothing this function
         # could have applied, so it must report that instead of throwing on $gpu.Name.
         if (-not $gpu -or -not $gpu.Name) {
-            Write-GuiLog "No supported GPU detected - nothing to revert" "WARN"
+            Write-GuiLog (T "No supported GPU detected - nothing to revert") "WARN"
             Set-GuiProgress 0
             return
         }
         $nameLow = $gpu.Name.ToLower()
         $vendor = if ($nameLow -match "nvidia") { "NVIDIA" } elseif ($nameLow -match "amd|radeon") { "AMD" } else { "Unknown" }
-        Write-GuiLog "Detected GPU vendor: $vendor" "INFO"
+        Write-GuiLog ((T "Detected GPU vendor: {0}") -f $vendor) "INFO"
         if ($vendor -eq "NVIDIA") {
             # NOTE: must only revert the exact keys Invoke-GPUApply sets above - previously this
             # list also wrote 8 extra nvlddmkm/NVIDIA keys (incl. SendTelemetryData,
@@ -115,7 +115,7 @@ function Invoke-GPURevert {
                 @{Path="HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers\Scheduler"; Name="EnablePreemption"; Value=1; Type="DWORD"}
             )
             Invoke-RegistryApply -Settings $nvidiaRevert -Label "NVIDIA Revert"
-            Write-GuiLog "NVIDIA optimizations reverted" "OK"
+            Write-GuiLog (T "NVIDIA optimizations reverted") "OK"
         } elseif ($vendor -eq "AMD") {
             $names = "DisableUVDPowerGatingDynamic","EnableUlps","DisableDMACopy","PP_GPUPowerDownEnabled","StutterMode",
                      "KMD_ChillEnabled","KMD_RadeonBoostEnabled","KMD_DeLagEnabled",
@@ -126,11 +126,11 @@ function Invoke-GPURevert {
                     Remove-ItemProperty -Path $basePath -Name $n -Force -ErrorAction SilentlyContinue
                 }
             }
-            Write-GuiLog "AMD optimizations reverted. Restart required." "OK"
+            Write-GuiLog (T "AMD optimizations reverted. Restart required.") "OK"
         } else {
-            Write-GuiLog "No NVIDIA or AMD GPU detected. Nothing to revert." "WARN"
+            Write-GuiLog (T "No NVIDIA or AMD GPU detected. Nothing to revert.") "WARN"
         }
-    } catch { Write-GuiLog "GPU revert failed: $_" "ERR" }
+    } catch { Write-GuiLog ((T "GPU revert failed: {0}") -f $_) "ERR" }
     Set-NavStatus "GPU" $false
     Set-GuiProgress 0
 }

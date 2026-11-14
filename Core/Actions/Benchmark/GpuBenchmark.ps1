@@ -144,7 +144,7 @@ public static class D3DShaderCompiler {
 "@ -ErrorAction Stop
         return $true
     } catch {
-        Write-GuiLog "D3DShaderCompiler init failed: $_" "WARN"
+        Write-GuiLog ((T "D3DShaderCompiler init failed: {0}") -f $_) "WARN"
         return $false
     }
 }
@@ -677,7 +677,7 @@ function Get-GpuBenchmarkResult {
     if ($bitmap -and $previewDiag.Hits -eq 0) {
         # Only worth a log line if nothing painted at all - a healthy run always misses a handful of
         # ticks (warm-up races, slow driver) and that is not worth surfacing to the user.
-        Write-GuiLog "GPU benchmark preview: $($previewDiag.Hits)/$($previewDiag.Attempts) frame(s) painted." "WARN"
+        Write-GuiLog ((T "GPU benchmark preview: {0}/{1} frame(s) painted.") -f $previewDiag.Hits, $previewDiag.Attempts) "WARN"
     }
 
     # Composite: geometric mean of the sub-test fps, so one strong test cannot mask a weak one.
@@ -856,7 +856,7 @@ function Show-GpuBenchmarkPopup {
             $btnAction.Content = "Close"
             $btnAction.IsEnabled = $true
         } catch {
-            Write-GuiLog "GPU benchmark failed: $($_.Exception.Message)" "ERR"
+            Write-GuiLog ((T "GPU benchmark failed: {0}") -f $_.Exception.Message) "ERR"
             $popupState.Done = $true
             $txtStatus.Text = "Error"
             $txtResult.Text = "$($_.Exception.Message)"

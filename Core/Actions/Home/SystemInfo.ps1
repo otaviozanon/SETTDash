@@ -8,32 +8,32 @@ function Get-SystemInfo {
     if (-not $Force -and $Script:CachedSystemInfo) {
         return $Script:CachedSystemInfo
     }
-    Write-GuiLog "Gathering system information..." "STEP"
+    Write-GuiLog (T "Gathering system information...") "STEP"
     $info = @{}
     try {
         $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
         $info.CPUName = $cpu.Name.Trim()
         $info.CPUPhysicalCores = $cpu.NumberOfCores
         $info.CPULogicalCores = $cpu.NumberOfLogicalProcessors
-        Write-GuiLog "CPU: $($info.CPUName)" "INFO"
-    } catch { $info.CPUName = "Unknown"; Write-GuiLog "CPU detection failed" "WARN" }
+        Write-GuiLog ((T "CPU: {0}") -f $info.CPUName) "INFO"
+    } catch { $info.CPUName = "Unknown"; Write-GuiLog (T "CPU detection failed") "WARN" }
     try {
         $os = Get-CimInstance Win32_OperatingSystem
         $info.RAMTotalGB = [math]::Round($os.TotalVisibleMemorySize / 1MB, 1)
         $info.RAMFreeGB = [math]::Round($os.FreePhysicalMemory / 1MB, 1)
         $info.OSCaption = $os.Caption
         $info.OSBuild = $os.BuildNumber
-        Write-GuiLog "RAM: $($info.RAMTotalGB) GB total | $($info.RAMFreeGB) GB free" "INFO"
-        Write-GuiLog "OS: $($info.OSCaption) (Build $($info.OSBuild))" "INFO"
-    } catch { Write-GuiLog "RAM/OS detection failed" "WARN" }
+        Write-GuiLog ((T "RAM: {0} GB total | {1} GB free") -f $info.RAMTotalGB, $info.RAMFreeGB) "INFO"
+        Write-GuiLog ((T "OS: {0} (Build {1})") -f $info.OSCaption, $info.OSBuild) "INFO"
+    } catch { Write-GuiLog (T "RAM/OS detection failed") "WARN" }
     try {
         $disk = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='$env:SystemDrive'"
         if ($disk -and $disk.Size) {
             $info.DiskTotalGB = [math]::Round($disk.Size / 1GB, 1)
             $info.DiskFreeGB = [math]::Round($disk.FreeSpace / 1GB, 1)
-            Write-GuiLog "HD: $($info.DiskTotalGB) GB total | $($info.DiskFreeGB) GB free" "INFO"
+            Write-GuiLog ((T "HD: {0} GB total | {1} GB free") -f $info.DiskTotalGB, $info.DiskFreeGB) "INFO"
         }
-    } catch { Write-GuiLog "HD detection failed" "WARN" }
+    } catch { Write-GuiLog (T "HD detection failed") "WARN" }
     try {
         # Exclude virtual/remote/basic display adapters (e.g. "Windows Video", "Microsoft Basic Display Adapter", RDP virtual displays)
         $allGpus = @(Get-CimInstance Win32_VideoController)
@@ -57,7 +57,7 @@ function Get-SystemInfo {
                 $vendors += $vendor
                 $vramGB = if ($g.AdapterRAM) { [math]::Round($g.AdapterRAM / 1GB, 1) } else { 0 }
                 $gpuEntries += [PSCustomObject]@{ Vendor = $vendor; Name = $name; VRAM = $vramGB }
-                Write-GuiLog "GPU detected: $vendor - $name ($vramGB GB VRAM)" "INFO"
+                Write-GuiLog ((T "GPU detected: {0} - {1} ({2} GB VRAM)") -f $vendor, $name, $vramGB) "INFO"
             }
             $info.GPUs = $gpuEntries
             $info.GPUVendor = ($vendors | Select-Object -Unique) -join " / "
@@ -68,14 +68,14 @@ function Get-SystemInfo {
             $info.GPUVendor = "Unknown"
             $info.GPUName = "Unknown"
             $info.GPUVRAM = 0
-            Write-GuiLog "No GPU detected" "WARN"
+            Write-GuiLog (T "No GPU detected") "WARN"
         }
     } catch {
         $info.GPUs = @()
         $info.GPUVendor = "Unknown"
         $info.GPUName = "Unknown"
         $info.GPUVRAM = 0
-        Write-GuiLog "GPU detection failed" "WARN"
+        Write-GuiLog (T "GPU detection failed") "WARN"
     }
     $Script:CachedSystemInfo = $info
     return $info
@@ -87,7 +87,7 @@ function Get-SystemInfo {
 # ================================================
 # Used by: (currently not wired to any page/button - orphan helper, available for future use)
 function Show-SystemInfoPopup {
-    Write-GuiLog "Gathering system information..." "STEP"
+    Write-GuiLog (T "Gathering system information...") "STEP"
     $info = Get-SystemInfo
     $msg = @"
 === SYSTEM INFORMATION ===
@@ -99,6 +99,6 @@ OS     : $($info.OSCaption) (Build $($info.OSBuild))
 GPU    : $($info.GPUVendor) - $($info.GPUName) ($($info.GPUVRAM) GB VRAM)
 "@
     Write-GuiLog $msg "INFO"
-    Write-GuiLog "System info gathered successfully" "OK"
+    Write-GuiLog (T "System info gathered successfully") "OK"
 }
 #endregion

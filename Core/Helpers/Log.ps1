@@ -122,7 +122,7 @@ function Write-GuiLog {
     }
     # Tells the user where the report went, so a failure is never a dead end (the path is stable
     # per day, but nobody has to remember it).
-    if ($reportCreated) { Write-GuiLog "Error report saved to $(Get-ErrorLogPath)" "INFO" }
+    if ($reportCreated) { Write-GuiLog ((T "Error report saved to {0}") -f (Get-ErrorLogPath)) "INFO" }
 }
 
 # Updates the main progress bar value and, if provided, logs a STEP message. Forces a UI render
@@ -146,8 +146,8 @@ if ($btnLogCopy) {
         try {
             $range = New-Object System.Windows.Documents.TextRange($txtLog.Document.ContentStart, $txtLog.Document.ContentEnd)
             [System.Windows.Clipboard]::SetText($range.Text)
-            Write-GuiLog "Log copied to clipboard" "OK"
-        } catch { Write-GuiLog "Failed to copy log: $_" "ERR" }
+            Write-GuiLog (T "Log copied to clipboard") "OK"
+        } catch { Write-GuiLog ((T "Failed to copy log: {0}") -f $_) "ERR" }
     })
 }
 

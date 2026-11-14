@@ -147,7 +147,7 @@ function Get-RegistryCleanerItems {
 # Applies the fix for each selected item, backing up the key first. Returns @{Fixed;Failed}.
 function Invoke-RegistryCleanerFix {
     param([array]$Items)
-    if (-not $Items -or $Items.Count -eq 0) { Write-GuiLog "No items selected." "WARN"; return @{Fixed=0; Failed=0} }
+    if (-not $Items -or $Items.Count -eq 0) { Write-GuiLog (T "No items selected.") "WARN"; return @{Fixed=0; Failed=0} }
     $total = $Items.Count
     $fixed = 0; $failed = 0
     for ($i = 0; $i -lt $total; $i++) {
@@ -161,14 +161,14 @@ function Invoke-RegistryCleanerFix {
                 Remove-Item -Path $it.KeyPath -Recurse -Force -ErrorAction Stop
             }
             $fixed++
-            Write-GuiLog "$($it.Label) fixed" "OK"
+            Write-GuiLog ((T "{0} fixed") -f $it.Label) "OK"
         } catch {
             $failed++
-            Write-GuiLog "Failed to fix $($it.Label): $_" "ERR"
+            Write-GuiLog ((T "Failed to fix {0}: {1}") -f $it.Label, $_) "ERR"
         }
     }
     Set-GuiProgress 0
-    Write-GuiLog "Registry Cleaner: $fixed/$total issues fixed (backups saved to %LOCALAPPDATA%\SETTDash\Backups\Registry)" "OK"
+    Write-GuiLog ((T "Registry Cleaner: {0}/{1} issues fixed (backups saved to %LOCALAPPDATA%\SETTDash\Backups\Registry)") -f $fixed, $total) "OK"
     return @{Fixed=$fixed; Failed=$failed}
 }
 #endregion

@@ -9,12 +9,12 @@ function Invoke-W11OldMenu {
         $bp = "HKCU:\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32"
         if (-not (Test-Path $bp)) { New-Item -Path $bp -Force | Out-Null }
         Set-ItemProperty -Path $bp -Name "(default)" -Value "" -Force
-        Write-GuiLog "Old context menu applied" "OK"
+        Write-GuiLog (T "Old context menu applied") "OK"
         Set-GuiProgress 80 "Restarting Explorer..."
         Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
         Start-Process explorer
-        Write-GuiLog "Explorer restarted - changes active" "OK"
-    } catch { Write-GuiLog "Old context menu failed: $_" "ERR" }
+        Write-GuiLog (T "Explorer restarted - changes active") "OK"
+    } catch { Write-GuiLog ((T "Old context menu failed: {0}") -f $_) "ERR" }
     Set-GuiProgress 0
 }
 
@@ -24,12 +24,12 @@ function Invoke-W11RevertMenu {
     try {
         $bp = "HKCU:\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}"
         if (Test-Path $bp) { Remove-Item -Path $bp -Recurse -Force }
-        Write-GuiLog "Context menu reverted to Windows 11 default" "OK"
+        Write-GuiLog (T "Context menu reverted to Windows 11 default") "OK"
         Set-GuiProgress 80 "Restarting Explorer..."
         Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
         Start-Process explorer
-        Write-GuiLog "Explorer restarted - changes active" "OK"
-    } catch { Write-GuiLog "Revert failed: $_" "ERR" }
+        Write-GuiLog (T "Explorer restarted - changes active") "OK"
+    } catch { Write-GuiLog ((T "Revert failed: {0}") -f $_) "ERR" }
     Set-GuiProgress 0
 }
 
@@ -38,12 +38,12 @@ function Invoke-W11ClassicAltTab {
     Set-GuiProgress 50 "Applying Classic Alt+Tab..."
     try {
         New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer" -Name "AltTabSettings" -PropertyType DWord -Value 1 -Force | Out-Null
-        Write-GuiLog "Classic Alt+Tab applied" "OK"
+        Write-GuiLog (T "Classic Alt+Tab applied") "OK"
         Set-GuiProgress 80 "Restarting Explorer..."
         Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
         Start-Process explorer
-        Write-GuiLog "Explorer restarted - changes active" "OK"
-    } catch { Write-GuiLog "Classic Alt+Tab failed: $_" "ERR" }
+        Write-GuiLog (T "Explorer restarted - changes active") "OK"
+    } catch { Write-GuiLog ((T "Classic Alt+Tab failed: {0}") -f $_) "ERR" }
     Set-GuiProgress 0
 }
 
@@ -52,12 +52,12 @@ function Invoke-W11RevertAltTab {
     Set-GuiProgress 50 "Reverting Alt+Tab..."
     try {
         Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer" -Name "AltTabSettings" -Force -ErrorAction SilentlyContinue
-        Write-GuiLog "Alt+Tab reverted to modern style" "OK"
+        Write-GuiLog (T "Alt+Tab reverted to modern style") "OK"
         Set-GuiProgress 80 "Restarting Explorer..."
         Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
         Start-Process explorer
-        Write-GuiLog "Explorer restarted - changes active" "OK"
-    } catch { Write-GuiLog "Revert Alt+Tab failed: $_" "ERR" }
+        Write-GuiLog (T "Explorer restarted - changes active") "OK"
+    } catch { Write-GuiLog ((T "Revert Alt+Tab failed: {0}") -f $_) "ERR" }
     Set-GuiProgress 0
 }
 #endregion

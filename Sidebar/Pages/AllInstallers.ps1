@@ -14,7 +14,7 @@ function Sync-AllSelectAllLabel {
     $boxes = @($wp.Children | Where-Object { $_ -is [System.Windows.Controls.Border] -and $_.Child -is [System.Windows.Controls.CheckBox] } | ForEach-Object { $_.Child })
     if ($boxes.Count -eq 0) { return }
     $allChecked = -not ($boxes | Where-Object { -not $_.IsChecked } | Select-Object -First 1)
-    $global:AllSelectAllLinks[$wp].Text = if ($allChecked) { "Unselect all" } else { "Select all" }
+    $global:AllSelectAllLinks[$wp].Text = if ($allChecked) { T "Unselect all" } else { T "Select all" }
 }
 
 function Invoke-AllChecked {
@@ -33,7 +33,7 @@ function Invoke-AllChecked {
     }
     $cnt = $global:AllSelectedSet.Count
     if ($null -ne $global:AllInstallBtn) {
-        $global:AllInstallBtn.Content = "Install Selected [$cnt]"
+        $global:AllInstallBtn.Content = "$(T 'Install Selected') [$cnt]"
         $global:AllInstallBtn.SetResourceReference([System.Windows.Controls.Button]::BackgroundProperty, $(if ($cnt -gt 0) { "Brush_Accent" } else { "Brush_Disabled" }))
     }
     if ($bd -is [System.Windows.Controls.Border]) { Sync-AllSelectAllLabel $bd.Parent }
@@ -51,7 +51,7 @@ function Invoke-AllUnchecked {
     if ($null -ne $global:AllSelectedSet) { $global:AllSelectedSet.Remove($idx) }
     $cnt = $global:AllSelectedSet.Count
     if ($null -ne $global:AllInstallBtn) {
-        $global:AllInstallBtn.Content = "Install Selected [$cnt]"
+        $global:AllInstallBtn.Content = "$(T 'Install Selected') [$cnt]"
         $global:AllInstallBtn.SetResourceReference([System.Windows.Controls.Button]::BackgroundProperty, $(if ($cnt -gt 0) { "Brush_Accent" } else { "Brush_Disabled" }))
     }
     if ($bd -is [System.Windows.Controls.Border]) { Sync-AllSelectAllLabel $bd.Parent }
@@ -77,17 +77,17 @@ function Invoke-AllInstallSelected {
     if ($null -eq $global:AllSelectedSet -or $global:AllSelectedSet.Count -eq 0) { return }
     $count = $global:AllSelectedSet.Count
     $ids = $global:AllSelectedSet.ToArray() | Sort-Object
-    Write-GuiLog "Installing $count selected program(s)..." "STEP"
+    Write-GuiLog ((T "Installing {0} selected program(s)...") -f $count) "STEP"
     foreach ($idx in $ids) {
         $d2 = $global:AllAppsData[$idx]
         if ($d2) { Invoke-InstallWingetApp $d2.Winget $d2.Name -FallbackUrl $d2.Url }
     }
-    Write-GuiLog "Done." "OK"
+    Write-GuiLog (T "Done.") "OK"
 }
 
 function Show-PageAllInstallers {
     Clear-GuiContent
-    Add-GuiPageTitle "ALL Programs"
+    Add-GuiPageTitle (T "ALL Programs")
 
     # --- Data ---
     $global:AllAppsData.Clear()
@@ -131,7 +131,7 @@ function Show-PageAllInstallers {
     $topRow.AddChild($searchBorder)
 
     $btnInstall = New-Object System.Windows.Controls.Button
-    $btnInstall.Content = "Install Selected [0]"
+    $btnInstall.Content = "$(T 'Install Selected') [0]"
     $btnInstall.SetResourceReference([System.Windows.Controls.Button]::BackgroundProperty, "Brush_Disabled")
     $btnInstall.SetResourceReference([System.Windows.Controls.Button]::ForegroundProperty, "Brush_TextPrimary")
     $btnInstall.SetResourceReference([System.Windows.Controls.Button]::FontFamilyProperty, "Theme_FontFamily")
@@ -393,7 +393,7 @@ function Show-PageAllInstallers {
             [System.Windows.Controls.Grid]::SetColumn($catToggle, 0); $catGrid.AddChild($catToggle)
 
             $catLabel = New-Object System.Windows.Controls.TextBlock
-            $catLabel.Text = $d.Cat
+            $catLabel.Text = T $d.Cat
             $catLabel.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextPrimary")
             $catLabel.SetResourceReference([System.Windows.Controls.TextBlock]::FontFamilyProperty, "Theme_FontFamily")
             $catLabel.FontSize = 13
@@ -415,7 +415,7 @@ function Show-PageAllInstallers {
 
             # Select all / Unselect all link (toggles label + action based on current state)
             $selAll = New-Object System.Windows.Controls.TextBlock
-            $selAll.Text = "Select all"
+            $selAll.Text = T "Select all"
             $selAll.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_TextSecondary")
             $selAll.SetResourceReference([System.Windows.Controls.TextBlock]::FontFamilyProperty, "Theme_FontFamily")
             $selAll.FontSize = 11
@@ -432,7 +432,7 @@ function Show-PageAllInstallers {
                 $allChecked = -not ($boxes | Where-Object { -not $_.IsChecked } | Select-Object -First 1)
                 $newState = -not $allChecked
                 foreach ($box in $boxes) { $box.IsChecked = $newState }
-                $this.Text = if ($newState) { "Unselect all" } else { "Select all" }
+                $this.Text = if ($newState) { T "Unselect all" } else { T "Select all" }
             })
 
             $catCard.Child = $catGrid
@@ -449,7 +449,7 @@ function Show-PageAllInstallers {
             # Toggle handler -- skip if click came from Select all link
             $catCard.Add_MouseLeftButtonUp({
                 param($s,$e)
-                if ($e -and $e.OriginalSource -is [System.Windows.Controls.TextBlock] -and $e.OriginalSource.Text -eq "Select all") { return }
+                if ($e -and $e.OriginalSource -is [System.Windows.Controls.TextBlock] -and $e.OriginalSource.Text -eq (T "Select all")) { return }
                 if ($wp.Visibility -eq "Collapsed") {
                     $wp.Visibility = "Visible"; $catToggle.Text = "v"
                     $catToggle.SetResourceReference([System.Windows.Controls.TextBlock]::ForegroundProperty, "Brush_Accent")

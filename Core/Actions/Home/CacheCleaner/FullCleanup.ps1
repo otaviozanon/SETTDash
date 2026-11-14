@@ -7,7 +7,7 @@
 # items that are specific to the full cleanup (spool, history, cookies, tmp, event logs).
 function Invoke-CleanAll {
     Set-GuiProgress 5 "Running ADVANCED SYSTEM CLEANUP..."
-    Write-GuiLog "Running ADVANCED SYSTEM CLEANUP..." "STEP"
+    Write-GuiLog (T "Running ADVANCED SYSTEM CLEANUP...") "STEP"
 
     # Each category runs isolated: one failing step (missing tool, locked file, service that won't
     # stop) must not abort the rest of the cleanup. Before this, a single throw here - e.g. the
@@ -25,7 +25,7 @@ function Invoke-CleanAll {
     )
     foreach ($step in $steps) {
         try { & $step.Action }
-        catch { Write-GuiLog "$($step.Name) step failed: $($_.Exception.Message)" "ERR" }
+        catch { Write-GuiLog ((T "{0} step failed: {1}") -f $step.Name, $_.Exception.Message) "ERR" }
     }
 
     Set-GuiProgress 85 "Cleaning extra system paths..."
@@ -37,7 +37,7 @@ function Invoke-CleanAll {
         (Join-Path $windir "Tmp")
     )
     foreach ($item in $extraPaths) {
-        if (Test-Path $item) { Remove-Item -Path "$item\*" -Recurse -Force -ErrorAction SilentlyContinue; Write-GuiLog "Cleaned: $item" "OK" }
+        if (Test-Path $item) { Remove-Item -Path "$item\*" -Recurse -Force -ErrorAction SilentlyContinue; Write-GuiLog ((T "Cleaned: {0}") -f $item) "OK" }
     }
 
     Set-GuiProgress 95 "Cleaning event logs..."
@@ -47,11 +47,11 @@ function Invoke-CleanAll {
         $wevtutil = Get-SystemToolPath "wevtutil.exe"
         if ($wevtutil) {
             $logs = & $wevtutil el 2>$null
-            if ($logs) { foreach ($log in $logs) { & $wevtutil cl "$log" 2>$null }; Write-GuiLog "Event logs cleaned" "OK" }
-        } else { Write-GuiLog "Event logs skipped: wevtutil.exe was not found" "WARN" }
-    } catch { Write-GuiLog "Event log cleanup failed: $($_.Exception.Message)" "WARN" }
+            if ($logs) { foreach ($log in $logs) { & $wevtutil cl "$log" 2>$null }; Write-GuiLog (T "Event logs cleaned") "OK" }
+        } else { Write-GuiLog (T "Event logs skipped: wevtutil.exe was not found") "WARN" }
+    } catch { Write-GuiLog ((T "Event log cleanup failed: {0}") -f $_.Exception.Message) "WARN" }
 
-    Write-GuiLog "Advanced cleanup completed!" "OK"
+    Write-GuiLog (T "Advanced cleanup completed!") "OK"
     Set-GuiProgress 0
 }
 
@@ -63,7 +63,7 @@ function Invoke-CleanAll {
 function Invoke-FullSystemCleanup {
     Clear-GuiLog
     Write-GuiLog "============================================================" "STEP"
-    Write-GuiLog "  SETT CLEANER - FULL SYSTEM CLEANUP" "STEP"
+    Write-GuiLog (T "  SETT CLEANER - FULL SYSTEM CLEANUP") "STEP"
     Write-GuiLog "============================================================" "STEP"
     Invoke-CleanAll
 
@@ -75,8 +75,8 @@ function Invoke-FullSystemCleanup {
 
     Set-GuiProgress 100 "Full cleanup complete!"
     Write-GuiLog "============================================================" "OK"
-    Write-GuiLog "  FULL SYSTEM CLEANUP COMPLETE!" "OK"
-    Write-GuiLog "  A system restart is recommended for all cleanup to take effect." "WARN"
+    Write-GuiLog (T "  FULL SYSTEM CLEANUP COMPLETE!") "OK"
+    Write-GuiLog (T "  A system restart is recommended for all cleanup to take effect.") "WARN"
     Write-GuiLog "============================================================" "OK"
 }
 #endregion

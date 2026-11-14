@@ -7,7 +7,7 @@ function Invoke-RegistryApply {
     $Settings = @($Settings)
     $total = $Settings.Count
     if ($total -eq 0) {
-        Write-GuiLog "$Label : no settings to apply" "WARN"
+        Write-GuiLog ((T "{0} : no settings to apply") -f $Label) "WARN"
         return @{Applied=0; Failed=0}
     }
     $applied = 0; $failed = 0
@@ -21,6 +21,6 @@ function Invoke-RegistryApply {
         } catch { $failed++ }
     }
     Set-GuiProgress 0
-    Write-GuiLog "$Label : $applied applied, $failed failed" "OK"
+    Write-GuiLog ((T "{0} : {1} applied, {2} failed") -f $Label, $applied, $failed) "OK"
     return @{Applied=$applied; Failed=$failed}
 }

@@ -251,7 +251,7 @@ public static class SettCpuKernels
         $Script:CpuKernelsReady = $true
         return $true
     } catch {
-        Write-GuiLog "CPU benchmark kernels could not be compiled: $($_.Exception.Message)" "ERR"
+        Write-GuiLog ((T "CPU benchmark kernels could not be compiled: {0}") -f $_.Exception.Message) "ERR"
         return $false
     }
 }

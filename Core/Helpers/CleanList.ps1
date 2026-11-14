@@ -75,7 +75,7 @@ function script:Update-CleanSelectAllLabel {
     param($Panel)
     if (-not $Panel -or $Panel.Tag -isnot [System.Windows.Controls.Button]) { return }
     $items = @($Panel.Children | Where-Object { $_ -is [System.Windows.Controls.Border] -and $_.Tag -and $_.Tag.Item } | ForEach-Object { $_.Tag.Item })
-    $Panel.Tag.Content = if (Test-CleanAllSelected $items) { "Unselect All" } else { "Select All" }
+    $Panel.Tag.Content = if (Test-CleanAllSelected $items) { T "Unselect all" } else { T "Select all" }
 }
 
 # Adds a "Select All" / "Unselect All" toggle to a card's button row. $ListPanel is the
@@ -88,7 +88,7 @@ function Add-CleanSelectAllBtn {
     $styleObj = $Window.FindResource($Style); if ($styleObj) { $btn.Style = $styleObj }
     $btn.MinWidth = 100
     $btn.Margin = "0,2,5,2"
-    $btn.Content = "Select All"
+    $btn.Content = T "Select all"
     $btn.Add_Click({
         $items = @(& $GetItems)
         if ($items.Count -eq 0) { return }
@@ -114,9 +114,9 @@ function Add-CleanSelectAllBtn {
 # $OnToggle (used only in 'toggle' mode): scriptblock invoked as & $OnToggle $item -> should
 # return $true/$false for the new enabled state (used to flip the button's own enabled label).
 function Set-CleanChecklist {
-    param($Panel, [array]$Items, [string]$EmptyText = "Nothing found.", [string]$Mode = "plain", $OnToggle = $null)
+    param($Panel, [array]$Items, [string]$EmptyText = (T "Nothing found."), [string]$Mode = "plain", $OnToggle = $null)
     $Panel.Children.Clear()
-    if ($Panel.Tag -is [System.Windows.Controls.Button]) { $Panel.Tag.Content = "Select All" }
+    if ($Panel.Tag -is [System.Windows.Controls.Button]) { $Panel.Tag.Content = T "Select all" }
     if (-not $Items -or $Items.Count -eq 0) {
         $t = New-Object System.Windows.Controls.TextBlock
         $t.Text = $EmptyText
@@ -308,7 +308,7 @@ function Set-CleanFilter {
 # stores it in the page's $Script: variable (kept explicit so no page list can silently go stale).
 function Update-CleanChecklist {
     param($Panel, [scriptblock]$Scan, [scriptblock]$Assign, [string[]]$Functions,
-          [string]$EmptyText = "Nothing found.", [string]$Mode = "plain", $OnToggle = $null)
+          [string]$EmptyText = (T "Nothing found."), [string]$Mode = "plain", $OnToggle = $null)
     $done = {
         param($items)
         $fresh = @($items)
@@ -316,9 +316,9 @@ function Update-CleanChecklist {
         Set-GuiProgress 90
         Set-CleanChecklist $Panel $fresh $EmptyText $Mode $OnToggle
         Set-GuiProgress 0
-        Write-GuiLog "List refreshed" "OK"
+        Write-GuiLog (T "List refreshed") "OK"
     }.GetNewClosure()
-    Set-GuiProgress 10 "Refreshing list..."
+    Set-GuiProgress 10 (T "Refreshing list...")
     Start-GuiBackgroundJob -Work $Scan -Functions $Functions -OnDone $done -Name "Refresh" | Out-Null
 }
 

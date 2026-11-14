@@ -1,7 +1,7 @@
 function Show-PageHome {
     Clear-GuiContent
 
-    Add-GuiPageTitle "Dashboard"
+    Add-GuiPageTitle (T "Dashboard")
 
     # System Monitor Card: gauges (left) + specifications (right)
     $info = Get-SystemInfo
@@ -22,8 +22,8 @@ function Show-PageHome {
     $gaugePanel.Margin = "0,0,14,0"
     $gaugePanel.VerticalAlignment = "Center"
 
-    $cpuGauge = New-GuiMetricBar -Label "CPU" -AccentColor "Brush_Accent"
-    $ramGauge = New-GuiMetricBar -Label "RAM" -AccentColor "Brush_AccentGreen"
+    $cpuGauge = New-GuiMetricBar -Label (T "CPU") -AccentColor "Brush_Accent"
+    $ramGauge = New-GuiMetricBar -Label (T "RAM") -AccentColor "Brush_AccentGreen"
     $gaugePanel.AddChild($cpuGauge.Panel)
     $gaugePanel.AddChild($ramGauge.Panel)
 
@@ -31,7 +31,7 @@ function Show-PageHome {
     $gpuCount = [math]::Max(1, @($info.GPUs).Count)
     $Script:HomeGpuGauges = @()
     for ($gi = 0; $gi -lt $gpuCount; $gi++) {
-        $gpuLabel = if ($gpuCount -gt 1) { "GPU $($gi + 1)" } else { "GPU" }
+        $gpuLabel = if ($gpuCount -gt 1) { "$(T 'GPU') $($gi + 1)" } else { T "GPU" }
         $gGauge = New-GuiMetricBar -Label $gpuLabel -AccentColor "Brush_AccentAmber"
         $gaugePanel.AddChild($gGauge.Panel)
         $Script:HomeGpuGauges += $gGauge
@@ -70,11 +70,11 @@ function Show-PageHome {
         "$($info.GPUVendor) - $($info.GPUName) ($($info.GPUVRAM) GB VRAM)"
     }
     $specs = @(
-        @{Icon="&#xE770;"; Label="CPU"; Value=$info.CPUName},
-        @{Icon="&#xE7F1;"; Label="RAM"; Value="$($info.RAMTotalGB) GB Total"},
-        @{Icon="&#xEDA2;"; Label="HD"; Value="$($info.DiskTotalGB) GB total | $($info.DiskFreeGB) GB free"},
-        @{Icon="&#xE713;"; Label="OS"; Value="$($info.OSCaption)"},
-        @{Icon="&#xE7F4;"; Label="GPU"; Value=$gpuValue}
+        @{Icon="&#xE770;"; Label=(T "CPU"); Value=$info.CPUName},
+        @{Icon="&#xE7F1;"; Label=(T "RAM"); Value="$($info.RAMTotalGB) $(T 'GB Total')"},
+        @{Icon="&#xEDA2;"; Label=(T "HD"); Value="$($info.DiskTotalGB) $(T 'GB total') | $($info.DiskFreeGB) $(T 'GB free')"},
+        @{Icon="&#xE713;"; Label=(T "OS"); Value="$($info.OSCaption)"},
+        @{Icon="&#xE7F4;"; Label=(T "GPU"); Value=$gpuValue}
     )
 
     foreach ($spec in $specs) {
@@ -143,7 +143,7 @@ function Show-PageHome {
     $safetyRow.ColumnDefinitions.Add($safetyRowBtnCol)
     $safetyTitlePanel = New-Object System.Windows.Controls.StackPanel
     $safetyTitlePanel.VerticalAlignment = "Center"
-    Add-GuiIconTitle $safetyTitlePanel "&#xEA18;" "Safety First" "Brush_AccentWarm"
+    Add-GuiIconTitle $safetyTitlePanel "&#xEA18;" (T "Safety First") "Brush_AccentWarm"
     [System.Windows.Controls.Grid]::SetColumn($safetyTitlePanel, 0)
     [System.Windows.Controls.Grid]::SetColumnSpan($safetyTitlePanel, 2)
     $safetyRow.AddChild($safetyTitlePanel)
@@ -155,14 +155,14 @@ function Show-PageHome {
     $safetyInfoIcon.Margin = "8,0,10,0"
     $safetyInfoIcon.VerticalAlignment = "Center"
     $safetyInfoIcon.Cursor = "Help"
-    $safetyInfoIcon.ToolTip = "Create a Windows System Restore Point before making any system changes. Highly recommended."
+    $safetyInfoIcon.ToolTip = T "Create a Windows System Restore Point before making any system changes. Highly recommended."
     [System.Windows.Controls.Grid]::SetColumn($safetyInfoIcon, 2)
     $safetyRow.AddChild($safetyInfoIcon)
     $safetyBtnPanel = New-Object System.Windows.Controls.StackPanel
     $safetyBtnPanel.Orientation = "Horizontal"
     $safetyBtnPanel.VerticalAlignment = "Center"
     # Checkpoint-Computer can take 30s+: runs in a background job so the button reads "Cancel".
-    [void](Add-GuiBackgroundBtn $safetyBtnPanel "Create Restore Point" { Invoke-RestorePoint } @('Invoke-RestorePoint') {
+    [void](Add-GuiBackgroundBtn $safetyBtnPanel (T "Create Restore Point") { Invoke-RestorePoint } @('Invoke-RestorePoint') {
         Set-GuiProgress 0
     })
     [System.Windows.Controls.Grid]::SetColumn($safetyBtnPanel, 3)
@@ -189,7 +189,7 @@ function Show-PageHome {
     $utilRow.ColumnDefinitions.Add($utilRowBtnCol)
     $utilTitlePanel = New-Object System.Windows.Controls.StackPanel
     $utilTitlePanel.VerticalAlignment = "Center"
-    Add-GuiIconTitle $utilTitlePanel "&#xE896;" "Sett Utility" "Brush_AccentWarm"
+    Add-GuiIconTitle $utilTitlePanel "&#xE896;" (T "Sett Utility") "Brush_AccentWarm"
     [System.Windows.Controls.Grid]::SetColumn($utilTitlePanel, 0)
     [System.Windows.Controls.Grid]::SetColumnSpan($utilTitlePanel, 2)
     $utilRow.AddChild($utilTitlePanel)
@@ -201,13 +201,13 @@ function Show-PageHome {
     $utilInfoIcon.Margin = "8,0,10,0"
     $utilInfoIcon.VerticalAlignment = "Center"
     $utilInfoIcon.Cursor = "Help"
-    $utilInfoIcon.ToolTip = "Download the SETT Utility toolset directly to your Desktop."
+    $utilInfoIcon.ToolTip = T "Download the SETT Utility toolset directly to your Desktop."
     [System.Windows.Controls.Grid]::SetColumn($utilInfoIcon, 2)
     $utilRow.AddChild($utilInfoIcon)
     $utilBtnPanel = New-Object System.Windows.Controls.StackPanel
     $utilBtnPanel.Orientation = "Horizontal"
     $utilBtnPanel.VerticalAlignment = "Center"
-    [void](Add-GuiBtn $utilBtnPanel "Download SETT Utility" "InstallButtonStyle" { Invoke-DownloadRepoFile -RepoOwner "otaviozanon" -RepoName "settUtility" -FilePath "settUtility.zip" -Label "SETT Utility" })
+    [void](Add-GuiBtn $utilBtnPanel (T "Download SETT Utility") "InstallButtonStyle" { Invoke-DownloadRepoFile -RepoOwner "otaviozanon" -RepoName "settUtility" -FilePath "settUtility.zip" -Label "SETT Utility" })
     [System.Windows.Controls.Grid]::SetColumn($utilBtnPanel, 3)
     $utilRow.AddChild($utilBtnPanel)
     $utilBorder.Child = $utilRow

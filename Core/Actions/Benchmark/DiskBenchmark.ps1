@@ -142,7 +142,7 @@ public static class SettDiskIo
         $Script:DiskIoTypeReady = $true
         return $true
     } catch {
-        Write-GuiLog "4K random disk test unavailable on this system (unbuffered I/O setup failed): $($_.Exception.Message)" "WARN"
+        Write-GuiLog ((T "4K random disk test unavailable on this system (unbuffered I/O setup failed): {0}") -f $_.Exception.Message) "WARN"
         $Script:DiskIoTypeReady = $false
         return $false
     }
@@ -178,7 +178,7 @@ function Get-Disk4kRandomResult {
             $handle = [SettDiskIo]::OpenUnbuffered($testFile)
             $fs = [System.IO.FileStream]::new($handle, [System.IO.FileAccess]::ReadWrite, $blockSize, $false)
         } catch {
-            Write-GuiLog "4K random disk test skipped: $($_.Exception.Message)" "WARN"
+            Write-GuiLog ((T "4K random disk test skipped: {0}") -f $_.Exception.Message) "WARN"
             return $null
         }
 
@@ -268,7 +268,7 @@ function Get-DiskQueueDepthResult {
         $fsCreate = [System.IO.File]::Open($testFile, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write)
         try { $fsCreate.SetLength($fileSize) } finally { $fsCreate.Dispose() }
     } catch {
-        Write-GuiLog "Queue-depth disk test skipped: $($_.Exception.Message)" "WARN"
+        Write-GuiLog ((T "Queue-depth disk test skipped: {0}") -f $_.Exception.Message) "WARN"
         if (Test-Path $testFile) { Remove-Item $testFile -Force -ErrorAction SilentlyContinue }
         return $null
     }
@@ -372,7 +372,7 @@ public static class SettDiskIo
         }
         $firstError = ($counters | Where-Object { $_.Error } | Select-Object -First 1).Error
         if ($totalOps -eq 0 -and $firstError) {
-            Write-GuiLog "Queue-depth disk test skipped: $firstError" "WARN"
+            Write-GuiLog ((T "Queue-depth disk test skipped: {0}") -f $firstError) "WARN"
             return $null
         }
         $cancelled = [bool]($CancelCheck -and (& $CancelCheck))

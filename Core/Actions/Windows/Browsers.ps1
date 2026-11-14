@@ -12,7 +12,7 @@ function Invoke-BraveTweaks {
         @{Path="HKLM:\SOFTWARE\Policies\BraveSoftware\Brave";Name="BraveAIChatEnabled";Type="DWORD";Value=0}
     )
     Invoke-RegistryApply -Settings $reg -Label "Brave Tweaks"
-    Write-GuiLog "Brave optimized" "OK"
+    Write-GuiLog (T "Brave optimized") "OK"
     Set-GuiProgress 0
 }
 
@@ -25,7 +25,7 @@ function Invoke-ChromeTweaks {
         @{Path="HKLM:\SOFTWARE\Policies\Google\Chrome";Name="MetricsReportingEnabled";Type="DWORD";Value=0}
     )
     Invoke-RegistryApply -Settings $reg -Label "Chrome Tweaks"
-    Write-GuiLog "Chrome optimized" "OK"
+    Write-GuiLog (T "Chrome optimized") "OK"
     Set-GuiProgress 0
 }
 
@@ -40,7 +40,7 @@ function Invoke-EdgeTweaks {
         @{Path="HKLM:\SOFTWARE\Policies\Microsoft\Edge";Name="HideFirstRunExperience";Type="DWORD";Value=1}
     )
     Invoke-RegistryApply -Settings $reg -Label "Edge Tweaks"
-    Write-GuiLog "Edge optimized" "OK"
+    Write-GuiLog (T "Edge optimized") "OK"
     Set-GuiProgress 0
 }
 
@@ -54,7 +54,7 @@ function Invoke-FirefoxTweaks {
         @{Path="HKLM:\SOFTWARE\Policies\Mozilla\Firefox";Name="SearchSuggestEnabled";Type="DWORD";Value=0}
     )
     Invoke-RegistryApply -Settings $reg -Label "Firefox Tweaks"
-    Write-GuiLog "Firefox optimized" "OK"
+    Write-GuiLog (T "Firefox optimized") "OK"
     Set-GuiProgress 0
 }
 #endregion

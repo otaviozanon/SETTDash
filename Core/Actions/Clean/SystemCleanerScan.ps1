@@ -53,7 +53,7 @@ function Clear-CleanRecycleBin {
         try { Clear-RecycleBin -DriveLetter $drive -Force -ErrorAction Stop }
         catch {
             # "The Recycle Bin is already empty" is success for our purposes, not a failure.
-            if ($_.Exception.Message -notmatch 'empty') { Write-GuiLog "Recycle Bin ($drive`:): $($_.Exception.Message)" "WARN" }
+            if ($_.Exception.Message -notmatch 'empty') { Write-GuiLog ((T "Recycle Bin ({0}:): {1}") -f $drive, $_.Exception.Message) "WARN" }
         }
     }
     return (Get-CleanPathSize -Paths @($Path))
@@ -103,7 +103,7 @@ function Get-SystemCleanerItems {
 # category was selected. Only fully empty categories count as "cleaned".
 function Invoke-SystemCleanerClean {
     param([array]$Items)
-    if (-not $Items -or $Items.Count -eq 0) { Write-GuiLog "No items selected." "WARN"; return }
+    if (-not $Items -or $Items.Count -eq 0) { Write-GuiLog (T "No items selected.") "WARN"; return }
     $total = $Items.Count
     $cleaned = 0; $freed = 0.0; $locked = 0.0
     for ($i = 0; $i -lt $total; $i++) {
@@ -136,7 +136,7 @@ function Invoke-SystemCleanerClean {
                 Write-GuiLog ("{0} cleaned ({1} freed)" -f $it.Label, $freedText) "OK"
             }
         } catch {
-            Write-GuiLog "Failed to clean $($it.Label): $_" "ERR"
+            Write-GuiLog ((T "Failed to clean {0}: {1}") -f $it.Label, $_) "ERR"
         }
     }
     Set-GuiProgress 0

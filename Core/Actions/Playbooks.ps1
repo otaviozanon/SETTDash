@@ -5,8 +5,8 @@
 # Used by: Playbooks ("Download AME Wizard")
 function Invoke-PlaybookAME {
     Set-GuiProgress 20 "Fetching latest AME Wizard release..."
-    Write-GuiLog "Fetching latest AME Wizard release..." "STEP"
-    Write-GuiLog "Querying GitHub API: Ameliorated-io/ame-wizard-releases" "INFO"
+    Write-GuiLog (T "Fetching latest AME Wizard release...") "STEP"
+    Write-GuiLog ((T "Querying GitHub API: {0}") -f "Ameliorated-io/ame-wizard-releases") "INFO"
     $url = $null
     try {
         $apiUrl = "https://api.github.com/repos/Ameliorated-io/ame-wizard-releases/releases/latest"
@@ -16,19 +16,19 @@ function Invoke-PlaybookAME {
             if ($asset.name -like "*.zip") {
                 $url = $asset.browser_download_url
                 $size = [math]::Round($asset.size / 1MB, 2)
-                Write-GuiLog "Found: $($asset.name) ($size MB) - Tag: $($release.tag_name)" "OK"
+                Write-GuiLog ((T "Found: {0} ({1} MB) - Tag: {2}") -f $asset.name, $size, $release.tag_name) "OK"
                 break
             }
         }
-    } catch { Write-GuiLog "GitHub API lookup failed: $_" "WARN" }
+    } catch { Write-GuiLog ((T "GitHub API lookup failed: {0}") -f $_) "WARN" }
     if (-not $url) {
-        Write-GuiLog "Using fallback direct download URL" "WARN"
+        Write-GuiLog (T "Using fallback direct download URL") "WARN"
         $url = "https://download.ameliorated.io/AME%20Wizard%20Beta.zip"
     }
     Set-GuiProgress 80 "Opening browser..."
-    Write-GuiLog "Opening AME Wizard download in browser: $url" "OK"
-    try { Start-Process $url } catch { Write-GuiLog "Failed to open browser: $_" "ERR" }
-    Write-GuiLog "AME Wizard download initiated" "OK"
+    Write-GuiLog ((T "Opening AME Wizard download in browser: {0}") -f $url) "OK"
+    try { Start-Process $url } catch { Write-GuiLog ((T "Failed to open browser: {0}") -f $_) "ERR" }
+    Write-GuiLog (T "AME Wizard download initiated") "OK"
     Set-GuiProgress 0
 }
 #endregion
@@ -39,8 +39,8 @@ function Invoke-PlaybookAME {
 # Used by: Playbooks ("Download ReviOS")
 function Invoke-PlaybookReviOS {
     Set-GuiProgress 20 "Fetching latest ReviOS playbook..."
-    Write-GuiLog "Fetching latest ReviOS playbook..." "STEP"
-    Write-GuiLog "Querying GitHub API: meetrevision/playbook" "INFO"
+    Write-GuiLog (T "Fetching latest ReviOS playbook...") "STEP"
+    Write-GuiLog ((T "Querying GitHub API: {0}") -f "meetrevision/playbook") "INFO"
     $url = $null
     try {
         $apiUrl = "https://api.github.com/repos/meetrevision/playbook/releases/latest"
@@ -50,17 +50,17 @@ function Invoke-PlaybookReviOS {
             if ($asset.name -like "*.apbx") {
                 $url = $asset.browser_download_url
                 $size = [math]::Round($asset.size / 1MB, 2)
-                Write-GuiLog "Found: $($asset.name) ($size MB) - Tag: $($release.tag_name)" "OK"
+                Write-GuiLog ((T "Found: {0} ({1} MB) - Tag: {2}") -f $asset.name, $size, $release.tag_name) "OK"
                 break
             }
         }
-    } catch { Write-GuiLog "GitHub API lookup failed: $_" "WARN" }
+    } catch { Write-GuiLog ((T "GitHub API lookup failed: {0}") -f $_) "WARN" }
     if ($url) {
         Set-GuiProgress 80 "Opening browser..."
-        Write-GuiLog "Opening ReviOS playbook in browser..." "STEP"
-        try { Start-Process $url } catch { Write-GuiLog "Failed to open browser: $_" "ERR" }
+        Write-GuiLog (T "Opening ReviOS playbook in browser...") "STEP"
+        try { Start-Process $url } catch { Write-GuiLog ((T "Failed to open browser: {0}") -f $_) "ERR" }
     } else {
-        Write-GuiLog "No .apbx asset found in latest ReviOS release" "ERR"
+        Write-GuiLog (T "No .apbx asset found in latest ReviOS release") "ERR"
     }
     Set-GuiProgress 0
 }
@@ -72,8 +72,8 @@ function Invoke-PlaybookReviOS {
 # Used by: Playbooks ("Download AtlasOS")
 function Invoke-PlaybookAtlasOS {
     Set-GuiProgress 20 "Fetching latest AtlasOS playbook..."
-    Write-GuiLog "Fetching latest AtlasOS playbook..." "STEP"
-    Write-GuiLog "Querying GitHub API: Atlas-OS/Atlas" "INFO"
+    Write-GuiLog (T "Fetching latest AtlasOS playbook...") "STEP"
+    Write-GuiLog ((T "Querying GitHub API: {0}") -f "Atlas-OS/Atlas") "INFO"
     $url = $null
     try {
         $apiUrl = "https://api.github.com/repos/Atlas-OS/Atlas/releases/latest"
@@ -83,17 +83,17 @@ function Invoke-PlaybookAtlasOS {
             if ($asset.name -like "*.apbx") {
                 $url = $asset.browser_download_url
                 $size = [math]::Round($asset.size / 1MB, 2)
-                Write-GuiLog "Found: $($asset.name) ($size MB) - Tag: $($release.tag_name)" "OK"
+                Write-GuiLog ((T "Found: {0} ({1} MB) - Tag: {2}") -f $asset.name, $size, $release.tag_name) "OK"
                 break
             }
         }
-    } catch { Write-GuiLog "GitHub API lookup failed: $_" "WARN" }
+    } catch { Write-GuiLog ((T "GitHub API lookup failed: {0}") -f $_) "WARN" }
     if ($url) {
         Set-GuiProgress 80 "Opening browser..."
-        Write-GuiLog "Opening AtlasOS playbook in browser..." "STEP"
-        try { Start-Process $url } catch { Write-GuiLog "Failed to open browser: $_" "ERR" }
+        Write-GuiLog (T "Opening AtlasOS playbook in browser...") "STEP"
+        try { Start-Process $url } catch { Write-GuiLog ((T "Failed to open browser: {0}") -f $_) "ERR" }
     } else {
-        Write-GuiLog "No .apbx asset found in latest AtlasOS release" "ERR"
+        Write-GuiLog (T "No .apbx asset found in latest AtlasOS release") "ERR"
     }
     Set-GuiProgress 0
 }
@@ -105,7 +105,7 @@ function Invoke-PlaybookAtlasOS {
 # Used by: Playbooks ("Download FSOS-X")
 function Invoke-PlaybookFSOSX {
     Set-GuiProgress 20 "Scraping FSOS-X for latest playbook..."
-    Write-GuiLog "Scraping FSOS-X for latest playbook..." "STEP"
+    Write-GuiLog (T "Scraping FSOS-X for latest playbook...") "STEP"
     $siteUrl = "https://fsosx.com/"
     $url = $null
     try {
@@ -113,23 +113,23 @@ function Invoke-PlaybookFSOSX {
         $matches = [regex]::Matches($web.Content, 'https?://[^"''\s<>]+\.apbx')
         if ($matches -and $matches.Count -gt 0) {
             $url = $matches[0].Value
-            Write-GuiLog "Found: $url" "OK"
+            Write-GuiLog ((T "Found: {0}") -f $url) "OK"
         } else {
             $altMatch = [regex]::Match($web.Content, 'href="([^"]*\.apbx)"', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
             if ($altMatch.Success) {
                 $relativePath = $altMatch.Groups[1].Value
                 if ($relativePath -match '^https?://') { $url = $relativePath }
                 else { $uri = [System.Uri]::new($siteUrl); $url = "$($uri.Scheme)://$($uri.Host)/$relativePath" }
-                Write-GuiLog "Found: $url" "OK"
+                Write-GuiLog ((T "Found: {0}") -f $url) "OK"
             }
         }
-    } catch { Write-GuiLog "Failed to scrape FSOSX: $_" "WARN" }
+    } catch { Write-GuiLog ((T "Failed to scrape FSOSX: {0}") -f $_) "WARN" }
     if ($url) {
         Set-GuiProgress 80 "Opening browser..."
-        Write-GuiLog "Opening FSOS-X playbook in browser..." "STEP"
-        try { Start-Process $url } catch { Write-GuiLog "Failed to open browser: $_" "ERR" }
+        Write-GuiLog (T "Opening FSOS-X playbook in browser...") "STEP"
+        try { Start-Process $url } catch { Write-GuiLog ((T "Failed to open browser: {0}") -f $_) "ERR" }
     } else {
-        Write-GuiLog "No .apbx link found on FSOSX site" "ERR"
+        Write-GuiLog (T "No .apbx link found on FSOSX site") "ERR"
     }
     Set-GuiProgress 0
 }
