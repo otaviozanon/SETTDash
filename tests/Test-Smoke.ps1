@@ -243,7 +243,12 @@ function Resolve-Ps2exeModule {
     try {
         Invoke-WebRequest -Uri "https://codeload.github.com/MScholtes/PS2EXE/zip/$sha" -OutFile $zip -UserAgent "SETTDash-tests" -ErrorAction Stop
         if (Test-Path $extract) { Remove-Item $extract -Recurse -Force }
-        Expand-Archive -Path $zip -DestinationPath $extract -Force
+        # Windows PowerShell 5.1's Expand-Archive -Force resolves a 3-argument
+        # ZipFile.ExtractToDirectory overload that .NET Framework does not have, so a clean
+        # machine (CI) could never download ps2exe. The 2-argument call exists on both hosts;
+        # the destination was just removed, so nothing is overwritten.
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        [System.IO.Compression.ZipFile]::ExtractToDirectory($zip, $extract)
         $moduleDir = Get-ChildItem -Path $extract -Recurse -Filter "ps2exe.psm1" | Select-Object -First 1
         if (-not $moduleDir) { throw "ps2exe.psm1 not found in the downloaded archive" }
         $target = Join-Path $toolsDir "ps2exe"
