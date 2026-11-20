@@ -28,9 +28,9 @@ function Show-PageInstallers {
         Add-GuiBtn $w "Spotify" "InstallButtonStyle" { Invoke-InstallWingetApp "Spotify.Spotify" "Spotify" -FallbackUrl "https://www.spotify.com/download/" }
         Add-GuiBtn $w "Image Glass" "InstallButtonStyle" { Invoke-InstallWingetApp "DuongDieuPhap.ImageGlass" "Image Glass" -FallbackUrl "https://imageglass.org/" }
         Add-GuiBtn $w "Lightshot" "InstallButtonStyle" { Invoke-InstallWingetApp "Skillbrains.Lightshot" "Lightshot" -FallbackUrl "https://app.prntscr.com/" }
-        Add-GuiBtn $w "YTSage" "InstallButtonStyle" { Invoke-InstallWingetApp "" "YTSage" -FallbackUrl "https://github.com/oop7/YTSage/releases/download/v5.2.0/YTSage-v5.2.0-Setup.exe" }
+        Add-GuiBtn $w "YTSage" "InstallButtonStyle" { Invoke-InstallWingetApp "" "YTSage" -FallbackUrl "https://github.com/oop7/YTSage/releases/latest" }
         Add-GuiBtn $w "EarTrumpet" "InstallButtonStyle" { Invoke-InstallWingetApp "9NBLGGH516XP" "EarTrumpet" "msstore" "https://apps.microsoft.com/detail/9NBLGGH516XP" }
-        Add-GuiBtn $w "MovieBox-TUI" "InstallButtonStyle" { Invoke-InstallRemoteScript "https://raw.githubusercontent.com/mesamirh/MovieBox-Tui/main/install.ps1" "MovieBox-TUI" -FallbackUrl "https://github.com/mesamirh/MovieBox-Tui" }
+        Add-GuiBtn $w "MovieBox-TUI" "InstallButtonStyle" { Invoke-InstallRemoteScript "https://raw.githubusercontent.com/mesamirh/MovieBox-Tui/main/install.ps1" "MovieBox-TUI" -FallbackUrl "https://github.com/mesamirh/MovieBox-Tui/releases/latest" }
     } "&#xE8B2;" "Brush_AccentPink" -WrapButtons
     Add-GuiCard (T "Utilities") (T "System tools.") {
         param($w)
@@ -38,7 +38,7 @@ function Show-PageInstallers {
         Add-GuiBtn $w "Firemin" "InstallButtonStyle" { Invoke-InstallWingetApp "Firemin" "Firemin" -FallbackUrl "https://rizonesoft.com/downloads/firemin/" }
         Add-GuiBtn $w "AirLiveDrive" "InstallButtonStyle" { Invoke-InstallWingetApp "AirLiveDrive" "Air Live Drive" -FallbackUrl "https://www.airlivedrive.com/en/" }
         Add-GuiBtn $w "Uninstalr" "InstallButtonStyle" { Invoke-InstallWingetApp "" "Uninstalr" -FallbackUrl "https://uninstalr.com/download/" }
-        Add-GuiBtn $w "Kudu" "InstallButtonStyle" { Invoke-InstallWingetApp "" "Kudu" -FallbackUrl "https://github.com/AdventDevInc/kudu/releases/download/v1.47.0/Kudu-Setup-1.47.0.exe" }
+        Add-GuiBackgroundBtn $w "SETT Metter" { Invoke-DownloadLatestRelease -RepoOwner "otaviozanon" -RepoName "SETTMetter" -Label "SETT Metter" } @('Invoke-DownloadLatestRelease') $null "InstallButtonStyle"
         Add-GuiBtn $w "FDM" "InstallButtonStyle" { Invoke-InstallWingetApp "Softdeluxe.FreeDownloadManager" "FDM" -FallbackUrl "https://www.freedownloadmanager.org/" }
         Add-GuiBtn $w "filee.sh" "InstallButtonStyle" { Invoke-InstallWingetApp "" "filee.sh" -FallbackUrl "https://filee.sh/#download" }
     } "&#xEA99;" "Brush_AccentWarm" -WrapButtons
@@ -50,7 +50,7 @@ function Show-PageInstallers {
         Add-GuiBtn $w "Flow Launcher" "InstallButtonStyle" { Invoke-InstallWingetApp "Flow-Launcher.Flow-Launcher" "Flow Launcher" -FallbackUrl "https://www.flowlauncher.com/" }
         Add-GuiBtn $w "Lively WP" "InstallButtonStyle" { Invoke-InstallWingetApp "9NTM2QC6QWS7" "Lively Wallpaper" "msstore" "https://apps.microsoft.com/detail/9NTM2QC6QWS7" }
         Add-GuiBtn $w "RainMeter" "InstallButtonStyle" { Invoke-InstallWingetApp "Rainmeter.Rainmeter" "RainMeter" -FallbackUrl "https://www.rainmeter.net/" }
-        Add-GuiBtn $w "Nusa" "InstallButtonStyle" { Invoke-InstallWingetApp "" "Nusa" -FallbackUrl "https://github.com/rama2555/nusa/releases/latest/download/NusaSetup.zip" }
+        Add-GuiBtn $w "Nusa" "InstallButtonStyle" { Invoke-InstallWingetApp "" "Nusa" -FallbackUrl "https://github.com/rama2555/nusa/releases/latest" }
     } "&#xE771;" "Brush_AccentCyan" -WrapButtons
     Add-GuiCard (T "Communication") (T "Chat and voice.") {
         param($w)
@@ -61,13 +61,13 @@ function Show-PageInstallers {
         param($w)
         Add-GuiBtn $w "FACEIT" "InstallButtonStyle" { Invoke-InstallWingetApp "FACEITLTD.FACEITClient" "FACEIT" -FallbackUrl "https://www.faceit.com/en/downloads" }
         Add-GuiBtn $w "GamersClub" "InstallButtonStyle" { Invoke-InstallWingetApp "br.gamersclub.launcher" "GamersClub" -FallbackUrl "https://gamersclub.com.br/" }
-        Add-GuiBtn $w "LuaTools" "InstallButtonStyle" { Invoke-InstallWingetApp "" "LuaTools" -FallbackUrl "https://github.com/madoiscool/luatools/releases/latest/download/LuaTools-win-Setup.exe" }
+        Add-GuiBtn $w "LuaTools" "InstallButtonStyle" { Invoke-InstallWingetApp "" "LuaTools" -FallbackUrl "https://github.com/madoiscool/luatools/releases/latest" }
     } "&#xE7FC;" "Brush_AccentRed" -WrapButtons
     Add-GuiCard (T "VPN Free") (T "Free VPN clients.") {
         param($w)
         Add-GuiBtn $w "ProtonVPN" "InstallButtonStyle" { Invoke-InstallWingetApp "Proton.ProtonVPN" "Proton VPN" -FallbackUrl "https://protonvpn.com/" }
         Add-GuiBtn $w "Pritunl" "InstallButtonStyle" { Invoke-InstallWingetApp "Pritunl.PritunlClient" "Pritunl" -FallbackUrl "https://client.pritunl.com/#install" }
         Add-GuiBtn $w "Riseup" "InstallButtonStyle" { Invoke-InstallWingetApp "Riseup.RiseupVPN" "Riseup VPN" -FallbackUrl "https://riseup.net/pt/windows" }
-        Add-GuiBtn $w "SettVPN" "InstallButtonStyle" { Invoke-InstallWingetApp "" "SettVPN" -FallbackUrl "https://github.com/otaviozanon/SettVPN/releases" }
+        Add-GuiBackgroundBtn $w "SettVPN" { Invoke-DownloadLatestRelease -RepoOwner "otaviozanon" -RepoName "SettVPN" -Label "SettVPN" } @('Invoke-DownloadLatestRelease') $null "InstallButtonStyle"
     } "&#xEA18;" "Brush_AccentBlue" -WrapButtons
 }

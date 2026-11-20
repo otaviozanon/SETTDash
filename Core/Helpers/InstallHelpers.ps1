@@ -48,6 +48,53 @@ function Invoke-InstallWingetApp {
         catch { Write-GuiLog ((T "Failed to open {0} website: {1}") -f $Name, $_.Exception.Message) "ERR" }
     } else { Write-GuiLog ((T "{0} : no fallback URL available") -f $Name) "ERR" }
 }
+# Used by: Utilities ("SETT Memory Cleaner", "SETT Metter") and Installers ("SettVPN", "SETT Metter")
+# Downloads the newest asset of a repo's latest GitHub release to the Desktop and launches it, so
+# the button always delivers the current build instead of a version pinned here. Runs in a
+# background job (Add-GuiBackgroundBtn): the progress bar follows the transfer and the window
+# keeps painting while a large .exe is fetched.
+function Invoke-DownloadLatestRelease {
+    param([string]$RepoOwner, [string]$RepoName, [string]$AssetPattern = "*.exe", [string]$Label = $RepoName)
+    Write-GuiLog ((T "Looking up the latest {0} release on GitHub...") -f $Label) "STEP"
+    try {
+        # GitHub requires TLS 1.2, which .NET Framework (the WinPS 5.1 host) does not negotiate by default.
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor [System.Net.SecurityProtocolType]::Tls12
+        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest" `
+            -Headers @{ "User-Agent" = "SETTDash" } -TimeoutSec 15
+        $asset = @($release.assets) | Where-Object { $_.name -like $AssetPattern } | Select-Object -First 1
+        if (-not $asset) { throw "no asset matching '$AssetPattern' in release $($release.tag_name)" }
+        # Download to the runtime folder first: a cancelled/failed transfer never leaves a broken
+        # .exe on the Desktop, and the move is the only step that touches what the user sees.
+        $tmp = Join-Path $Script:TempDir $asset.name
+        $dest = Join-Path ([Environment]::GetFolderPath("Desktop")) $asset.name
+        Set-GuiProgress 0 ((T "Downloading {0} ({1})...") -f $asset.name, $release.tag_name)
+        $req = [System.Net.HttpWebRequest]::Create($asset.browser_download_url)
+        $req.UserAgent = "SETTDash"
+        $resp = $req.GetResponse()
+        try {
+            # Chunked responses report -1; the release metadata always carries the real size.
+            $total = if ($resp.ContentLength -gt 0) { [long]$resp.ContentLength } else { [long]$asset.size }
+            $in = $resp.GetResponseStream()
+            $out = [System.IO.File]::Create($tmp)
+            try {
+                $buf = New-Object byte[] 81920
+                $read = 0L
+                while (($n = $in.Read($buf, 0, $buf.Length)) -gt 0) {
+                    $out.Write($buf, 0, $n)
+                    $read += $n
+                    if ($total -gt 0) { Set-GuiProgress ([math]::Min(99, [math]::Round($read * 100 / $total))) }
+                }
+            } finally { $out.Dispose(); $in.Dispose() }
+        } finally { $resp.Dispose() }
+        Move-Item -LiteralPath $tmp -Destination $dest -Force
+        Set-GuiProgress 100
+        Write-GuiLog ((T "{0} {1} saved to Desktop") -f $Label, $release.tag_name) "OK"
+        Start-Process $dest
+    } catch {
+        Set-GuiProgress 0
+        Write-GuiLog ((T "{0} download failed: {1}") -f $Label, $_.Exception.Message) "ERR"
+    }
+}
 # Used by: Installers, AllInstallers, GpuSoftware, CPU (generic install helpers)
 # Downloads and executes a remote installer script from $Url via Invoke-Expression. On failure,
 # falls back to opening $FallbackUrl in the browser (if provided) so the user can install manually.

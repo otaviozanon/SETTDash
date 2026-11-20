@@ -148,22 +148,22 @@ function Show-PageAllInstallers {
 
     $global:AllAppsData[0] = @{Cat='Browsers'; Name='Brave'; Winget='Brave.Brave'; Url='https://www.brave.com'}
     $global:AllAppsData[1] = @{Cat='Browsers'; Name='Chrome'; Winget='Google.Chrome'; Url='https://www.google.com/chrome/'}
-    $global:AllAppsData[2] = @{Cat='Browsers'; Name='Chromium'; Winget='Hibbiki.Chromium'; Url='https://github.com/Hibbiki/chromium-win64'}
+    $global:AllAppsData[2] = @{Cat='Browsers'; Name='Chromium'; Winget='Hibbiki.Chromium'; Url='https://github.com/Hibbiki/chromium-win64/releases/latest'}
     $global:AllAppsData[3] = @{Cat='Browsers'; Name='Edge'; Winget='Microsoft.Edge'; Url='https://www.microsoft.com/edge'}
     $global:AllAppsData[4] = @{Cat='Browsers'; Name='Firefox'; Winget='Mozilla.Firefox'; Url='https://www.mozilla.org/en-US/firefox/new/'}
     $global:AllAppsData[5] = @{Cat='Browsers'; Name='Firefox ESR'; Winget='Mozilla.Firefox.ESR'; Url='https://www.mozilla.org/en-US/firefox/enterprise/'}
     $global:AllAppsData[6] = @{Cat='Browsers'; Name='Floorp'; Winget='Ablaze.Floorp'; Url='https://floorp.app/'}
-    $global:AllAppsData[7] = @{Cat='Browsers'; Name='Helium'; Winget='ImputNet.Helium'; Url='https://github.com/imputnet/helium/'}
+    $global:AllAppsData[7] = @{Cat='Browsers'; Name='Helium'; Winget='ImputNet.Helium'; Url='https://github.com/imputnet/helium/releases/latest'}
     $global:AllAppsData[8] = @{Cat='Browsers'; Name='LibreWolf'; Winget='LibreWolf.LibreWolf'; Url='https://librewolf-community.gitlab.io/'}
     $global:AllAppsData[9] = @{Cat='Browsers'; Name='Mullvad Browser'; Winget='MullvadVPN.MullvadBrowser'; Url='https://mullvad.net/browser'}
     $global:AllAppsData[10] = @{Cat='Browsers'; Name='Tor Browser'; Winget='TorProject.TorBrowser'; Url='https://www.torproject.org/'}
-    $global:AllAppsData[11] = @{Cat='Browsers'; Name='Ungoogled Chromium'; Winget='eloston.ungoogled-chromium'; Url='https://github.com/Eloston/ungoogled-chromium'}
+    $global:AllAppsData[11] = @{Cat='Browsers'; Name='Ungoogled Chromium'; Winget='eloston.ungoogled-chromium'; Url='https://github.com/Eloston/ungoogled-chromium/releases/latest'}
     $global:AllAppsData[12] = @{Cat='Browsers'; Name='Vivaldi'; Winget='Vivaldi.Vivaldi'; Url='https://vivaldi.com/'}
     $global:AllAppsData[13] = @{Cat='Browsers'; Name='Waterfox'; Winget='Waterfox.Waterfox'; Url='https://www.waterfox.net/'}
     $global:AllAppsData[14] = @{Cat='Browsers'; Name='Zen Browser'; Winget='Zen-Team.Zen-Browser'; Url='https://zen-browser.app/'}
     $global:AllAppsData[15] = @{Cat='Communications'; Name='Chatterino'; Winget='ChatterinoTeam.Chatterino'; Url='https://www.chatterino.com/'}
     $global:AllAppsData[16] = @{Cat='Communications'; Name='Discord'; Winget='Discord.Discord'; Url='https://discord.com/'}
-    $global:AllAppsData[17] = @{Cat='Communications'; Name='Dorion'; Winget='SpikeHD.Dorion'; Url='https://github.com/SpikeHD/Dorion'}
+    $global:AllAppsData[17] = @{Cat='Communications'; Name='Dorion'; Winget='SpikeHD.Dorion'; Url='https://github.com/SpikeHD/Dorion/releases/latest'}
     $global:AllAppsData[18] = @{Cat='Communications'; Name='Element'; Winget='Element.Element'; Url='https://element.io/'}
     $global:AllAppsData[19] = @{Cat='Communications'; Name='Proton Mail'; Winget='Proton.ProtonMail'; Url='https://proton.me/mail'}
     $global:AllAppsData[20] = @{Cat='Communications'; Name='QTox'; Winget='Tox.qTox'; Url='https://qtox.github.io/'}
@@ -174,7 +174,7 @@ function Show-PageAllInstallers {
     $global:AllAppsData[25] = @{Cat='Communications'; Name='Telegram'; Winget='Telegram.TelegramDesktop'; Url='https://telegram.org/'}
     $global:AllAppsData[26] = @{Cat='Communications'; Name='Thunderbird'; Winget='Mozilla.Thunderbird'; Url='https://www.thunderbird.net/'}
     $global:AllAppsData[27] = @{Cat='Communications'; Name='Betterbird'; Winget='Betterbird.Betterbird'; Url='https://www.betterbird.eu/'}
-    $global:AllAppsData[28] = @{Cat='Communications'; Name='Vesktop'; Winget='Vencord.Vesktop'; Url='https://github.com/Vencord/Vesktop'}
+    $global:AllAppsData[28] = @{Cat='Communications'; Name='Vesktop'; Winget='Vencord.Vesktop'; Url='https://github.com/Vencord/Vesktop/releases/latest'}
     $global:AllAppsData[29] = @{Cat='Communications'; Name='Viber'; Winget='Rakuten.Viber'; Url='https://www.viber.com/'}
     $global:AllAppsData[30] = @{Cat='Communications'; Name='WhatsApp Desktop'; Winget='msstore:9NKSQGP7F2NH'; Url='https://apps.microsoft.com/detail/9nksqgp7f2nh'}
     $global:AllAppsData[31] = @{Cat='Communications'; Name='Zoom'; Winget='Zoom.Zoom'; Url='https://zoom.us/'}
@@ -191,7 +191,7 @@ function Show-PageAllInstallers {
     $global:AllAppsData[42] = @{Cat='Development'; Name='Amazon Corretto 21 (LTS)'; Winget='Amazon.Corretto.21.JDK'; Url='https://aws.amazon.com/corretto'}
     $global:AllAppsData[43] = @{Cat='Development'; Name='Amazon Corretto 25 (LTS)'; Winget='Amazon.Corretto.25.JDK'; Url='https://aws.amazon.com/corretto'}
     $global:AllAppsData[44] = @{Cat='Development'; Name='Jetbrains Toolbox'; Winget='JetBrains.Toolbox'; Url='https://www.jetbrains.com/toolbox/'}
-    $global:AllAppsData[45] = @{Cat='Development'; Name='Lazygit'; Winget='JesseDuffield.lazygit'; Url='https://github.com/jesseduffield/lazygit/'}
+    $global:AllAppsData[45] = @{Cat='Development'; Name='Lazygit'; Winget='JesseDuffield.lazygit'; Url='https://github.com/jesseduffield/lazygit/releases/latest'}
     $global:AllAppsData[46] = @{Cat='Development'; Name='Neovim'; Winget='Neovim.Neovim'; Url='https://neovim.io/'}
     $global:AllAppsData[47] = @{Cat='Development'; Name='NodeJS'; Winget='OpenJS.NodeJS'; Url='https://nodejs.org/'}
     $global:AllAppsData[48] = @{Cat='Development'; Name='NodeJS LTS'; Winget='OpenJS.NodeJS.LTS'; Url='https://nodejs.org/'}
@@ -210,7 +210,7 @@ function Show-PageAllInstallers {
     $global:AllAppsData[61] = @{Cat='Development'; Name='uv'; Winget='astral-sh.uv'; Url='https://docs.astral.sh/uv/getting-started/installation/'}
     $global:AllAppsData[62] = @{Cat='Development'; Name='Zed'; Winget='ZedIndustries.Zed'; Url='https://zed.dev/'}
     $global:AllAppsData[63] = @{Cat='Development'; Name='Ruby'; Winget='RubyInstallerTeam.Ruby.4.0'; Url='https://rubyinstaller.org/'}
-    $global:AllAppsData[64] = @{Cat='Development'; Name='Lua'; Winget='rjpcomputing.luaforwindows'; Url='https://github.com/rjpcomputing/luaforwindows'}
+    $global:AllAppsData[64] = @{Cat='Development'; Name='Lua'; Winget='rjpcomputing.luaforwindows'; Url='https://github.com/rjpcomputing/luaforwindows/releases/latest'}
     $global:AllAppsData[65] = @{Cat='Games'; Name='Cemu'; Winget='Cemu.Cemu'; Url='https://cemu.info/'}
     $global:AllAppsData[66] = @{Cat='Games'; Name='EA App'; Winget='ElectronicArts.EADesktop'; Url='https://www.ea.com/ea-app'}
     $global:AllAppsData[67] = @{Cat='Games'; Name='Epic Games Launcher'; Winget='EpicGames.EpicGamesLauncher'; Url='https://www.epicgames.com/store/en-US/'}
@@ -227,7 +227,7 @@ function Show-PageAllInstallers {
     $global:AllAppsData[78] = @{Cat='Games'; Name='Overwolf'; Winget='Overwolf.CurseForge'; Url='https://www.overwolf.com/app/overwolf-curseforge'}
     $global:AllAppsData[79] = @{Cat='Microsoft Tools'; Name='Autoruns'; Winget='Microsoft.Sysinternals.Autoruns'; Url='https://learn.microsoft.com/en-us/sysinternals/downloads/autoruns'}
     $global:AllAppsData[80] = @{Cat='Microsoft Tools'; Name='RDCMan'; Winget='Microsoft.Sysinternals.RDCMan'; Url='https://learn.microsoft.com/en-us/sysinternals/downloads/rdcman'}
-    $global:AllAppsData[81] = @{Cat='Microsoft Tools'; Name='DISMTools'; Winget='CodingWondersSoftware.DISMTools.Stable'; Url='https://github.com/CodingWonders/DISMTools'}
+    $global:AllAppsData[81] = @{Cat='Microsoft Tools'; Name='DISMTools'; Winget='CodingWondersSoftware.DISMTools.Stable'; Url='https://github.com/CodingWonders/DISMTools/releases/latest'}
     $global:AllAppsData[82] = @{Cat='Microsoft Tools'; Name='NTLite'; Winget='Nlitesoft.NTLite'; Url='https://ntlite.com'}
     $global:AllAppsData[83] = @{Cat='Microsoft Tools'; Name='.NET Desktop Runtime 6'; Winget='Microsoft.DotNet.DesktopRuntime.6'; Url='https://dotnet.microsoft.com/download/dotnet/6.0'}
     $global:AllAppsData[84] = @{Cat='Microsoft Tools'; Name='.NET Desktop Runtime 8'; Winget='Microsoft.DotNet.DesktopRuntime.8'; Url='https://dotnet.microsoft.com/download/dotnet/8.0'}
@@ -236,8 +236,8 @@ function Show-PageAllInstallers {
     $global:AllAppsData[87] = @{Cat='Microsoft Tools'; Name='NuGet'; Winget='Microsoft.NuGet'; Url='https://www.nuget.org/'}
     $global:AllAppsData[88] = @{Cat='Microsoft Tools'; Name='OneDrive'; Winget='Microsoft.OneDrive'; Url='https://onedrive.live.com/'}
     $global:AllAppsData[89] = @{Cat='Microsoft Tools'; Name='Process Explorer'; Winget='Microsoft.Sysinternals.ProcessExplorer'; Url='https://learn.microsoft.com/sysinternals/downloads/process-explorer'}
-    $global:AllAppsData[90] = @{Cat='Microsoft Tools'; Name='PowerShell'; Winget='Microsoft.PowerShell'; Url='https://github.com/PowerShell/PowerShell'}
-    $global:AllAppsData[91] = @{Cat='Microsoft Tools'; Name='PowerToys'; Winget='Microsoft.PowerToys'; Url='https://github.com/microsoft/PowerToys'}
+    $global:AllAppsData[90] = @{Cat='Microsoft Tools'; Name='PowerShell'; Winget='Microsoft.PowerShell'; Url='https://github.com/PowerShell/PowerShell/releases/latest'}
+    $global:AllAppsData[91] = @{Cat='Microsoft Tools'; Name='PowerToys'; Winget='Microsoft.PowerToys'; Url='https://github.com/microsoft/PowerToys/releases/latest'}
     $global:AllAppsData[92] = @{Cat='Microsoft Tools'; Name='Process Monitor'; Winget='Microsoft.Sysinternals.ProcessMonitor'; Url='https://docs.microsoft.com/en-us/sysinternals/downloads/procmon'}
     $global:AllAppsData[93] = @{Cat='Microsoft Tools'; Name='TCPView'; Winget='Microsoft.Sysinternals.TCPView'; Url='https://docs.microsoft.com/en-us/sysinternals/downloads/tcpview'}
     $global:AllAppsData[94] = @{Cat='Microsoft Tools'; Name='Windows Terminal'; Winget='Microsoft.WindowsTerminal'; Url='https://aka.ms/terminal'}
@@ -256,8 +256,8 @@ function Show-PageAllInstallers {
     $global:AllAppsData[107] = @{Cat='Multimedia Tools'; Name='iTunes'; Winget='Apple.iTunes'; Url='https://www.apple.com/itunes/'}
     $global:AllAppsData[108] = @{Cat='Multimedia Tools'; Name='K-Lite Codec Standard'; Winget='CodecGuide.K-LiteCodecPack.Standard'; Url='https://www.codecguide.com/'}
     $global:AllAppsData[109] = @{Cat='Multimedia Tools'; Name='LibreOffice'; Winget='TheDocumentFoundation.LibreOffice'; Url='https://www.libreoffice.org/'}
-    $global:AllAppsData[110] = @{Cat='Multimedia Tools'; Name='mpc-qt'; Winget='mpc-qt.mpc-qt'; Url='https://github.com/mpc-qt/mpc-qt'}
-    $global:AllAppsData[111] = @{Cat='Multimedia Tools'; Name='Media Player Classic - Home Cinema'; Winget='clsid2.mpc-hc'; Url='https://github.com/clsid2/mpc-hc/'}
+    $global:AllAppsData[110] = @{Cat='Multimedia Tools'; Name='mpc-qt'; Winget='mpc-qt.mpc-qt'; Url='https://github.com/mpc-qt/mpc-qt/releases/latest'}
+    $global:AllAppsData[111] = @{Cat='Multimedia Tools'; Name='Media Player Classic - Home Cinema'; Winget='clsid2.mpc-hc'; Url='https://github.com/clsid2/mpc-hc/releases/latest'}
     $global:AllAppsData[112] = @{Cat='Multimedia Tools'; Name='nomacs'; Winget='nomacs.nomacs'; Url='https://nomacs.org/'}
     $global:AllAppsData[113] = @{Cat='Multimedia Tools'; Name='NAPS2 (Document Scanner)'; Winget='Cyanfish.NAPS2'; Url='https://www.naps2.com/'}
     $global:AllAppsData[114] = @{Cat='Multimedia Tools'; Name='Notepad++'; Winget='Notepad++.Notepad++'; Url='https://notepad-plus-plus.org/'}
@@ -273,20 +273,20 @@ function Show-PageAllInstallers {
     $global:AllAppsData[124] = @{Cat='Pro Tools'; Name='CPU-Z'; Winget='CPUID.CPU-Z'; Url='https://www.cpuid.com/softwares/cpu-z.html'}
     $global:AllAppsData[125] = @{Cat='Pro Tools'; Name='Display Driver Uninstaller'; Winget='Wagnardsoft.DisplayDriverUninstaller'; Url='https://www.wagnardsoft.com/display-driver-uninstaller-DDU-'}
     $global:AllAppsData[126] = @{Cat='Pro Tools'; Name='GPU-Z'; Winget='TechPowerUp.GPU-Z'; Url='https://www.techpowerup.com/gpuz/'}
-    $global:AllAppsData[127] = @{Cat='Pro Tools'; Name='gsudo'; Winget='gerardog.gsudo'; Url='https://github.com/gerardog/gsudo'}
+    $global:AllAppsData[127] = @{Cat='Pro Tools'; Name='gsudo'; Winget='gerardog.gsudo'; Url='https://github.com/gerardog/gsudo/releases/latest'}
     $global:AllAppsData[128] = @{Cat='Pro Tools'; Name='HWiNFO'; Winget='REALiX.HWiNFO'; Url='https://www.hwinfo.com/'}
     $global:AllAppsData[129] = @{Cat='Pro Tools'; Name='HWMonitor'; Winget='CPUID.HWMonitor'; Url='https://www.cpuid.com/softwares/hwmonitor.html'}
-    $global:AllAppsData[130] = @{Cat='Pro Tools'; Name='Mullvad VPN'; Winget='MullvadVPN.MullvadVPN'; Url='https://github.com/mullvad/mullvadvpn-app'}
+    $global:AllAppsData[130] = @{Cat='Pro Tools'; Name='Mullvad VPN'; Winget='MullvadVPN.MullvadVPN'; Url='https://github.com/mullvad/mullvadvpn-app/releases/latest'}
     $global:AllAppsData[131] = @{Cat='Pro Tools'; Name='Nmap'; Winget='Insecure.Nmap'; Url='https://nmap.org/'}
     $global:AllAppsData[132] = @{Cat='Pro Tools'; Name='OpenVPN Connect'; Winget='OpenVPNTechnologies.OpenVPNConnect'; Url='https://openvpn.net/'}
     $global:AllAppsData[133] = @{Cat='Pro Tools'; Name='Proton VPN'; Winget='Proton.ProtonVPN'; Url='https://protonvpn.com/'}
     $global:AllAppsData[134] = @{Cat='Pro Tools'; Name='PuTTY'; Winget='PuTTY.PuTTY'; Url='https://www.chiark.greenend.org.uk/~sgtatham/putty/'}
-    $global:AllAppsData[135] = @{Cat='Pro Tools'; Name='Simplewall'; Winget='Henry++.simplewall'; Url='https://github.com/henrypp/simplewall'}
+    $global:AllAppsData[135] = @{Cat='Pro Tools'; Name='Simplewall'; Winget='Henry++.simplewall'; Url='https://github.com/henrypp/simplewall/releases/latest'}
     $global:AllAppsData[136] = @{Cat='Pro Tools'; Name='Ventoy'; Winget='Ventoy.Ventoy'; Url='https://www.ventoy.net/'}
     $global:AllAppsData[137] = @{Cat='Pro Tools'; Name='WinSCP'; Winget='WinSCP.WinSCP'; Url='https://winscp.net/'}
     $global:AllAppsData[138] = @{Cat='Pro Tools'; Name='WireGuard'; Winget='WireGuard.WireGuard'; Url='https://www.wireguard.com/'}
     $global:AllAppsData[139] = @{Cat='Pro Tools'; Name='Wireshark'; Winget='WiresharkFoundation.Wireshark'; Url='https://www.wireshark.org/'}
-    $global:AllAppsData[140] = @{Cat='Selfhosted Tools'; Name='Jellyfin Media Player'; Winget='Jellyfin.JellyfinMediaPlayer'; Url='https://github.com/jellyfin/jellyfin-media-player'}
+    $global:AllAppsData[140] = @{Cat='Selfhosted Tools'; Name='Jellyfin Media Player'; Winget='Jellyfin.JellyfinMediaPlayer'; Url='https://github.com/jellyfin/jellyfin-media-player/releases/latest'}
     $global:AllAppsData[141] = @{Cat='Selfhosted Tools'; Name='Jellyfin Server'; Winget='Jellyfin.Server'; Url='https://jellyfin.org/'}
     $global:AllAppsData[142] = @{Cat='Selfhosted Tools'; Name='Kodi Media Center'; Winget='XBMCFoundation.Kodi'; Url='https://kodi.tv/'}
     $global:AllAppsData[143] = @{Cat='Selfhosted Tools'; Name='LocalSend'; Winget='LocalSend.LocalSend'; Url='https://localsend.org/'}
@@ -295,7 +295,7 @@ function Show-PageAllInstallers {
     $global:AllAppsData[146] = @{Cat='Selfhosted Tools'; Name='Nextcloud Desktop'; Winget='Nextcloud.NextcloudDesktop'; Url='https://nextcloud.com/install/#install-clients'}
     $global:AllAppsData[147] = @{Cat='Selfhosted Tools'; Name='Plex Media Server'; Winget='Plex.PlexMediaServer'; Url='https://www.plex.tv/your-media/'}
     $global:AllAppsData[148] = @{Cat='Selfhosted Tools'; Name='Plex Desktop'; Winget='Plex.Plex'; Url='https://www.plex.tv'}
-    $global:AllAppsData[149] = @{Cat='Selfhosted Tools'; Name='Sunshine/GameStream Server'; Winget='LizardByte.Sunshine'; Url='https://github.com/LizardByte/Sunshine'}
+    $global:AllAppsData[149] = @{Cat='Selfhosted Tools'; Name='Sunshine/GameStream Server'; Winget='LizardByte.Sunshine'; Url='https://github.com/LizardByte/Sunshine/releases/latest'}
     $global:AllAppsData[150] = @{Cat='Utilities'; Name='1Password'; Winget='AgileBits.1Password'; Url='https://1password.com/'}
     $global:AllAppsData[151] = @{Cat='Utilities'; Name='7-Zip'; Winget='7zip.7zip'; Url='https://www.7-zip.org/'}
     $global:AllAppsData[152] = @{Cat='Utilities'; Name='AnyDesk'; Winget='AnyDesk.AnyDesk'; Url='https://anydesk.com/'}
@@ -307,22 +307,22 @@ function Show-PageAllInstallers {
     $global:AllAppsData[158] = @{Cat='Utilities'; Name='Crystal Disk Mark'; Winget='CrystalDewWorld.CrystalDiskMark'; Url='https://crystalmark.info/en/software/crystaldiskmark/'}
     $global:AllAppsData[159] = @{Cat='Utilities'; Name='Dropbox'; Winget='Dropbox.Dropbox'; Url='https://www.dropbox.com/desktop'}
     $global:AllAppsData[160] = @{Cat='Utilities'; Name='Ente Auth'; Winget='ente-io.auth-desktop'; Url='https://ente.io/auth/'}
-    $global:AllAppsData[161] = @{Cat='Utilities'; Name='Files'; Winget='FilesCommunity.Files'; Url='https://github.com/files-community/Files'}
+    $global:AllAppsData[161] = @{Cat='Utilities'; Name='Files'; Winget='FilesCommunity.Files'; Url='https://github.com/files-community/Files/releases/latest'}
     $global:AllAppsData[162] = @{Cat='Utilities'; Name='F.lux'; Winget='flux.flux'; Url='https://justgetflux.com/'}
     $global:AllAppsData[163] = @{Cat='Utilities'; Name='Google Drive'; Winget='Google.GoogleDrive'; Url='https://www.google.com/drive/'}
-    $global:AllAppsData[164] = @{Cat='Utilities'; Name='Hugo'; Winget='Hugo.Hugo.Extended'; Url='https://github.com/gohugoio/hugo/'}
+    $global:AllAppsData[164] = @{Cat='Utilities'; Name='Hugo'; Winget='Hugo.Hugo.Extended'; Url='https://github.com/gohugoio/hugo/releases/latest'}
     $global:AllAppsData[165] = @{Cat='Utilities'; Name='Internet Download Manager'; Winget='Tonec.InternetDownloadManager'; Url='https://www.internetdownloadmanager.com/'}
-    $global:AllAppsData[166] = @{Cat='Utilities'; Name='JPEG View'; Winget='sylikc.JPEGView'; Url='https://github.com/sylikc/jpegview'}
+    $global:AllAppsData[166] = @{Cat='Utilities'; Name='JPEG View'; Winget='sylikc.JPEGView'; Url='https://github.com/sylikc/jpegview/releases/latest'}
     $global:AllAppsData[167] = @{Cat='Utilities'; Name='KeePassXC'; Winget='KeePassXCTeam.KeePassXC'; Url='https://keepassxc.org/'}
     $global:AllAppsData[168] = @{Cat='Utilities'; Name='MiniTool Partition Wizard'; Winget='MiniTool.PartitionWizard.Free'; Url='https://www.partitionwizard.com/'}
-    $global:AllAppsData[169] = @{Cat='Utilities'; Name='MSEdgeRedirect'; Winget='rcmaehl.MSEdgeRedirect'; Url='https://github.com/rcmaehl/MSEdgeRedirect'}
+    $global:AllAppsData[169] = @{Cat='Utilities'; Name='MSEdgeRedirect'; Winget='rcmaehl.MSEdgeRedirect'; Url='https://github.com/rcmaehl/MSEdgeRedirect/releases/latest'}
     $global:AllAppsData[170] = @{Cat='Utilities'; Name='MSI Afterburner'; Winget='Guru3D.Afterburner'; Url='https://www.msi.com/Landing/afterburner'}
-    $global:AllAppsData[171] = @{Cat='Utilities'; Name='NanaZip'; Winget='M2Team.NanaZip'; Url='https://github.com/M2Team/NanaZip'}
+    $global:AllAppsData[171] = @{Cat='Utilities'; Name='NanaZip'; Winget='M2Team.NanaZip'; Url='https://github.com/M2Team/NanaZip/releases/latest'}
     $global:AllAppsData[172] = @{Cat='Utilities'; Name='NVCleanstall'; Winget='TechPowerUp.NVCleanstall'; Url='https://www.techpowerup.com/nvcleanstall/'}
     $global:AllAppsData[173] = @{Cat='Utilities'; Name='OPAutoClicker'; Winget='OPAutoClicker.OPAutoClicker'; Url='https://www.opautoclicker.com'}
     $global:AllAppsData[174] = @{Cat='Utilities'; Name='OpenRGB'; Winget='OpenRGB.OpenRGB'; Url='https://openrgb.org/'}
     $global:AllAppsData[175] = @{Cat='Utilities'; Name='Oracle VirtualBox'; Winget='Oracle.VirtualBox'; Url='https://www.virtualbox.org/'}
-    $global:AllAppsData[176] = @{Cat='Utilities'; Name='Policy Plus'; Winget='Fleex255.PolicyPlus'; Url='https://github.com/Fleex255/PolicyPlus'}
+    $global:AllAppsData[176] = @{Cat='Utilities'; Name='Policy Plus'; Winget='Fleex255.PolicyPlus'; Url='https://github.com/Fleex255/PolicyPlus/releases/latest'}
     $global:AllAppsData[177] = @{Cat='Utilities'; Name='Parsec'; Winget='Parsec.Parsec'; Url='https://parsec.app/'}
     $global:AllAppsData[178] = @{Cat='Utilities'; Name='PeaZip'; Winget='Giorgiotani.Peazip'; Url='https://peazip.github.io/'}
     $global:AllAppsData[179] = @{Cat='Utilities'; Name='Process Lasso'; Winget='BitSum.ProcessLasso'; Url='https://bitsum.com/'}
@@ -340,16 +340,16 @@ function Show-PageAllInstallers {
     $global:AllAppsData[191] = @{Cat='Utilities'; Name='TeamViewer'; Winget='TeamViewer.TeamViewer'; Url='https://www.teamviewer.com/'}
     $global:AllAppsData[192] = @{Cat='Utilities'; Name='Total Commander'; Winget='Ghisler.TotalCommander'; Url='https://www.ghisler.com/'}
     $global:AllAppsData[193] = @{Cat='Utilities'; Name='TreeSize Free'; Winget='JAMSoftware.TreeSize.Free'; Url='https://www.jam-software.com/treesize_free/'}
-    $global:AllAppsData[194] = @{Cat='Utilities'; Name='TranslucentTB'; Winget='CharlesMilette.TranslucentTB'; Url='https://github.com/TranslucentTB/TranslucentTB'}
+    $global:AllAppsData[194] = @{Cat='Utilities'; Name='TranslucentTB'; Winget='CharlesMilette.TranslucentTB'; Url='https://github.com/TranslucentTB/TranslucentTB/releases/latest'}
     $global:AllAppsData[195] = @{Cat='Utilities'; Name='Everything'; Winget='voidtools.Everything'; Url='https://www.voidtools.com/'}
     $global:AllAppsData[196] = @{Cat='Utilities'; Name='UniGetUI'; Winget='Devolutions.UniGetUI'; Url='https://devolutions.net/unigetui/'}
     $global:AllAppsData[197] = @{Cat='Utilities'; Name='WinRAR'; Winget='RARLab.WinRAR'; Url='https://www.win-rar.com/'}
     $global:AllAppsData[198] = @{Cat='Utilities'; Name='WizTree'; Winget='AntibodySoftware.WizTree'; Url='https://wiztreefree.com/'}
     $global:AllAppsData[199] = @{Cat='Utilities'; Name='HxD Hex Editor'; Winget='MHNexus.HxD'; Url='https://mh-nexus.de/en/hxd/'}
     $global:AllAppsData[200] = @{Cat='Utilities'; Name='TightVNC'; Winget='GlavSoft.TightVNC'; Url='https://www.tightvnc.com/'}
-    $global:AllAppsData[201] = @{Cat='Utilities'; Name='GlazeWM'; Winget='glzr-io.glazewm'; Url='https://github.com/glzr-io/glazewm'}
-    $global:AllAppsData[202] = @{Cat='Utilities'; Name='OFGB (Oh Frick Go Back)'; Winget='xM4ddy.OFGB'; Url='https://github.com/xM4ddy/OFGB'}
-    $global:AllAppsData[203] = @{Cat='Utilities'; Name='Deskflow'; Winget='Deskflow.Deskflow'; Url='https://github.com/deskflow/deskflow'}
+    $global:AllAppsData[201] = @{Cat='Utilities'; Name='GlazeWM'; Winget='glzr-io.glazewm'; Url='https://github.com/glzr-io/glazewm/releases/latest'}
+    $global:AllAppsData[202] = @{Cat='Utilities'; Name='OFGB (Oh Frick Go Back)'; Winget='xM4ddy.OFGB'; Url='https://github.com/xM4ddy/OFGB/releases/latest'}
+    $global:AllAppsData[203] = @{Cat='Utilities'; Name='Deskflow'; Winget='Deskflow.Deskflow'; Url='https://github.com/deskflow/deskflow/releases/latest'}
 
     # --- Build categories ---
     $global:AllWrapPanels = [System.Collections.Generic.List[System.Windows.Controls.WrapPanel]]::new()

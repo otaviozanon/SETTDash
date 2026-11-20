@@ -127,9 +127,14 @@ function Write-GuiLog {
 
 # Updates the main progress bar value and, if provided, logs a STEP message. Forces a UI render
 # by invoking an empty action at Background priority so the bar visibly updates during long loops.
-function Set-GuiProgress { param([double]$Value, [string]$Status)
+function Set-GuiProgress { param([double]$Value, [string]$Status, [switch]$Silent)
     try { $progressBar.Value = $Value } catch { }
-    if ($Status) { Write-GuiLog $Status "STEP" }
+    try {
+        # Percent rides inside the bar; the status line only while the job is running (0-99),
+        # so a finished job leaves a clean "100%" instead of a stale "Downloading..." label.
+        $txtProgressPct.Text = if ($Status -and $Value -gt 0 -and $Value -lt 100) { '{0} - {1:N0}%' -f $Status, $Value } else { '{0:N0}%' -f $Value }
+    } catch { }
+    if ($Status -and -not $Silent) { Write-GuiLog $Status "STEP" }
     try { $Window.Dispatcher.Invoke([action]{}, [System.Windows.Threading.DispatcherPriority]::Background) } catch { }
 }
 

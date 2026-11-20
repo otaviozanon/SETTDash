@@ -28,7 +28,6 @@ $parts = @(
     "Core\Embed\Programs\FilterKeysSetter.exe.ps1",
     "Core\Embed\Programs\MSI_util_v3.exe.ps1",
     "Core\Embed\Programs\OOAPB.exe.ps1",
-    "Core\Embed\Programs\SETTMemoryCleaner.exe.ps1",
     "Core\Embed\Programs\TimerResolution.exe.ps1",
     "Core\Embed\Programs\sPowers_x64.exe.ps1",
     "Core\Embed\Programs\settPowerPlan.pow.ps1",

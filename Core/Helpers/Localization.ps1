@@ -161,7 +161,6 @@ $Script:PT_BR = @{
     "QUICK"                                                                 = "RÁPIDO"
     "YOUR PC"                                                               = "SEU PC"
     "INSTALLERS"                                                            = "INSTALADORES"
-    "SYSTEM_HDR"                                                            = "SISTEMA"
     "SHORTCUTS"                                                             = "ATALHOS"
     "TOOLS"                                                                 = "FERRAMENTAS"
     "BENCHMARK"                                                             = "BENCHMARK"

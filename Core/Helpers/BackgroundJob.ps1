@@ -85,7 +85,7 @@ function Start-GuiBackgroundJob {
     foreach ($k in $Arguments.Keys) { $vars[[string]$k] = $Arguments[$k] }
     $vars['BgLogQueue'] = $logQueue
     $vars['BgNavQueue'] = $navQueue
-    $vars['BgProgress'] = @{ Value = 0 }
+    $vars['BgProgress'] = @{ Value = 0; Status = "" }
     # Lets a helper that normally backgrounds itself (Invoke-InstallWingetApp) run inline when it is
     # already inside a job - a nested job would escape the batch and run installs in parallel.
     $vars['BgWorker'] = $true
@@ -96,7 +96,7 @@ function Start-GuiBackgroundJob {
     # These MUST come after the copied bundle so the queue versions win over the real GUI ones.
     $scriptText += @'
 function Write-GuiLog { param([string]$Message, [string]$Type = "INFO") [void]$Script:BgLogQueue.Enqueue(@{ Message = $Message; Type = $Type }) }
-function Set-GuiProgress { param([double]$Value, [string]$Status) if ($Status) { [void]$Script:BgLogQueue.Enqueue(@{ Message = $Status; Type = "STEP" }) }; $Script:BgProgress.Value = $Value }
+function Set-GuiProgress { param([double]$Value, [string]$Status) if ($Status) { $Script:BgProgress.Status = $Status; [void]$Script:BgLogQueue.Enqueue(@{ Message = $Status; Type = "STEP" }) }; $Script:BgProgress.Value = $Value }
 function Clear-GuiLog { }
 # Sidebar "applied" dots live on the UI thread; queue them and let the tick replay them.
 function Set-NavStatus { param([string]$Name, [bool]$Applied) [void]$Script:BgNavQueue.Enqueue(@{ Name = $Name; Applied = $Applied }) }
@@ -132,7 +132,9 @@ function Set-NavStatus { param([string]$Name, [bool]$Applied) [void]$Script:BgNa
     if ($Button) { $Button.Content = T "Cancel" }
 
     $timer = New-Object System.Windows.Threading.DispatcherTimer
-    $timer.Interval = [TimeSpan]::FromMilliseconds(150)
+    # 50ms (~20fps) so a download that lasts a couple of seconds shows most of its real
+    # byte percentages instead of 2-3 jumps; the queue drains are trivial when it is idle.
+    $timer.Interval = [TimeSpan]::FromMilliseconds(50)
     $timer.Tag = $state
 
     # Captured before GetNewClosure(): inside a closure $Script: points at the closure's own empty
@@ -146,7 +148,9 @@ function Set-NavStatus { param([string]$Name, [bool]$Applied) [void]$Script:BgNa
         while ($st.LogQueue.TryDequeue([ref]$entry)) { Write-GuiLog $entry.Message $entry.Type }
         $nav = $null
         while ($st.NavQueue.TryDequeue([ref]$nav)) { try { Set-NavStatus $nav.Name $nav.Applied } catch { } }
-        if ($null -ne $st.ProgressBox -and $st.ProgressBox.Value -gt 0) { Set-GuiProgress $st.ProgressBox.Value }
+        if ($null -ne $st.ProgressBox -and ($st.ProgressBox.Value -gt 0 -or $st.ProgressBox.Status)) {
+            Set-GuiProgress $st.ProgressBox.Value $st.ProgressBox.Status -Silent
+        }
         if (-not $st.Handle.IsCompleted) { return }
 
         $st.Timer.Stop()

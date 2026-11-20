@@ -193,7 +193,7 @@ $Script:SidebarNavLabels = @{
     navSettings = "Settings"
 }
 $Script:SidebarHeaderLabels = @{
-    txtHdrQuick = "QUICK"; txtHdrYourPC = "YOUR PC"; txtHdrInstallers = "INSTALLERS"; txtHdrSystem = "SYSTEM_HDR"
+    txtHdrQuick = "QUICK"; txtHdrYourPC = "YOUR PC"; txtHdrInstallers = "INSTALLERS"; txtHdrSystem = "SYSTEM"
     txtHdrShortcuts = "SHORTCUTS"; txtHdrTools = "TOOLS"; txtHdrBenchmark = "BENCHMARK"
 }
 
@@ -212,12 +212,14 @@ function Set-SidebarLabel {
 # Re-applies T() to every sidebar label/header using the English source text above. Called once at
 # startup and again whenever the Settings page switches the active language.
 function Update-SidebarLanguage {
+    # Sidebar text is all caps by design (headers and nav items alike), so the translation is
+    # uppercased here instead of duplicating upper-case strings in the PT-BR dictionary.
     foreach ($key in $Script:SidebarNavLabels.Keys) {
-        if ($navButtons.ContainsKey($key)) { Set-SidebarLabel $navButtons[$key] (T $Script:SidebarNavLabels[$key]) }
+        if ($navButtons.ContainsKey($key)) { Set-SidebarLabel $navButtons[$key] (T $Script:SidebarNavLabels[$key]).ToUpperInvariant() }
     }
     foreach ($name in $Script:SidebarHeaderLabels.Keys) {
         $tb = $Window.FindName($name)
-        if ($tb) { $tb.Text = T $Script:SidebarHeaderLabels[$name] }
+        if ($tb) { $tb.Text = (T $Script:SidebarHeaderLabels[$name]).ToUpperInvariant() }
     }
     if ($txtNavSearch) { $txtNavSearch.ToolTip = T "Search the sidebar..." }
 }

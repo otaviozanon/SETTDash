@@ -694,7 +694,7 @@
 
         <!-- ==================== PROGRESS BAR STYLE ==================== -->
         <Style x:Key="ProgressBarStyle" TargetType="ProgressBar">
-            <Setter Property="Height" Value="10"/>
+            <Setter Property="Height" Value="14"/>
             <Setter Property="Background" Value="{DynamicResource Brush_ProgressTrack}"/>
             <Setter Property="Foreground" Value="{DynamicResource Brush_Accent}"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -1341,11 +1341,19 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
 
-                        <ProgressBar Grid.Row="0" x:Name="progressBar"
-                                     Style="{StaticResource ProgressBarStyle}"
-                                     Minimum="0" Maximum="100" Value="0"
-                                     HorizontalAlignment="Stretch"
-                                     Margin="0,0,0,6"/>
+                        <Grid Grid.Row="0" Margin="0,0,0,6">
+                            <ProgressBar x:Name="progressBar"
+                                         Style="{StaticResource ProgressBarStyle}"
+                                         Minimum="0" Maximum="100" Value="0"
+                                         HorizontalAlignment="Stretch"/>
+                            <!-- Percentage (plus the running step's status) inside the bar. Not hit-testable
+                                 so it never swallows clicks meant for the bar/tooltip area. -->
+                            <TextBlock x:Name="txtProgressPct" Text="0%"
+                                       HorizontalAlignment="Stretch" TextAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="8,0"
+                                       FontFamily="{DynamicResource Theme_FontFamily}" FontSize="10" FontWeight="Bold"
+                                       Foreground="{DynamicResource Brush_TextPrimary}" IsHitTestVisible="False"/>
+                        </Grid>
 
                         <Grid Grid.Row="1" Margin="0,2,0,4">
                             <Grid.ColumnDefinitions>

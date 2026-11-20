@@ -55,7 +55,7 @@ $Window = [Windows.Markup.XamlReader]::Load($reader)
 # Get named controls
 $navButtons = @{}
 $controls = @(
-    "btnClose","btnMin","progressBar","txtLog","pnlContent","pnlNav","btnLogCopy","btnLogClear"
+    "btnClose","btnMin","progressBar","txtProgressPct","txtLog","pnlContent","pnlNav","btnLogCopy","btnLogClear"
 )
 foreach ($name in $controls) { Set-Variable -Name $name -Value $Window.FindName($name) }
 

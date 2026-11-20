@@ -16,7 +16,11 @@ function Show-PageUtilities {
     } "&#xEA99;" -WrapButtons
     Add-GuiCard "SETT Memory Cleaner" (T "Memory cleaning and optimization tool. Downloads to your Desktop and launches automatically.") {
         param($p)
-        Add-GuiBtn $p (T "Download") "InstallButtonStyle" { Invoke-DownloadLatestRelease -RepoOwner "otaviozanon" -RepoName "SETTMemoryCleaner" -AssetPattern "*.exe" -Label "SETT Memory Cleaner" }
+        Add-GuiBackgroundBtn $p (T "Download") { Invoke-DownloadLatestRelease -RepoOwner "otaviozanon" -RepoName "SETTMemoryCleaner" -Label "SETT Memory Cleaner" } @('Invoke-DownloadLatestRelease') $null "InstallButtonStyle"
+    } "&#xEA99;" -WrapButtons
+    Add-GuiCard "SETT Metter" (T "Taskbar monitor for battery, CPU, RAM, GPU, VRAM and temperatures. Downloads to your Desktop and launches automatically.") {
+        param($p)
+        Add-GuiBackgroundBtn $p (T "Download") { Invoke-DownloadLatestRelease -RepoOwner "otaviozanon" -RepoName "SETTMetter" -Label "SETT Metter" } @('Invoke-DownloadLatestRelease') $null "InstallButtonStyle"
     } "&#xEA99;" -WrapButtons
     Add-GuiCard "SETT UTILITY Extension" (T "Chrome browser extension for enhanced utility features. Downloads to your Downloads folder, then load unpacked in chrome://extensions.") {
         param($p)
