@@ -2,7 +2,7 @@ function Show-PageAll {
     Clear-GuiContent
     Add-GuiPageTitle (T "One-Click Full Optimization")
     Add-GuiCard (T "Complete System Optimization") (T "Runs ALL 13 optimization steps in sequence: creates a Restore Point first, then optimizes Internet, Power, Game Mode, Memory, Services, System Tweaks, GPU, Integrations, Privacy, cleans caches, and optimizes network adapters. A system restart is recommended after completion.") {
-        param($p) Add-GuiBackgroundBtn $p (T "OPTIMIZE_ALL_BTN") { Invoke-FullAutoOptimize } @('Invoke-FullAutoOptimize') {
+        param($p) Add-GuiBackgroundBtn $p (T "Optimize All") { Invoke-FullAutoOptimize } @('Invoke-FullAutoOptimize') {
             param($result)
             Set-GuiProgress 100 (T "Full optimization complete!")
         } -Style "DangerButtonStyle" -ConfirmCheck {

@@ -15,7 +15,7 @@ function Get-BatteryHealthCards {
 
     $statusMap = @{
         1=(T "Discharging"); 2=(T "On AC (Not Charging)"); 3=(T "Fully Charged")
-        4=(T "Low"); 5=(T "BATTERY_CRITICAL_STATUS"); 6=(T "Charging"); 7=(T "Charging (High)")
+        4=(T "Low"); 5=(T "Battery critical"); 6=(T "Charging"); 7=(T "Charging (High)")
         8=(T "Charging (Low)"); 9=(T "Charging (Critical)"); 10=(T "Undefined"); 11=(T "Partially Charged")
     }
     $chemistryMap = @{3=(T "Lead Acid"); 4=(T "NiCd"); 5=(T "NiMH"); 6=(T "Li-ion"); 7=(T "Zinc Air"); 8=(T "Li-Polymer")}
@@ -39,7 +39,7 @@ function Get-BatteryHealthCards {
 
         $wear = if ($design -gt 0 -and $fullCap -gt 0) { [math]::Max(0, 100.0 * (1 - ($fullCap / $design))) } else { $null }
         $reasons = @()
-        $verdict = "Good"; $label = T "HEALTHY_BADGE"
+        $verdict = "Good"; $label = T "Healthy"
         if ($null -eq $wear) { $verdict = "Unknown"; $label = T "NO DATA"; $reasons += T "Windows did not report design or current full-charge capacity, so wear could not be calculated." }
         elseif ($wear -ge 50) { $verdict = "Critical"; $label = T "WORN OUT"; $reasons += "$(T 'Lost') $([math]::Round($wear))% $(T 'of original capacity: runtime is roughly half of what it used to be. Consider replacing the battery.')" }
         elseif ($wear -ge 30) { $verdict = "Warning"; $label = T "ATTENTION"; $reasons += "$(T 'Lost') $([math]::Round($wear))% $(T 'of original capacity. Still usable, but runtime has dropped noticeably.')" }

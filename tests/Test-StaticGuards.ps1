@@ -257,4 +257,29 @@ Assert-True ($sidebarText -match 'Update-SidebarSearch -Query') "The search box 
 Assert-True ($sidebarText -match 'SidebarSectionState') "The filter restores section state when cleared"
 Assert-True ($sidebarText -match '\.Visibility = if \(\$match\) \{ ''Visible'' \}') "The filter hides non-matching nav items"
 
+Write-Section "Test-StaticGuards: background job translations"
+
+# The worker runspace has no app functions. T() has no verb-noun name, so the dependency scanner
+# cannot discover it and a job that logs translated text dies with "The term 'T' is not recognized".
+$bgText = Get-Content -Path (Join-Path $RepoRoot "Core\Helpers\BackgroundJob.ps1") -Raw -Encoding UTF8
+Assert-True ($bgText -match 'Get-GuiFunctionBundle -Names \(\$Functions \+ ''T''\)') "Background jobs bundle the translation helper T"
+
+Write-Section "Test-StaticGuards: localization keys"
+
+# T() takes the English source text, never an invented KEY_NAME: a pseudo key only exists in the
+# PT-BR dictionary, so the English UI shows the raw token (how OPTIMIZE_ALL_BTN reached a button).
+$pseudoKeyViolations = @()
+foreach ($file in $sourceFiles) {
+    $lineNo = 0
+    foreach ($line in (Get-Content -Path $file.FullName -Encoding UTF8)) {
+        $lineNo++
+        if ($line.TrimStart().StartsWith('#')) { continue }
+        if ($line -match 'T\s+"[A-Z0-9]+_[A-Z0-9_]+"') {
+            $pseudoKeyViolations += "{0}:{1}: {2}" -f $file.Name, $lineNo, $line.Trim()
+        }
+    }
+}
+Assert-Equal 0 $pseudoKeyViolations.Count "T() is called with English text, never an invented KEY_NAME"
+foreach ($v in $pseudoKeyViolations) { Write-Host "         $v" -ForegroundColor DarkYellow }
+
 Complete-Tests "Test-StaticGuards"

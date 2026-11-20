@@ -1,6 +1,8 @@
 # Build artifacts
 /SETTDash.exe
 /SETTDash.ps1
+# LibreHardwareMonitor drops its ring0 driver next to the exe when sensors are read
+/SETTDash.sys
 
 # Tests: ps2exe download, injected script, smoke exe and captured output
 /tests/.tools/

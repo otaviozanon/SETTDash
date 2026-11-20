@@ -7,7 +7,7 @@ function Show-PageUtilities {
         Add-GuiBtn $p "O&O AppBuster" "InstallButtonStyle" { Invoke-LaunchApp "OOAPB.exe" "O&O AppBuster" }
         Add-GuiBtn $p "Autoruns" "InstallButtonStyle" { Invoke-LaunchApp "Autoruns64.exe" "Autoruns" }
         Add-GuiBtn $p "sPowers" "InstallButtonStyle" { Invoke-LaunchApp "sPowers_x64.exe" "sPowers" }
-        Add-GuiBtn $p "Filter Keys" "InstallButtonStyle" { Invoke-FilterKeysTool }
+        Add-GuiBtn $p (T "Filter Keys") "InstallButtonStyle" { Invoke-FilterKeysTool }
     } "&#xEA99;" -WrapButtons
     Add-GuiCard (T "Monitor") (T "Monitoring and display tools (copied to Desktop).") {
         param($p)

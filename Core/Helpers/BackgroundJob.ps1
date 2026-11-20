@@ -66,7 +66,9 @@ function Start-GuiBackgroundJob {
         [hashtable]$Arguments = @{}
     )
 
-    $bundle = Get-GuiFunctionBundle -Names $Functions
+    # T() has no verb-noun name, so the dependency scanner below cannot find it; it is bundled
+    # unconditionally because job functions log translated text and the runspace has no app functions.
+    $bundle = Get-GuiFunctionBundle -Names ($Functions + 'T')
 
     # $Script: variables read by the copied bodies are passed by reference (plain values here:
     # paths, booleans). Never invoke anything from the worker that reaches WPF. The work block

@@ -182,7 +182,7 @@ function Get-DiskHealthCards {
         $kind = if ($r.Media.Length -gt 0) { $r.Media } elseif ($isSsd) { "SSD" } else { "" }
         $metaParts = @($kind, $r.Bus, (Format-DiskBytes $r.Size), $(if ($r.Letters.Length -gt 0) { "$(T 'Drives:') $($r.Letters)" } else { "" })) | Where-Object { $_ }
 
-        $verdictLabel = switch ($verdict) { "Good" { T "GOOD" } "Warning" { T "WARNING" } "Critical" { T "CRITICAL" } default { T "UNKNOWN_BADGE" } }
+        $verdictLabel = switch ($verdict) { "Good" { T "GOOD" } "Warning" { T "WARNING" } "Critical" { T "CRITICAL" } default { T "Unknown" } }
         $rows = @()
         $rows += @{Label=(T "Verdict"); Value=$verdictLabel; ValueColor=$accent}
         $rows += @{Label=(T "Details"); Value=($metaParts -join " · ")}
