@@ -39,8 +39,8 @@ function Show-PageInstallers {
         Add-GuiBtn $w "AirLiveDrive" "InstallButtonStyle" { Invoke-InstallWingetApp "AirLiveDrive" "Air Live Drive" -FallbackUrl "https://www.airlivedrive.com/en/" }
         Add-GuiBtn $w "Uninstalr" "InstallButtonStyle" { Invoke-InstallWingetApp "" "Uninstalr" -FallbackUrl "https://uninstalr.com/download/" }
         Add-GuiBackgroundBtn $w "SETT Metter" { Invoke-DownloadLatestRelease -RepoOwner "otaviozanon" -RepoName "SETTMetter" -Label "SETT Metter" } @('Invoke-DownloadLatestRelease') $null "InstallButtonStyle"
+        Add-GuiBackgroundBtn $w "SETT Converter" { Invoke-DownloadLatestRelease -RepoOwner "otaviozanon" -RepoName "SETTConverter" -Label "SETT Converter" } @('Invoke-DownloadLatestRelease') $null "InstallButtonStyle"
         Add-GuiBtn $w "FDM" "InstallButtonStyle" { Invoke-InstallWingetApp "Softdeluxe.FreeDownloadManager" "FDM" -FallbackUrl "https://www.freedownloadmanager.org/" }
-        Add-GuiBtn $w "filee.sh" "InstallButtonStyle" { Invoke-InstallWingetApp "" "filee.sh" -FallbackUrl "https://filee.sh/#download" }
     } "&#xEA99;" "Brush_AccentWarm" -WrapButtons
     Add-GuiCard (T "Desktop") (T "Customization tools.") {
         param($w)

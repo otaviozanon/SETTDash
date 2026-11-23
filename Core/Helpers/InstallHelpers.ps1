@@ -48,7 +48,7 @@ function Invoke-InstallWingetApp {
         catch { Write-GuiLog ((T "Failed to open {0} website: {1}") -f $Name, $_.Exception.Message) "ERR" }
     } else { Write-GuiLog ((T "{0} : no fallback URL available") -f $Name) "ERR" }
 }
-# Used by: Utilities ("SETT Memory Cleaner", "SETT Metter") and Installers ("SettVPN", "SETT Metter")
+# Used by: Utilities ("SETT Memory Cleaner", "SETT Metter", "SETT Converter") and Installers ("SettVPN", "SETT Metter", "SETT Converter")
 # Downloads the newest asset of a repo's latest GitHub release to the Desktop and launches it, so
 # the button always delivers the current build instead of a version pinned here. Runs in a
 # background job (Add-GuiBackgroundBtn): the progress bar follows the transfer and the window
