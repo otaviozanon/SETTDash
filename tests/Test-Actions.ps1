@@ -133,6 +133,7 @@ Assert-True ($appFunctions.Count -ge 200) "The command census found the app's ow
 $dotNetWriteAllowList = @(
     'Cards.ps1|WriteAllText'                  # Export-GuiSystemReport writes the HTML into $env:TEMP, which the sandbox redirects
     'EmbeddedProgramsCore.ps1|WriteAllBytes'  # embedded binaries/fonts/DLLs are decoded into the versioned runtime folder
+    'InstallHelpers.ps1|WriteAllBytes'        # TechPowerUp POST body is written into the versioned runtime folder before the Desktop move
     'InstallHelpers.ps1|Create'               # GitHub release asset is streamed into the versioned runtime folder before the Desktop move
 )
 $dotNetWrites = @()
@@ -209,7 +210,7 @@ $sweepAllowsErrors = @(
     'Invoke-PlaybookAME', 'Invoke-PlaybookAtlasOS', 'Invoke-PlaybookFSOSX', 'Invoke-PlaybookReviOS',
     'Invoke-CheckForUpdates', 'Invoke-FullAutoOptimize',
     'Invoke-CopySettUtility', 'Invoke-RunAllPrograms',
-    'Invoke-DownloadLatestRelease'
+    'Invoke-DownloadLatestRelease', 'Invoke-DownloadDirectFile', 'Invoke-DownloadTechPowerUpApp'
 )
 
 # Functions whose parameters are typed but need real content (an object, a dictionary) rather than

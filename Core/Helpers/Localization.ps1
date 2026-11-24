@@ -390,6 +390,7 @@ $Script:PT_BR = @{
     "Memory cleaning and optimization tool. Downloads to your Desktop and launches automatically." = "Ferramenta de limpeza e otimização de memória. Baixa para sua Área de Trabalho e inicia automaticamente."
     "Taskbar monitor for battery, CPU, RAM, GPU, VRAM and temperatures. Downloads to your Desktop and launches automatically." = "Monitor da barra de tarefas para bateria, CPU, RAM, GPU, VRAM e temperaturas. Baixa para sua Área de Trabalho e inicia automaticamente."
     "Portable file converter for documents, images, media, archives and PDF. Downloads to your Desktop and launches automatically." = "Conversor de arquivos portátil para documentos, imagens, mídia, arquivos compactados e PDF. Baixa para sua Área de Trabalho e inicia automaticamente."
+    "VPN client. Downloads to your Desktop and launches automatically."      = "Cliente VPN. Baixa para sua Área de Trabalho e inicia automaticamente."
     "Filter Keys"                                                           = "Teclas de Filtragem"
     "Download"                                                              = "Baixar"
     "Chrome browser extension for enhanced utility features. Downloads to your Downloads folder, then load unpacked in chrome://extensions." = "Extensão para o navegador Chrome com recursos utilitários avançados. Baixa para sua pasta Downloads; depois carregue sem compactação em chrome://extensions."

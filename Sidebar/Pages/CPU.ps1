@@ -8,7 +8,7 @@
     Add-GuiCard "Intel" (T "Intel CPU tools.") {
         param($p)
         Add-GuiBtn $p "XTU" "InstallButtonStyle" { Invoke-InstallWingetApp "Intel.ExtremeTuningUtility" "Extreme Tuning Utility" -FallbackUrl "https://www.intel.com/content/www/us/en/download/17881/intel-extreme-tuning-utility-intel-xtu.html" }
-        Add-GuiBtn $p "ThrottleStop" "InstallButtonStyle" { Invoke-InstallWingetApp "TechPowerUp.ThrottleStop" "ThrottleStop" -FallbackUrl "https://www.techpowerup.com/download/techpowerup-throttlestop/" }
+        Add-GuiBackgroundBtn $p "ThrottleStop" { Invoke-DownloadTechPowerUpApp -Url "https://www.techpowerup.com/download/techpowerup-throttlestop/" -Label "ThrottleStop" } @('Invoke-DownloadTechPowerUpApp') $null "InstallButtonStyle"
     } "&#xE950;" -WrapButtons
     Add-GuiCard (T "Utilities") (T "CPU utilities.") {
         param($p)

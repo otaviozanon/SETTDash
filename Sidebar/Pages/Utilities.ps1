@@ -22,6 +22,10 @@ function Show-PageUtilities {
         param($p)
         Add-GuiBackgroundBtn $p (T "Download") { Invoke-DownloadLatestRelease -RepoOwner "otaviozanon" -RepoName "SETTMetter" -Label "SETT Metter" } @('Invoke-DownloadLatestRelease') $null "InstallButtonStyle"
     } "&#xEA99;" -WrapButtons
+    Add-GuiCard "SETT VPN" (T "VPN client. Downloads to your Desktop and launches automatically.") {
+        param($p)
+        Add-GuiBackgroundBtn $p (T "Download") { Invoke-DownloadLatestRelease -RepoOwner "otaviozanon" -RepoName "SettVPN" -Label "SETT VPN" } @('Invoke-DownloadLatestRelease') $null "InstallButtonStyle"
+    } "&#xEA99;" -WrapButtons
     Add-GuiCard "SETT Converter" (T "Portable file converter for documents, images, media, archives and PDF. Downloads to your Desktop and launches automatically.") {
         param($p)
         Add-GuiBackgroundBtn $p (T "Download") { Invoke-DownloadLatestRelease -RepoOwner "otaviozanon" -RepoName "SETTConverter" -Label "SETT Converter" } @('Invoke-DownloadLatestRelease') $null "InstallButtonStyle"

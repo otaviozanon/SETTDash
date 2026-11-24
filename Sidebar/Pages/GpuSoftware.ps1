@@ -5,17 +5,19 @@
         param($p)
         Add-GuiBtn $p "MSI Afterburner" "InstallButtonStyle" { Invoke-InstallWingetApp "Guru3D.MSIAfterburner" "MSI Afterburner" -FallbackUrl "https://www.msi.com/Landing/afterburner/graphics-cards" }
         Add-GuiBtn $p "HWMonitor" "InstallButtonStyle" { Invoke-InstallWingetApp "CPUID.HWMonitor" "HWMonitor" -FallbackUrl "https://www.cpuid.com/softwares/hwmonitor.html" }
-        Add-GuiBtn $p "GPU-Z" "InstallButtonStyle" { Invoke-InstallWingetApp "TechPowerUp.GPU-Z" "GPU-Z" -FallbackUrl "https://www.techpowerup.com/download/techpowerup-gpu-z/" }
+        Add-GuiBackgroundBtn $p "GPU-Z" { Invoke-DownloadTechPowerUpApp -Url "https://www.techpowerup.com/download/techpowerup-gpu-z/" -Label "GPU-Z" } @('Invoke-DownloadTechPowerUpApp') $null "InstallButtonStyle"
         Add-GuiBtn $p "DDU" "InstallButtonStyle" { Invoke-InstallWingetApp "Wagnardsoft.DisplayDriverUninstaller" "DDU" -FallbackUrl "https://www.wagnardsoft.com/display-driver-uninstaller-DDU-" }
+        Add-GuiBackgroundBtn $p "mVolt" { Invoke-DownloadLatestRelease -RepoOwner "b00nz" -RepoName "mVolt" -Label "mVolt" } @('Invoke-DownloadLatestRelease') $null "InstallButtonStyle"
     } "&#xE7F4;" -WrapButtons
     Add-GuiCard "AMD" (T "AMD GPU tools.") {
         param($p)
-        Add-GuiBtn $p "RadeonSlimmer" "InstallButtonStyle" { Invoke-InstallWingetApp "" "RadeonSoftwareSlimmer" -FallbackUrl "https://github.com/GSDragoon/RadeonSoftwareSlimmer/releases/latest" }
+        Add-GuiBackgroundBtn $p "RadeonSlimmer" { Invoke-DownloadLatestRelease -RepoOwner "GSDragoon" -RepoName "RadeonSoftwareSlimmer" -AssetPattern "*net48*.zip" -Label "RadeonSlimmer" } @('Invoke-DownloadLatestRelease') $null "InstallButtonStyle"
         Add-GuiBtn $p "MorePowerTool" "InstallButtonStyle" { Invoke-InstallWingetApp "" "MorePowerTool" -FallbackUrl "https://www.igorslab.de/en/red-bios-rebellion-team/2/#Downloads" }
     } "&#xE7F4;" -WrapButtons
     Add-GuiCard "NVIDIA" (T "NVIDIA GPU tools.") {
         param($p)
-        Add-GuiBtn $p "NVCleanstall" "InstallButtonStyle" { Invoke-InstallWingetApp "TechPowerUp.NVCleanstall" "NVCleanstall" -FallbackUrl "https://www.techpowerup.com/download/techpowerup-nvcleanstall/" }
-        Add-GuiBtn $p "NvidiaInspector" "InstallButtonStyle" { Invoke-InstallWingetApp "" "NvidiaProfileInspector" -FallbackUrl "https://github.com/Orbmu2k/nvidiaProfileInspector/releases/latest" }
+        Add-GuiBackgroundBtn $p "NVCleanstall" { Invoke-DownloadTechPowerUpApp -Url "https://www.techpowerup.com/download/techpowerup-nvcleanstall/" -Label "NVCleanstall" } @('Invoke-DownloadTechPowerUpApp') $null "InstallButtonStyle"
+        Add-GuiBackgroundBtn $p "Nvidia Profile Inspector" { Invoke-DownloadLatestRelease -RepoOwner "Orbmu2k" -RepoName "nvidiaProfileInspector" -AssetPattern "*.zip" -Label "Nvidia Profile Inspector" } @('Invoke-DownloadLatestRelease') $null "InstallButtonStyle"
+        Add-GuiBackgroundBtn $p "NvidiaInspector" { Invoke-DownloadTechPowerUpApp -Url "https://www.techpowerup.com/download/nvidia-inspector/" -Label "NvidiaInspector" } @('Invoke-DownloadTechPowerUpApp') $null "InstallButtonStyle"
     } "&#xE7F4;" -WrapButtons
 }

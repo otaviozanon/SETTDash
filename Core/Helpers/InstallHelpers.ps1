@@ -48,32 +48,23 @@ function Invoke-InstallWingetApp {
         catch { Write-GuiLog ((T "Failed to open {0} website: {1}") -f $Name, $_.Exception.Message) "ERR" }
     } else { Write-GuiLog ((T "{0} : no fallback URL available") -f $Name) "ERR" }
 }
-# Used by: Utilities ("SETT Memory Cleaner", "SETT Metter", "SETT Converter") and Installers ("SettVPN", "SETT Metter", "SETT Converter")
-# Downloads the newest asset of a repo's latest GitHub release to the Desktop and launches it, so
-# the button always delivers the current build instead of a version pinned here. Runs in a
-# background job (Add-GuiBackgroundBtn): the progress bar follows the transfer and the window
-# keeps painting while a large .exe is fetched.
-function Invoke-DownloadLatestRelease {
-    param([string]$RepoOwner, [string]$RepoName, [string]$AssetPattern = "*.exe", [string]$Label = $RepoName)
-    Write-GuiLog ((T "Looking up the latest {0} release on GitHub...") -f $Label) "STEP"
+# Used by: Invoke-DownloadLatestRelease and direct-download buttons (Uninstalr)
+# Streams $Url to the Desktop with the progress bar and opens the saved file. Downloads to the
+# runtime folder first, so a cancelled/failed transfer never leaves a broken file on the Desktop.
+function Invoke-DownloadDirectFile {
+    param([string]$Url, [string]$FileName, [string]$Label = $FileName, [long]$Size = 0)
     try {
-        # GitHub requires TLS 1.2, which .NET Framework (the WinPS 5.1 host) does not negotiate by default.
+        # HTTPS needs TLS 1.2, which .NET Framework (the WinPS 5.1 host) does not negotiate by default.
         [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor [System.Net.SecurityProtocolType]::Tls12
-        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest" `
-            -Headers @{ "User-Agent" = "SETTDash" } -TimeoutSec 15
-        $asset = @($release.assets) | Where-Object { $_.name -like $AssetPattern } | Select-Object -First 1
-        if (-not $asset) { throw "no asset matching '$AssetPattern' in release $($release.tag_name)" }
-        # Download to the runtime folder first: a cancelled/failed transfer never leaves a broken
-        # .exe on the Desktop, and the move is the only step that touches what the user sees.
-        $tmp = Join-Path $Script:TempDir $asset.name
-        $dest = Join-Path ([Environment]::GetFolderPath("Desktop")) $asset.name
-        Set-GuiProgress 0 ((T "Downloading {0} ({1})...") -f $asset.name, $release.tag_name)
-        $req = [System.Net.HttpWebRequest]::Create($asset.browser_download_url)
+        $tmp = Join-Path $Script:TempDir $FileName
+        $dest = Join-Path ([Environment]::GetFolderPath("Desktop")) $FileName
+        Set-GuiProgress 0 ((T "Downloading {0}...") -f $FileName)
+        $req = [System.Net.HttpWebRequest]::Create($Url)
         $req.UserAgent = "SETTDash"
         $resp = $req.GetResponse()
         try {
-            # Chunked responses report -1; the release metadata always carries the real size.
-            $total = if ($resp.ContentLength -gt 0) { [long]$resp.ContentLength } else { [long]$asset.size }
+            # Chunked responses report -1; callers that know the real size pass it in.
+            $total = if ($resp.ContentLength -gt 0) { [long]$resp.ContentLength } else { $Size }
             $in = $resp.GetResponseStream()
             $out = [System.IO.File]::Create($tmp)
             try {
@@ -88,7 +79,67 @@ function Invoke-DownloadLatestRelease {
         } finally { $resp.Dispose() }
         Move-Item -LiteralPath $tmp -Destination $dest -Force
         Set-GuiProgress 100
-        Write-GuiLog ((T "{0} {1} saved to Desktop") -f $Label, $release.tag_name) "OK"
+        Write-GuiLog ((T "{0} saved to Desktop") -f $Label) "OK"
+        Start-Process $dest
+    } catch {
+        Set-GuiProgress 0
+        Write-GuiLog ((T "{0} download failed: {1}") -f $Label, $_.Exception.Message) "ERR"
+    }
+}
+# Used by: Utilities ("SETT Memory Cleaner", "SETT Metter", "SETT VPN", "SETT Converter"), GpuSoftware (mVolt, GPU-Z, NVCleanstall, Nvidia Profile Inspector, RadeonSlimmer) and Installers (SETT apps, YTSage, Nusa, LuaTools)
+# Downloads the newest asset of a repo's latest GitHub release to the Desktop and launches it, so
+# the button always delivers the current build instead of a version pinned here. Runs in a
+# background job (Add-GuiBackgroundBtn): the progress bar follows the transfer and the window
+# keeps painting while a large .exe is fetched.
+function Invoke-DownloadLatestRelease {
+    param([string]$RepoOwner, [string]$RepoName, [string]$AssetPattern = "*.exe", [string]$Label = $RepoName)
+    Write-GuiLog ((T "Looking up the latest {0} release on GitHub...") -f $Label) "STEP"
+    try {
+        # GitHub requires TLS 1.2, which .NET Framework (the WinPS 5.1 host) does not negotiate by default.
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor [System.Net.SecurityProtocolType]::Tls12
+        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest" `
+            -Headers @{ "User-Agent" = "SETTDash" } -TimeoutSec 15
+        $asset = @($release.assets) | Where-Object { $_.name -like $AssetPattern } | Select-Object -First 1
+        if (-not $asset) { throw "no asset matching '$AssetPattern' in release $($release.tag_name)" }
+        Invoke-DownloadDirectFile -Url $asset.browser_download_url -FileName $asset.name -Size $asset.size -Label "$Label $($release.tag_name)"
+    } catch {
+        Set-GuiProgress 0
+        Write-GuiLog ((T "{0} download failed: {1}") -f $Label, $_.Exception.Message) "ERR"
+    }
+}
+# Used by: GpuSoftware ("NvidiaInspector", GPU-Z, NVCleanstall), CPU (ThrottleStop)
+# TechPowerUp has no stable file URL: the download is a two-step POST (version id, then mirror
+# server id) that returns the file itself, so both ids are read from the app page and posted back.
+# Saves to the Desktop and opens the file, same as the GitHub downloader above.
+function Invoke-DownloadTechPowerUpApp {
+    param([string]$Url, [string]$Label)
+    Write-GuiLog ((T "Looking up the latest {0} download on TechPowerUp...") -f $Label) "STEP"
+    try {
+        # TechPowerUp requires TLS 1.2, which .NET Framework (the WinPS 5.1 host) does not negotiate by default.
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor [System.Net.SecurityProtocolType]::Tls12
+        $wc = New-Object System.Net.WebClient
+        $wc.Headers.Add("User-Agent", "SETTDash")
+        try {
+            $page = $wc.DownloadString($Url)
+            $id = [regex]::Match($page, 'name="id" value="(\d+)"').Groups[1].Value
+            $file = [regex]::Match($page, '<div class="filename"[^>]*>([^<]+)</div>').Groups[1].Value
+            if (-not $id -or -not $file) { throw "could not read the download form" }
+            $form = New-Object System.Collections.Specialized.NameValueCollection
+            $form["id"] = $id
+            $mirrors = [System.Text.Encoding]::UTF8.GetString($wc.UploadValues($Url, "POST", $form))
+            $server = [regex]::Match($mirrors, 'name="server_id" value="(\d+)"').Groups[1].Value
+            if (-not $server) { throw "no mirror server listed" }
+            Set-GuiProgress 0 ((T "Downloading {0}...") -f $file)
+            $form["server_id"] = $server
+            $bytes = $wc.UploadValues($Url, "POST", $form)
+        } finally { $wc.Dispose() }
+        # Download to the runtime folder first, so a failed write never leaves a broken file on the Desktop.
+        $tmp = Join-Path $Script:TempDir $file
+        $dest = Join-Path ([Environment]::GetFolderPath("Desktop")) $file
+        [System.IO.File]::WriteAllBytes($tmp, $bytes)
+        Move-Item -LiteralPath $tmp -Destination $dest -Force
+        Set-GuiProgress 100
+        Write-GuiLog ((T "{0} saved to Desktop") -f $file) "OK"
         Start-Process $dest
     } catch {
         Set-GuiProgress 0
